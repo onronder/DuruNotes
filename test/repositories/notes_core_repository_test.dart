@@ -168,78 +168,108 @@ void main() {
       SecurityTestSetup.teardownEncryption();
     });
 
-    test('getNoteById returns hydrated domain note when record exists', () async {
-      final note = _buildDomainNote(id: 'note-1', title: 'Encrypted Note');
+    test(
+      'getNoteById returns hydrated domain note when record exists',
+      () async {
+        final note = _buildDomainNote(id: 'note-1', title: 'Encrypted Note');
 
-      await harness.db.into(harness.db.localNotes).insert(
-            LocalNotesCompanion.insert(
-              id: note.id,
-              titleEncrypted: Value(await harness.encrypt(note.id, note.title)),
-              bodyEncrypted: Value(await harness.encrypt(note.id, note.body)),
-              createdAt: note.createdAt,
-              updatedAt: note.updatedAt,
-              userId: Value(harness.userId),
-              noteType: Value(NoteKind.note),
-              encryptionVersion: const Value(1),
-            ),
-          );
+        await harness.db
+            .into(harness.db.localNotes)
+            .insert(
+              LocalNotesCompanion.insert(
+                id: note.id,
+                titleEncrypted: Value(
+                  await harness.encrypt(note.id, note.title),
+                ),
+                bodyEncrypted: Value(await harness.encrypt(note.id, note.body)),
+                createdAt: note.createdAt,
+                updatedAt: note.updatedAt,
+                userId: Value(harness.userId),
+                noteType: Value(NoteKind.note),
+                encryptionVersion: const Value(1),
+              ),
+            );
 
-      final result = await harness.repository.getNoteById(note.id);
+        final result = await harness.repository.getNoteById(note.id);
 
-      expect(result, isNotNull);
-      expect(result!.id, note.id);
-      expect(result.title, note.title);
-      expect(result.body, note.body);
-      expect(result.isPinned, isFalse);
-    });
+        expect(result, isNotNull);
+        expect(result!.id, note.id);
+        expect(result.title, note.title);
+        expect(result.body, note.body);
+        expect(result.isPinned, isFalse);
+      },
+    );
 
     test('getNoteById returns null for missing record', () async {
       final result = await harness.repository.getNoteById('missing');
       expect(result, isNull);
     });
 
-    test('listAfter orders pinned notes before others and respects limit', () async {
-      final dates = List.generate(
-        6,
-        (i) => DateTime.utc(2025, 1, 1, 12, i),
-      );
+    test(
+      'listAfter orders pinned notes before others and respects limit',
+      () async {
+        final dates = List.generate(6, (i) => DateTime.utc(2025, 1, 1, 12, i));
 
-      Future<void> insert(domain.Note note) async {
-        final titleEncrypted = await harness.encrypt(note.id, note.title);
-        final bodyEncrypted = await harness.encrypt(note.id, note.body);
-        await harness.db.into(harness.db.localNotes).insert(
-              LocalNotesCompanion.insert(
-                id: note.id,
-                titleEncrypted: Value(titleEncrypted),
-                bodyEncrypted: Value(bodyEncrypted),
-                createdAt: note.createdAt,
-                updatedAt: note.updatedAt,
-                userId: Value(harness.userId),
-                noteType: Value(NoteKind.note),
-                encryptionVersion: const Value(1),
-                isPinned: Value(note.isPinned),
-              ),
-            );
-      }
+        Future<void> insert(domain.Note note) async {
+          final titleEncrypted = await harness.encrypt(note.id, note.title);
+          final bodyEncrypted = await harness.encrypt(note.id, note.body);
+          await harness.db
+              .into(harness.db.localNotes)
+              .insert(
+                LocalNotesCompanion.insert(
+                  id: note.id,
+                  titleEncrypted: Value(titleEncrypted),
+                  bodyEncrypted: Value(bodyEncrypted),
+                  createdAt: note.createdAt,
+                  updatedAt: note.updatedAt,
+                  userId: Value(harness.userId),
+                  noteType: Value(NoteKind.note),
+                  encryptionVersion: const Value(1),
+                  isPinned: Value(note.isPinned),
+                ),
+              );
+        }
 
-      await insert(_buildDomainNote(id: 'note-1', title: 'One', updatedAt: dates[0]));
-      await insert(_buildDomainNote(id: 'note-2', title: 'Two', updatedAt: dates[1], isPinned: true));
-      await insert(_buildDomainNote(id: 'note-3', title: 'Three', updatedAt: dates[2]));
+        await insert(
+          _buildDomainNote(id: 'note-1', title: 'One', updatedAt: dates[0]),
+        );
+        await insert(
+          _buildDomainNote(
+            id: 'note-2',
+            title: 'Two',
+            updatedAt: dates[1],
+            isPinned: true,
+          ),
+        );
+        await insert(
+          _buildDomainNote(id: 'note-3', title: 'Three', updatedAt: dates[2]),
+        );
 
-      final results = await harness.repository.listAfter(null, limit: 2);
+        final results = await harness.repository.listAfter(null, limit: 2);
 
-      expect(results, hasLength(2));
-      expect(results.first.id, 'note-2', reason: 'Pinned note should come first');
-      expect(results.last.id, anyOf('note-1', 'note-3'));
-    });
+        expect(results, hasLength(2));
+        expect(
+          results.first.id,
+          'note-2',
+          reason: 'Pinned note should come first',
+        );
+        expect(results.last.id, anyOf('note-1', 'note-3'));
+      },
+    );
 
     test('listAfter respects cursor and excludes deleted notes', () async {
       final base = DateTime.utc(2025, 1, 1, 10);
-      Future<void> insert(String id, {bool deleted = false, int minutes = 0}) async {
+      Future<void> insert(
+        String id, {
+        bool deleted = false,
+        int minutes = 0,
+      }) async {
         final noteId = id;
         final titleEncrypted = await harness.encrypt(noteId, 'title-$id');
         final bodyEncrypted = await harness.encrypt(noteId, 'body-$id');
-        await harness.db.into(harness.db.localNotes).insert(
+        await harness.db
+            .into(harness.db.localNotes)
+            .insert(
               LocalNotesCompanion.insert(
                 id: noteId,
                 titleEncrypted: Value(titleEncrypted),
@@ -278,32 +308,47 @@ void main() {
       expect(created?.title, 'New Title');
     });
 
-    test('createOrUpdate updates existing record and retains encryption version', () async {
-      final existingId = 'existing';
+    test(
+      'createOrUpdate updates existing record and retains encryption version',
+      () async {
+        final existingId = 'existing';
 
-      await harness.db.into(harness.db.localNotes).insert(
-            LocalNotesCompanion.insert(
-              id: existingId,
-              titleEncrypted: Value(await harness.encrypt(existingId, 'old title')),
-              bodyEncrypted: Value(await harness.encrypt(existingId, 'old body')),
-              createdAt: DateTime.utc(2025, 1, 1),
-              updatedAt: DateTime.utc(2025, 1, 1),
-              userId: Value(harness.userId),
-              noteType: Value(NoteKind.note),
-              encryptionVersion: const Value(99),
-            ),
-          );
+        await harness.db
+            .into(harness.db.localNotes)
+            .insert(
+              LocalNotesCompanion.insert(
+                id: existingId,
+                titleEncrypted: Value(
+                  await harness.encrypt(existingId, 'old title'),
+                ),
+                bodyEncrypted: Value(
+                  await harness.encrypt(existingId, 'old body'),
+                ),
+                createdAt: DateTime.utc(2025, 1, 1),
+                updatedAt: DateTime.utc(2025, 1, 1),
+                userId: Value(harness.userId),
+                noteType: Value(NoteKind.note),
+                encryptionVersion: const Value(99),
+              ),
+            );
 
-      final updated = await harness.repository.createOrUpdate(
-        id: existingId,
-        title: 'Updated Title',
-        body: 'Updated Body',
-      );
+        final updated = await harness.repository.createOrUpdate(
+          id: existingId,
+          title: 'Updated Title',
+          body: 'Updated Body',
+        );
 
-      final stored = await harness.db.select(harness.db.localNotes).getSingle();
-      expect(stored.id, existingId);
-      expect(stored.encryptionVersion, 1, reason: 'Encryption version should reset to current version');
-      expect(updated?.title, 'Updated Title');
-    });
+        final stored = await harness.db
+            .select(harness.db.localNotes)
+            .getSingle();
+        expect(stored.id, existingId);
+        expect(
+          stored.encryptionVersion,
+          1,
+          reason: 'Encryption version should reset to current version',
+        );
+        expect(updated?.title, 'Updated Title');
+      },
+    );
   });
 }

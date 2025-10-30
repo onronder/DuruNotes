@@ -171,11 +171,13 @@ class _MockNotesCoreRepository extends Mock implements NotesCoreRepository {}
 
 class _MockUndoRedoService extends Mock implements UndoRedoService {
   @override
-  Future<bool> undo() => super.noSuchMethod(
-        Invocation.method(#undo, []),
-        returnValue: Future<bool>.value(true),
-        returnValueForMissingStub: Future<bool>.value(true),
-      ) as Future<bool>;
+  Future<bool> undo() =>
+      super.noSuchMethod(
+            Invocation.method(#undo, []),
+            returnValue: Future<bool>.value(true),
+            returnValueForMissingStub: Future<bool>.value(true),
+          )
+          as Future<bool>;
 }
 
 class _TrackingCurrentFolderNotifier extends CurrentFolderNotifier {}

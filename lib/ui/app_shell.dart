@@ -54,7 +54,10 @@ class _AppShellState extends ConsumerState<AppShell> {
           .map(
             (destination) => NavigationDestination(
               icon: Icon(destination.icon),
-              selectedIcon: Icon(destination.selectedIcon, color: DuruColors.primary),
+              selectedIcon: Icon(
+                destination.selectedIcon,
+                color: DuruColors.primary,
+              ),
               label: destination.label,
             ),
           )
@@ -63,10 +66,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       onDestinationSelected: (value) {
         setState(() => _selectedIndex = value);
       },
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _screens),
     );
   }
 }

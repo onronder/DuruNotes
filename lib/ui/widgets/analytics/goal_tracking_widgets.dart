@@ -43,11 +43,7 @@ class ProductivityGoalCard extends StatelessWidget {
                       color: progressColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      goal.type.icon,
-                      color: progressColor,
-                      size: 20,
-                    ),
+                    child: Icon(goal.type.icon, color: progressColor, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -72,7 +68,9 @@ class ProductivityGoalCard extends StatelessWidget {
                   if (goal.isOverdue)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -148,10 +146,7 @@ class ProductivityGoalCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Progress',
-                        style: theme.textTheme.labelMedium,
-                      ),
+                      Text('Progress', style: theme.textTheme.labelMedium),
                       Text(
                         '${goal.currentValue.toStringAsFixed(goal.type == GoalType.tasksCompleted ? 0 : 1)} / ${goal.targetValue.toStringAsFixed(goal.type == GoalType.tasksCompleted ? 0 : 1)} ${goal.type.unit}',
                         style: theme.textTheme.labelMedium?.copyWith(
@@ -206,10 +201,7 @@ class ProductivityGoalCard extends StatelessWidget {
 
 /// Widget for creating new productivity goals
 class CreateGoalDialog extends StatefulWidget {
-  const CreateGoalDialog({
-    super.key,
-    required this.onGoalCreated,
-  });
+  const CreateGoalDialog({super.key, required this.onGoalCreated});
 
   final void Function(ProductivityGoal) onGoalCreated;
 
@@ -555,10 +547,7 @@ class GoalProgressWidget extends StatelessWidget {
 
 /// Achievement celebration widget
 class AchievementCard extends StatelessWidget {
-  const AchievementCard({
-    super.key,
-    required this.achievement,
-  });
+  const AchievementCard({super.key, required this.achievement});
 
   final ProductivityAchievement achievement;
 
@@ -711,17 +700,16 @@ class GoalsOverviewWidget extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                TextButton(
-                  onPressed: onViewAll,
-                  child: const Text('View All'),
-                ),
+                TextButton(onPressed: onViewAll, child: const Text('View All')),
               ],
             ),
             const SizedBox(height: 16),
-            ...activeGoals.map((goal) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: GoalProgressWidget(goal: goal),
-                )),
+            ...activeGoals.map(
+              (goal) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: GoalProgressWidget(goal: goal),
+              ),
+            ),
             if (goals.length > 3)
               Text(
                 '+${goals.length - 3} more goals',
@@ -775,23 +763,26 @@ class SuggestedGoalsWidget extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...suggestedGoals.map((goal) => Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                        color: colorScheme.outline.withValues(alpha: 0.2)),
-                    borderRadius: BorderRadius.circular(8),
+            ...suggestedGoals.map(
+              (goal) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: colorScheme.outline.withValues(alpha: 0.2),
                   ),
-                  child: ListTile(
-                    leading: Icon(goal.type.icon, color: colorScheme.primary),
-                    title: Text(goal.title),
-                    subtitle: Text(goal.description),
-                    trailing: FilledButton(
-                      onPressed: () => onGoalSelected(goal),
-                      child: const Text('Add'),
-                    ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  leading: Icon(goal.type.icon, color: colorScheme.primary),
+                  title: Text(goal.title),
+                  subtitle: Text(goal.description),
+                  trailing: FilledButton(
+                    onPressed: () => onGoalSelected(goal),
+                    child: const Text('Add'),
                   ),
-                )),
+                ),
+              ),
+            ),
           ],
         ),
       ),

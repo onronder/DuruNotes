@@ -30,14 +30,15 @@ class NoteFolderIntegrationService {
       final prefs = await SharedPreferences.getInstance();
       final recentFolders = prefs.getStringList(_recentFoldersKey) ?? [];
 
-      _logger.debug('Retrieved recent folders', data: {
-        'count': recentFolders.length,
-        'folders': recentFolders,
-      });
+      _logger.debug(
+        'Retrieved recent folders',
+        data: {'count': recentFolders.length, 'folders': recentFolders},
+      );
 
       return recentFolders;
     } catch (e, stackTrace) {
-      _logger.error('Failed to get recent folders',
+      _logger.error(
+        'Failed to get recent folders',
         error: e,
         stackTrace: stackTrace,
         data: {'operation': 'getRecentFolders'},
@@ -69,10 +70,10 @@ class NoteFolderIntegrationService {
 
       await prefs.setStringList(_recentFoldersKey, recentFolders);
 
-      _logger.info('Added folder to recent folders', data: {
-        'folderId': folderId,
-        'recentCount': recentFolders.length,
-      });
+      _logger.info(
+        'Added folder to recent folders',
+        data: {'folderId': folderId, 'recentCount': recentFolders.length},
+      );
 
       // Track analytics
       analyticsService.event(
@@ -83,7 +84,8 @@ class NoteFolderIntegrationService {
         },
       );
     } catch (e, stackTrace) {
-      _logger.error('Failed to add folder to recent folders',
+      _logger.error(
+        'Failed to add folder to recent folders',
         error: e,
         stackTrace: stackTrace,
         data: {'folderId': folderId},
@@ -102,10 +104,10 @@ class NoteFolderIntegrationService {
     final stopwatch = Stopwatch()..start();
 
     try {
-      _logger.info('Starting batch move operation', data: {
-        'noteCount': noteIds.length,
-        'targetFolderId': folderId,
-      });
+      _logger.info(
+        'Starting batch move operation',
+        data: {'noteCount': noteIds.length, 'targetFolderId': folderId},
+      );
 
       var successCount = 0;
       var errorCount = 0;
@@ -123,19 +125,19 @@ class NoteFolderIntegrationService {
 
           successCount++;
 
-          _logger.debug('Moved note successfully', data: {
-            'noteId': noteId,
-            'folderId': folderId,
-          });
+          _logger.debug(
+            'Moved note successfully',
+            data: {'noteId': noteId, 'folderId': folderId},
+          );
         } catch (e) {
           errorCount++;
           final errorMsg = 'Failed to move note $noteId: $e';
           errors.add(errorMsg);
 
-          _logger.warning(errorMsg, data: {
-            'noteId': noteId,
-            'folderId': folderId,
-          });
+          _logger.warning(
+            errorMsg,
+            data: {'noteId': noteId, 'folderId': folderId},
+          );
         }
 
         // Update progress
@@ -154,11 +156,14 @@ class NoteFolderIntegrationService {
         duration: stopwatch.elapsed,
       );
 
-      _logger.info('Completed batch move operation', data: {
-        'successCount': successCount,
-        'errorCount': errorCount,
-        'duration': stopwatch.elapsedMilliseconds,
-      });
+      _logger.info(
+        'Completed batch move operation',
+        data: {
+          'successCount': successCount,
+          'errorCount': errorCount,
+          'duration': stopwatch.elapsedMilliseconds,
+        },
+      );
 
       // Track analytics
       analyticsService.event(
@@ -176,7 +181,8 @@ class NoteFolderIntegrationService {
     } catch (e, stackTrace) {
       stopwatch.stop();
 
-      _logger.error('Batch move operation failed',
+      _logger.error(
+        'Batch move operation failed',
         error: e,
         stackTrace: stackTrace,
         data: {
@@ -203,7 +209,8 @@ class NoteFolderIntegrationService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_folderFilterKey);
     } catch (e, stackTrace) {
-      _logger.error('Failed to get folder filter preference',
+      _logger.error(
+        'Failed to get folder filter preference',
         error: e,
         stackTrace: stackTrace,
       );
@@ -224,9 +231,10 @@ class NoteFolderIntegrationService {
         await prefs.remove(_folderFilterKey);
       }
 
-      _logger.info('Set folder filter preference', data: {
-        'folderId': folderId,
-      });
+      _logger.info(
+        'Set folder filter preference',
+        data: {'folderId': folderId},
+      );
 
       // Track analytics
       analyticsService.event(
@@ -237,7 +245,8 @@ class NoteFolderIntegrationService {
         },
       );
     } catch (e, stackTrace) {
-      _logger.error('Failed to set folder filter preference',
+      _logger.error(
+        'Failed to set folder filter preference',
         error: e,
         stackTrace: stackTrace,
         data: {'folderId': folderId},
@@ -253,7 +262,8 @@ class NoteFolderIntegrationService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool(_includeSubfoldersKey) ?? true;
     } catch (e, stackTrace) {
-      _logger.error('Failed to get include subfolders preference',
+      _logger.error(
+        'Failed to get include subfolders preference',
         error: e,
         stackTrace: stackTrace,
       );
@@ -269,19 +279,19 @@ class NoteFolderIntegrationService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_includeSubfoldersKey, include);
 
-      _logger.info('Set include subfolders preference', data: {
-        'include': include,
-      });
+      _logger.info(
+        'Set include subfolders preference',
+        data: {'include': include},
+      );
 
       // Track analytics
       analyticsService.event(
         'include_subfolders_changed',
-        properties: {
-          'include': include,
-        },
+        properties: {'include': include},
       );
     } catch (e, stackTrace) {
-      _logger.error('Failed to set include subfolders preference',
+      _logger.error(
+        'Failed to set include subfolders preference',
         error: e,
         stackTrace: stackTrace,
         data: {'include': include},
@@ -296,27 +306,33 @@ class NoteFolderIntegrationService {
     try {
       final domainFolders = await _folderRepository.listFolders();
 
-      _logger.debug('Retrieved folders hierarchy', data: {
-        'folderCount': domainFolders.length,
-      });
+      _logger.debug(
+        'Retrieved folders hierarchy',
+        data: {'folderCount': domainFolders.length},
+      );
 
       // Convert domain.Folder to LocalFolder for compatibility
-      return domainFolders.map((df) => LocalFolder(
-        id: df.id,
-        userId: df.userId,
-        name: df.name,
-        parentId: df.parentId,
-        path: '', // path is computed by database triggers
-        color: df.color ?? '#048ABF',
-        icon: df.icon ?? 'folder',
-        description: df.description ?? '',
-        sortOrder: df.sortOrder,
-        createdAt: df.createdAt,
-        updatedAt: df.updatedAt,
-        deleted: false,
-      )).toList();
+      return domainFolders
+          .map(
+            (df) => LocalFolder(
+              id: df.id,
+              userId: df.userId,
+              name: df.name,
+              parentId: df.parentId,
+              path: '', // path is computed by database triggers
+              color: df.color ?? '#048ABF',
+              icon: df.icon ?? 'folder',
+              description: df.description ?? '',
+              sortOrder: df.sortOrder,
+              createdAt: df.createdAt,
+              updatedAt: df.updatedAt,
+              deleted: false,
+            ),
+          )
+          .toList();
     } catch (e, stackTrace) {
-      _logger.error('Failed to get folders hierarchy',
+      _logger.error(
+        'Failed to get folders hierarchy',
         error: e,
         stackTrace: stackTrace,
       );
@@ -337,7 +353,8 @@ class NoteFolderIntegrationService {
       // Track analytics
       analyticsService.event('recent_folders_cleared');
     } catch (e, stackTrace) {
-      _logger.error('Failed to clear recent folders',
+      _logger.error(
+        'Failed to clear recent folders',
         error: e,
         stackTrace: stackTrace,
       );

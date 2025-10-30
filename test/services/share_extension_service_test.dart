@@ -40,20 +40,25 @@ void main() {
 
     when(mockLogger.info(any, data: anyNamed('data'))).thenReturn(null);
     when(mockLogger.warning(any, data: anyNamed('data'))).thenReturn(null);
-    when(mockLogger.error(
-      any,
-      error: anyNamed('error'),
-      stackTrace: anyNamed('stackTrace'),
-      data: anyNamed('data'),
-    )).thenReturn(null);
+    when(
+      mockLogger.error(
+        any,
+        error: anyNamed('error'),
+        stackTrace: anyNamed('stackTrace'),
+        data: anyNamed('data'),
+      ),
+    ).thenReturn(null);
 
-    when(mockAnalytics.event(any, properties: anyNamed('properties')))
-        .thenReturn(null);
-    when(mockAnalytics.featureUsed(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.event(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
+    when(
+      mockAnalytics.featureUsed(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
     when(mockAnalytics.startTiming(any)).thenReturn(null);
-    when(mockAnalytics.endTiming(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.endTiming(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
 
     ReceiveSharingIntent.setMockValues(
       initialMedia: const [],
@@ -76,23 +81,27 @@ void main() {
         mediaStream: controller.stream,
       );
 
-      when(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-        tags: anyNamed('tags'),
-        metadataJson: anyNamed('metadataJson'),
-      )).thenAnswer((invocation) async => domain.Note(
-            id: 'shared-text-note',
-            title: invocation.namedArguments[#title] as String,
-            body: invocation.namedArguments[#body] as String,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            deleted: false,
-            isPinned: false,
-            noteType: NoteKind.note,
-            version: 1,
-            userId: 'user-123',
-          ));
+      when(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: anyNamed('body'),
+          tags: anyNamed('tags'),
+          metadataJson: anyNamed('metadataJson'),
+        ),
+      ).thenAnswer(
+        (invocation) async => domain.Note(
+          id: 'shared-text-note',
+          title: invocation.namedArguments[#title] as String,
+          body: invocation.namedArguments[#body] as String,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deleted: false,
+          isPinned: false,
+          noteType: NoteKind.note,
+          version: 1,
+          userId: 'user-123',
+        ),
+      );
 
       await shareService.initialize();
 
@@ -105,14 +114,20 @@ void main() {
 
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
-      verify(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: argThat(contains('Action items'), named: 'body'),
-        tags: anyNamed('tags'),
-        metadataJson: anyNamed('metadataJson'),
-      )).called(1);
-      verify(mockAnalytics.event('share_extension.text_received', properties: anyNamed('properties')))
-          .called(1);
+      verify(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: argThat(contains('Action items'), named: 'body'),
+          tags: anyNamed('tags'),
+          metadataJson: anyNamed('metadataJson'),
+        ),
+      ).called(1);
+      verify(
+        mockAnalytics.event(
+          'share_extension.text_received',
+          properties: anyNamed('properties'),
+        ),
+      ).called(1);
 
       await controller.close();
     });
@@ -127,55 +142,64 @@ void main() {
       final tempImage = File('${Directory.systemTemp.path}/shared_image.jpg')
         ..writeAsBytesSync(List<int>.filled(10, 1));
 
-      when(mockAttachmentService.uploadFromBytes(
-        bytes: anyNamed('bytes'),
-        filename: anyNamed('filename'),
-      )).thenAnswer((_) async => AttachmentBlockData(
-            fileName: 'shared_image.jpg',
-            fileSize: 10,
-            mimeType: 'image/jpeg',
-            url: 'https://example.com/shared_image.jpg',
-          ));
+      when(
+        mockAttachmentService.uploadFromBytes(
+          bytes: anyNamed('bytes'),
+          filename: anyNamed('filename'),
+        ),
+      ).thenAnswer(
+        (_) async => AttachmentBlockData(
+          fileName: 'shared_image.jpg',
+          fileSize: 10,
+          mimeType: 'image/jpeg',
+          url: 'https://example.com/shared_image.jpg',
+        ),
+      );
 
-      when(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-        tags: anyNamed('tags'),
-        metadataJson: anyNamed('metadataJson'),
-      )).thenAnswer((invocation) async => domain.Note(
-            id: 'shared-image-note',
-            title: invocation.namedArguments[#title] as String,
-            body: invocation.namedArguments[#body] as String,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            deleted: false,
-            isPinned: false,
-            noteType: NoteKind.note,
-            version: 1,
-            userId: 'user-123',
-          ));
+      when(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: anyNamed('body'),
+          tags: anyNamed('tags'),
+          metadataJson: anyNamed('metadataJson'),
+        ),
+      ).thenAnswer(
+        (invocation) async => domain.Note(
+          id: 'shared-image-note',
+          title: invocation.namedArguments[#title] as String,
+          body: invocation.namedArguments[#body] as String,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deleted: false,
+          isPinned: false,
+          noteType: NoteKind.note,
+          version: 1,
+          userId: 'user-123',
+        ),
+      );
 
       await shareService.initialize();
 
       controller.add([
-        SharedMediaFile(
-          path: tempImage.path,
-          type: SharedMediaType.image,
-        ),
+        SharedMediaFile(path: tempImage.path, type: SharedMediaType.image),
       ]);
 
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
-      verify(mockAttachmentService.uploadFromBytes(
-        bytes: anyNamed('bytes'),
-        filename: anyNamed('filename'),
-      )).called(1);
-      verify(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: argThat(contains('Shared Image'), named: 'body'),
-        tags: anyNamed('tags'),
-        metadataJson: anyNamed('metadataJson'),
-      )).called(1);
+      verify(
+        mockAttachmentService.uploadFromBytes(
+          bytes: anyNamed('bytes'),
+          filename: anyNamed('filename'),
+        ),
+      ).called(1);
+      verify(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: argThat(contains('Shared Image'), named: 'body'),
+          tags: anyNamed('tags'),
+          metadataJson: anyNamed('metadataJson'),
+        ),
+      ).called(1);
       await controller.close();
       if (tempImage.existsSync()) {
         tempImage.deleteSync();
@@ -192,55 +216,64 @@ void main() {
       final tempFile = File('${Directory.systemTemp.path}/shared.txt')
         ..writeAsBytesSync(utf8.encode('Quarterly metrics attached'));
 
-      when(mockAttachmentService.uploadFromBytes(
-        bytes: anyNamed('bytes'),
-        filename: anyNamed('filename'),
-      )).thenAnswer((_) async => AttachmentBlockData(
-            fileName: 'shared.txt',
-            fileSize: tempFile.lengthSync(),
-            mimeType: 'text/plain',
-            url: 'https://example.com/shared.txt',
-          ));
+      when(
+        mockAttachmentService.uploadFromBytes(
+          bytes: anyNamed('bytes'),
+          filename: anyNamed('filename'),
+        ),
+      ).thenAnswer(
+        (_) async => AttachmentBlockData(
+          fileName: 'shared.txt',
+          fileSize: tempFile.lengthSync(),
+          mimeType: 'text/plain',
+          url: 'https://example.com/shared.txt',
+        ),
+      );
 
-      when(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: anyNamed('body'),
-        tags: anyNamed('tags'),
-        metadataJson: anyNamed('metadataJson'),
-      )).thenAnswer((invocation) async => domain.Note(
-            id: 'shared-file-note',
-            title: invocation.namedArguments[#title] as String,
-            body: invocation.namedArguments[#body] as String,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            deleted: false,
-            isPinned: false,
-            noteType: NoteKind.note,
-            version: 1,
-            userId: 'user-123',
-          ));
+      when(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: anyNamed('body'),
+          tags: anyNamed('tags'),
+          metadataJson: anyNamed('metadataJson'),
+        ),
+      ).thenAnswer(
+        (invocation) async => domain.Note(
+          id: 'shared-file-note',
+          title: invocation.namedArguments[#title] as String,
+          body: invocation.namedArguments[#body] as String,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          deleted: false,
+          isPinned: false,
+          noteType: NoteKind.note,
+          version: 1,
+          userId: 'user-123',
+        ),
+      );
 
       await shareService.initialize();
 
       controller.add([
-        SharedMediaFile(
-          path: tempFile.path,
-          type: SharedMediaType.file,
-        ),
+        SharedMediaFile(path: tempFile.path, type: SharedMediaType.file),
       ]);
 
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
-      verify(mockAttachmentService.uploadFromBytes(
-        bytes: anyNamed('bytes'),
-        filename: anyNamed('filename'),
-      )).called(1);
-      verify(mockNotesRepository.createOrUpdate(
-        title: anyNamed('title'),
-        body: argThat(contains('Shared File'), named: 'body'),
-        tags: anyNamed('tags'),
-        metadataJson: anyNamed('metadataJson'),
-      )).called(1);
+      verify(
+        mockAttachmentService.uploadFromBytes(
+          bytes: anyNamed('bytes'),
+          filename: anyNamed('filename'),
+        ),
+      ).called(1);
+      verify(
+        mockNotesRepository.createOrUpdate(
+          title: anyNamed('title'),
+          body: argThat(contains('Shared File'), named: 'body'),
+          tags: anyNamed('tags'),
+          metadataJson: anyNamed('metadataJson'),
+        ),
+      ).called(1);
 
       await controller.close();
       if (tempFile.existsSync()) {

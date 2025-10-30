@@ -463,11 +463,11 @@ class BatteryInfo {
   });
 
   factory BatteryInfo.unknown() => BatteryInfo(
-        level: 0,
-        state: BatteryState.unknown,
-        isInBatterySaveMode: false,
-        timestamp: DateTime.now(),
-      );
+    level: 0,
+    state: BatteryState.unknown,
+    isInBatterySaveMode: false,
+    timestamp: DateTime.now(),
+  );
   final int level;
   final BatteryState state;
   final bool isInBatterySaveMode;

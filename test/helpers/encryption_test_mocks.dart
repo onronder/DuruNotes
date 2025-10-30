@@ -6,7 +6,8 @@ import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/data/remote/secure_api_wrapper.dart';
 import 'package:duru_notes/services/account_key_service.dart';
-import 'package:duru_notes/services/encryption_sync_service.dart' hide EncryptionException;
+import 'package:duru_notes/services/encryption_sync_service.dart'
+    hide EncryptionException;
 import 'package:duru_notes/services/security/encryption_service.dart'
     as encryption_service;
 import 'package:duru_notes/services/security/proper_encryption_service.dart'
@@ -62,7 +63,9 @@ class MockEncryptionService extends Mock
   }
 
   @override
-  Future<dynamic> decryptData(encryption_service.EncryptedData encryptedData) async {
+  Future<dynamic> decryptData(
+    encryption_service.EncryptedData encryptedData,
+  ) async {
     if (!_encryptionEnabled) {
       throw Exception('Encryption not enabled');
     }
@@ -359,11 +362,7 @@ class MockEncryptionSyncService extends Mock implements EncryptionSyncService {
     _isSetup = isSetup;
   }
 
-  void configure({
-    Uint8List? amk,
-    bool? isSetup,
-    String? password,
-  }) {
+  void configure({Uint8List? amk, bool? isSetup, String? password}) {
     _amk = amk;
     if (isSetup != null) {
       _isSetup = isSetup;
@@ -409,7 +408,6 @@ class MockEncryptionSyncService extends Mock implements EncryptionSyncService {
   Future<void> clearLocalKeys() async {
     _amk = null;
   }
-
 }
 
 /// Lightweight fake of ProperEncryptionService for tests.
@@ -523,10 +521,7 @@ class MockProperEncryptionService implements proper.ProperEncryptionService {
     List<int>? salt,
   }) async {
     final seed = utf8.encode(password);
-    final combined = <int>[
-      ...seed,
-      ...?salt,
-    ];
+    final combined = <int>[...seed, ...?salt];
     final bytes = Uint8List(32);
     for (int i = 0; i < bytes.length; i++) {
       bytes[i] = i < combined.length ? combined[i] & 0xFF : i;
@@ -595,11 +590,7 @@ class MockProperEncryptionService implements proper.ProperEncryptionService {
     String newKeyId,
   ) async {
     final decrypted = await decryptData(data);
-    return encryptData(
-      decrypted,
-      keyId: newKeyId,
-      metadata: data.metadata,
-    );
+    return encryptData(decrypted, keyId: newKeyId, metadata: data.metadata);
   }
 
   @override
@@ -670,7 +661,9 @@ class EncryptionMockFactory {
       secureApiWrapper: MockSecureApiWrapper(encryptionEnabled: true),
       encryptionSyncService: MockEncryptionSyncService(isSetup: true),
       properEncryptionService: MockProperEncryptionService(),
-      accountKeyService: MockAccountKeyService(amk: Uint8List.fromList(utf8.encode('test-amk'))),
+      accountKeyService: MockAccountKeyService(
+        amk: Uint8List.fromList(utf8.encode('test-amk')),
+      ),
       securityAuditTrail: MockSecurityAuditTrail(),
     );
   }

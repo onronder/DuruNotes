@@ -5,7 +5,8 @@ import 'package:duru_notes/features/templates/create_template_dialog.dart';
 import 'package:duru_notes/features/templates/providers/templates_providers.dart'
     show templateCoreRepositoryProvider;
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider;
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/components/platform_adaptive_widgets.dart';
 import 'package:flutter/material.dart';
@@ -14,10 +15,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Dialog for editing existing user templates
 class EditTemplateDialog extends ConsumerStatefulWidget {
-  const EditTemplateDialog({
-    super.key,
-    required this.template,
-  });
+  const EditTemplateDialog({super.key, required this.template});
 
   final LocalTemplate template;
 
@@ -95,7 +93,8 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
     _tagsController.text = tags.join(', ');
 
     // Set icon (try to parse from metadata or use category default)
-    _selectedIcon = _parseIcon(widget.template) ?? _getCategoryIcon(_selectedCategory);
+    _selectedIcon =
+        _parseIcon(widget.template) ?? _getCategoryIcon(_selectedCategory);
   }
 
   void _markChanged() {
@@ -122,10 +121,7 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
       child: Dialog(
         clipBehavior: Clip.hardEdge,
         child: Container(
-          constraints: const BoxConstraints(
-            maxWidth: 600,
-            maxHeight: 700,
-          ),
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
           child: Column(
             children: [
               // Header
@@ -144,11 +140,7 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.edit,
-                      color: colorScheme.onPrimary,
-                      size: 28,
-                    ),
+                    Icon(Icons.edit, color: colorScheme.onPrimary, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -164,7 +156,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                           Text(
                             widget.template.title,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onPrimary.withValues(alpha: 0.8),
+                              color: colorScheme.onPrimary.withValues(
+                                alpha: 0.8,
+                              ),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -203,18 +197,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                 child: TabBar(
                   controller: _tabController,
                   tabs: const [
-                    Tab(
-                      icon: Icon(Icons.info_outline),
-                      text: 'Basic Info',
-                    ),
-                    Tab(
-                      icon: Icon(Icons.article),
-                      text: 'Content',
-                    ),
-                    Tab(
-                      icon: Icon(Icons.tune),
-                      text: 'Settings',
-                    ),
+                    Tab(icon: Icon(Icons.info_outline), text: 'Basic Info'),
+                    Tab(icon: Icon(Icons.article), text: 'Content'),
+                    Tab(icon: Icon(Icons.tune), text: 'Settings'),
                   ],
                 ),
               ),
@@ -284,7 +269,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
 
                     // Save button
                     DuruButton(
-                      onPressed: _isLoading || !_hasChanges ? null : _saveTemplate,
+                      onPressed: _isLoading || !_hasChanges
+                          ? null
+                          : _saveTemplate,
                       variant: DuruButtonVariant.primary,
                       isLoading: _isLoading,
                       child: Row(
@@ -362,7 +349,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: colorScheme.outline.withValues(alpha: 0.5),
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -376,7 +365,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                   title: Text(
                     category.toUpperCase(),
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                       color: isSelected ? colorScheme.primary : null,
                     ),
                   ),
@@ -387,7 +378,8 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                   onTap: () {
                     setState(() {
                       _selectedCategory = category;
-                      if (_selectedIcon == _getCategoryIcon(widget.template.category)) {
+                      if (_selectedIcon ==
+                          _getCategoryIcon(widget.template.category)) {
                         // Update icon if it was using the old category's default
                         _selectedIcon = _getCategoryIcon(category);
                       }
@@ -420,7 +412,8 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
           TextFormField(
             controller: _bodyController,
             decoration: const InputDecoration(
-              hintText: 'Enter your template content here...\n\nTip: Use {{variable}} for placeholders',
+              hintText:
+                  'Enter your template content here...\n\nTip: Use {{variable}} for placeholders',
               border: OutlineInputBorder(),
             ),
             maxLines: 12,
@@ -446,11 +439,7 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.analytics,
-                  color: colorScheme.primary,
-                  size: 20,
-                ),
+                Icon(Icons.analytics, color: colorScheme.primary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -522,36 +511,46 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: [
-                    '{{date}}',
-                    '{{time}}',
-                    '{{datetime}}',
-                    '{{title}}',
-                    '{{name}}',
-                    '{{project}}',
-                  ].map(
-                    (variable) => InkWell(
-                      onTap: () => _insertVariable(variable),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: colorScheme.tertiary.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: colorScheme.tertiary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          variable,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontFamily: 'monospace',
-                            color: colorScheme.tertiary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ).toList(),
+                  children:
+                      [
+                            '{{date}}',
+                            '{{time}}',
+                            '{{datetime}}',
+                            '{{title}}',
+                            '{{name}}',
+                            '{{project}}',
+                          ]
+                          .map(
+                            (variable) => InkWell(
+                              onTap: () => _insertVariable(variable),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.tertiary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: colorScheme.tertiary.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  variable,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontFamily: 'monospace',
+                                    color: colorScheme.tertiary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
                 ),
               ],
             ),
@@ -592,7 +591,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: colorScheme.outline.withValues(alpha: 0.5),
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
             child: GridView.builder(
@@ -625,7 +626,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                       borderRadius: BorderRadius.circular(8),
                       border: isSelected
                           ? Border.all(color: colorScheme.primary)
-                          : Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+                          : Border.all(
+                              color: colorScheme.outline.withValues(alpha: 0.2),
+                            ),
                     ),
                     child: Icon(
                       icon,
@@ -670,11 +673,7 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                         color: _getCategoryColor(_selectedCategory),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(
-                        _selectedIcon,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      child: Icon(_selectedIcon, color: Colors.white, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -701,7 +700,10 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
                               if (_hasChanges) ...[
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: colorScheme.secondary,
                                     borderRadius: BorderRadius.circular(4),
@@ -782,7 +784,9 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Unsaved Changes'),
-        content: const Text('You have unsaved changes. Do you want to discard them?'),
+        content: const Text(
+          'You have unsaved changes. Do you want to discard them?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -812,7 +816,8 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
     final currentPosition = _bodyController.selection.base.offset;
     final currentText = _bodyController.text;
 
-    final newText = currentText.substring(0, currentPosition) +
+    final newText =
+        currentText.substring(0, currentPosition) +
         variable +
         currentText.substring(currentPosition);
 
@@ -827,7 +832,8 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
   Future<void> _saveTemplate() async {
     if (!_formKey.currentState!.validate()) {
       // Find the first tab with validation errors
-      if (_titleController.text.trim().isEmpty || _bodyController.text.trim().isEmpty) {
+      if (_titleController.text.trim().isEmpty ||
+          _bodyController.text.trim().isEmpty) {
         _tabController.animateTo(_titleController.text.trim().isEmpty ? 0 : 1);
       }
       return;
@@ -877,23 +883,29 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
           'template_id': widget.template.id,
           'category': _selectedCategory,
           'has_variables': _hasVariables(_bodyController.text),
-          'content_length_change': _bodyController.text.length - widget.template.body.length,
+          'content_length_change':
+              _bodyController.text.length - widget.template.body.length,
         },
       );
 
       // Track analytics
-      analytics.event('template_updated', properties: {
-        'template_category': _selectedCategory,
-        'has_variables': _hasVariables(_bodyController.text),
-        'content_length': _bodyController.text.length,
-        'has_tags': tags.isNotEmpty,
-      });
+      analytics.event(
+        'template_updated',
+        properties: {
+          'template_category': _selectedCategory,
+          'has_variables': _hasVariables(_bodyController.text),
+          'content_length': _bodyController.text.length,
+          'has_tags': tags.isNotEmpty,
+        },
+      );
 
       if (mounted) {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Template "${_titleController.text.trim()}" updated successfully'),
+            content: Text(
+              'Template "${_titleController.text.trim()}" updated successfully',
+            ),
           ),
         );
       }
@@ -936,7 +948,11 @@ class _EditTemplateDialogState extends ConsumerState<EditTemplateDialog>
         return decoded.map((e) => e.toString()).toList();
       }
     } catch (e) {
-      _logger.error('Failed to parse template tags', error: e, stackTrace: StackTrace.current);
+      _logger.error(
+        'Failed to parse template tags',
+        error: e,
+        stackTrace: StackTrace.current,
+      );
     }
 
     return [];

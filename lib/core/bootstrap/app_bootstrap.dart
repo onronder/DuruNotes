@@ -77,7 +77,7 @@ class BootstrapResult {
 /// Coordinates initialization of environment, logging, and backend SDKs.
 class AppBootstrap {
   AppBootstrap({EnvironmentConfigLoader? environmentLoader})
-      : _environmentLoader = environmentLoader ?? EnvironmentConfigLoader();
+    : _environmentLoader = environmentLoader ?? EnvironmentConfigLoader();
 
   final EnvironmentConfigLoader _environmentLoader;
 
@@ -97,7 +97,9 @@ class AppBootstrap {
       warnings.addAll(loadResult.warnings);
       environmentSource = loadResult.source;
       if (loadResult.usedFallback) {
-        warnings.add('Using fallback configuration - Supabase configuration missing');
+        warnings.add(
+          'Using fallback configuration - Supabase configuration missing',
+        );
       }
     } catch (error, stack) {
       failures.add(
@@ -132,10 +134,7 @@ class AppBootstrap {
 
     logger.info(
       'Environment loaded',
-      data: {
-        'source': environmentSource,
-        'summary': environment.safeSummary(),
-      },
+      data: {'source': environmentSource, 'summary': environment.safeSummary()},
     );
 
     logger.debug(
@@ -154,10 +153,7 @@ class AppBootstrap {
     );
 
     if (warnings.isNotEmpty) {
-      logger.warning(
-        'Bootstrap warnings',
-        data: {'warnings': warnings},
-      );
+      logger.warning('Bootstrap warnings', data: {'warnings': warnings});
     }
 
     // 3. Platform-specific optimizations
@@ -204,7 +200,9 @@ class AppBootstrap {
           critical: false,
         ),
       );
-      logger.warning('Firebase initialization failed - some features may be unavailable');
+      logger.warning(
+        'Firebase initialization failed - some features may be unavailable',
+      );
     }
 
     // 6. Supabase
@@ -226,10 +224,14 @@ class AppBootstrap {
             critical: false,
           ),
         );
-        logger.warning('Supabase initialization failed - running in local-only mode');
+        logger.warning(
+          'Supabase initialization failed - running in local-only mode',
+        );
       }
     } else {
-      warnings.add('Supabase credentials not configured - using local-only mode');
+      warnings.add(
+        'Supabase credentials not configured - using local-only mode',
+      );
       logger.warning('Running in local-only mode without Supabase sync');
     }
 
@@ -246,7 +248,9 @@ class AppBootstrap {
 
         logger.info('Migration system initialized successfully');
       } else {
-        logger.warning('Skipping migration system initialization - Supabase not available');
+        logger.warning(
+          'Skipping migration system initialization - Supabase not available',
+        );
       }
     } catch (error, stack) {
       failures.add(
@@ -256,22 +260,26 @@ class AppBootstrap {
           stackTrace: stack,
         ),
       );
-      logger.warning('Migration system initialization failed', data: {
-        'error': error.toString(),
-      });
+      logger.warning(
+        'Migration system initialization failed',
+        data: {'error': error.toString()},
+      );
     }
 
     // 8. Feature flags
     try {
       await FeatureFlags.instance.updateFromRemoteConfig();
       if (environment.debugMode) {
-        logger.info('Feature flags loaded', data: {
-          'useNewBlockEditor': FeatureFlags.instance.useNewBlockEditor,
-          'useRefactoredComponents':
-              FeatureFlags.instance.useRefactoredComponents,
-          'useUnifiedPermissionManager':
-              FeatureFlags.instance.useUnifiedPermissionManager,
-        });
+        logger.info(
+          'Feature flags loaded',
+          data: {
+            'useNewBlockEditor': FeatureFlags.instance.useNewBlockEditor,
+            'useRefactoredComponents':
+                FeatureFlags.instance.useRefactoredComponents,
+            'useUnifiedPermissionManager':
+                FeatureFlags.instance.useUnifiedPermissionManager,
+          },
+        );
       }
     } catch (error, stack) {
       failures.add(
@@ -339,17 +347,21 @@ class AppBootstrap {
           );
 
           // Add timeout to prevent hanging on activation
-          await Adapty().activate(
-            configuration: AdaptyConfiguration(apiKey: adaptyKey)
-              ..withActivateUI(true)
-              ..withAppleIdfaCollectionDisabled(true)
-              ..withIpAddressCollectionDisabled(true),
-          ).timeout(
-            const Duration(seconds: 5),
-            onTimeout: () {
-              throw TimeoutException('Adapty activation timeout after 5 seconds');
-            },
-          );
+          await Adapty()
+              .activate(
+                configuration: AdaptyConfiguration(apiKey: adaptyKey)
+                  ..withActivateUI(true)
+                  ..withAppleIdfaCollectionDisabled(true)
+                  ..withIpAddressCollectionDisabled(true),
+              )
+              .timeout(
+                const Duration(seconds: 5),
+                onTimeout: () {
+                  throw TimeoutException(
+                    'Adapty activation timeout after 5 seconds',
+                  );
+                },
+              );
 
           _adaptyActivated = true;
           adaptyEnabled = true;
@@ -359,7 +371,9 @@ class AppBootstrap {
           if (error.toString().contains('3005') ||
               error.toString().contains('activateOnceError') ||
               error.toString().contains('can only be activated once')) {
-            logger.warning('Adapty already activated (error 3005) - continuing');
+            logger.warning(
+              'Adapty already activated (error 3005) - continuing',
+            );
 
             // Track error 3005 frequency for monitoring
             analytics.event(
@@ -381,10 +395,13 @@ class AppBootstrap {
                 stackTrace: stack,
               ),
             );
-            logger.warning('Adapty initialization failed', data: {
-              'error': error.toString(),
-              'is_timeout': error is TimeoutException,
-            });
+            logger.warning(
+              'Adapty initialization failed',
+              data: {
+                'error': error.toString(),
+                'is_timeout': error is TimeoutException,
+              },
+            );
           }
         }
       }

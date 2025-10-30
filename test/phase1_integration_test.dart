@@ -55,7 +55,10 @@ void main() {
 
         // Test non-existent flag returns false
         expect(flags.isEnabled('non_existent_flag'), isFalse);
-        expect(flags.isEnabled('use_unified_reminders'), isFalse); // Not defined in FeatureFlags
+        expect(
+          flags.isEnabled('use_unified_reminders'),
+          isFalse,
+        ); // Not defined in FeatureFlags
       });
     });
 
@@ -122,7 +125,9 @@ void main() {
 
         final blocks = [
           const NoteBlock(
-              type: NoteBlockType.paragraph, data: 'Test paragraph'),
+            type: NoteBlockType.paragraph,
+            data: 'Test paragraph',
+          ),
           const NoteBlock(type: NoteBlockType.heading1, data: 'Test heading'),
         ];
 
@@ -245,7 +250,9 @@ void main() {
 
         final blocks = [
           const NoteBlock(
-              type: NoteBlockType.paragraph, data: 'Integration test'),
+            type: NoteBlockType.paragraph,
+            data: 'Integration test',
+          ),
           const NoteBlock(type: NoteBlockType.todo, data: 'Test todo'),
         ];
 
@@ -274,7 +281,9 @@ void main() {
         expect(find.byIcon(Icons.add), findsOneWidget);
         expect(find.byIcon(Icons.code), findsOneWidget); // Markdown toggle
         expect(
-            find.byIcon(Icons.drag_handle), findsOneWidget); // Reorder toggle
+          find.byIcon(Icons.drag_handle),
+          findsOneWidget,
+        ); // Reorder toggle
       });
     });
 

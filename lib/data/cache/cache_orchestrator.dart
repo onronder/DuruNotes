@@ -15,11 +15,9 @@ import 'package:drift/drift.dart';
 /// - Predictive cache warming for better UX
 /// - Automatic cache invalidation on writes
 class CacheOrchestrator {
-  CacheOrchestrator({
-    required AppDb db,
-    AppLogger? logger,
-  })  : _db = db,
-        _logger = logger ?? LoggerFactory.instance {
+  CacheOrchestrator({required AppDb db, AppLogger? logger})
+    : _db = db,
+      _logger = logger ?? LoggerFactory.instance {
     _initialize();
   }
 
@@ -79,8 +77,10 @@ class CacheOrchestrator {
 
       return note;
     } catch (e) {
-      _logger.error('[CacheOrchestrator] Failed to get cached note: $e',
-          data: {'noteId': noteId});
+      _logger.error(
+        '[CacheOrchestrator] Failed to get cached note: $e',
+        data: {'noteId': noteId},
+      );
       // Fallback to direct load
       return await loader();
     }
@@ -118,11 +118,14 @@ class CacheOrchestrator {
       }
 
       _trackOperation('batch_note_load', startTime);
-      _logger.debug('[CacheOrchestrator] Batch load complete', data: {
-        'total': noteIds.length,
-        'cached': noteIds.length - uncachedIds.length,
-        'loaded': uncachedIds.length,
-      });
+      _logger.debug(
+        '[CacheOrchestrator] Batch load complete',
+        data: {
+          'total': noteIds.length,
+          'cached': noteIds.length - uncachedIds.length,
+          'loaded': uncachedIds.length,
+        },
+      );
 
       return results;
     } catch (e) {
@@ -153,8 +156,10 @@ class CacheOrchestrator {
 
       return saved;
     } catch (e) {
-      _logger.error('[CacheOrchestrator] Failed to save note with cache: $e',
-          data: {'noteId': note.id});
+      _logger.error(
+        '[CacheOrchestrator] Failed to save note with cache: $e',
+        data: {'noteId': note.id},
+      );
       rethrow;
     }
   }
@@ -171,10 +176,11 @@ class CacheOrchestrator {
       // Invalidate all related caches
       _cacheStrategy.invalidateNoteCache(noteId);
       _invalidateRelatedCaches(noteId, 'note');
-
     } catch (e) {
-      _logger.error('[CacheOrchestrator] Failed to delete note with cache: $e',
-          data: {'noteId': noteId});
+      _logger.error(
+        '[CacheOrchestrator] Failed to delete note with cache: $e',
+        data: {'noteId': noteId},
+      );
       rethrow;
     }
   }
@@ -196,7 +202,9 @@ class CacheOrchestrator {
       final cached = _cacheStrategy.getCachedSearchResults(query, filters);
       if (cached != null) {
         _trackOperation('search_cache_hit', startTime);
-        return cached.map((data) => _deserializeNote(data as Map<String, dynamic>)).toList();
+        return cached
+            .map((data) => _deserializeNote(data as Map<String, dynamic>))
+            .toList();
       }
 
       // Cache miss - execute search
@@ -222,10 +230,7 @@ class CacheOrchestrator {
   // ============================================================================
 
   /// Warm cache with frequently accessed data
-  Future<void> warmCache({
-    String? userId,
-    List<String>? recentNoteIds,
-  }) async {
+  Future<void> warmCache({String? userId, List<String>? recentNoteIds}) async {
     if (_isWarmingCache) {
       _logger.debug('[CacheOrchestrator] Cache warming already in progress');
       return;
@@ -252,7 +257,6 @@ class CacheOrchestrator {
       await _warmFolderStructure(userId);
 
       _logger.info('[CacheOrchestrator] Cache warming completed');
-
     } catch (e) {
       _logger.warning('[CacheOrchestrator] Cache warming failed: $e');
     } finally {
@@ -270,10 +274,10 @@ class CacheOrchestrator {
 
         // This would typically load from repository
         // For now, we're just demonstrating the pattern
-        _logger.debug('[CacheOrchestrator] Warming note batch', data: {
-          'batchStart': i,
-          'batchSize': batch.length,
-        });
+        _logger.debug(
+          '[CacheOrchestrator] Warming note batch',
+          data: {'batchStart': i, 'batchSize': batch.length},
+        );
       }
     } catch (e) {
       _logger.warning('[CacheOrchestrator] Failed to warm recent notes: $e');
@@ -283,7 +287,9 @@ class CacheOrchestrator {
   Future<void> _warmPopularTags(String userId) async {
     try {
       // Load and cache popular tags
-      final tags = await _db.customSelect('''
+      final tags = await _db
+          .customSelect(
+            '''
         SELECT tag, COUNT(*) as count
         FROM note_tags nt
         INNER JOIN local_notes n ON n.id = nt.note_id
@@ -291,15 +297,18 @@ class CacheOrchestrator {
         GROUP BY tag
         ORDER BY count DESC
         LIMIT 100
-      ''', variables: [Variable.withString(userId)]).get();
+      ''',
+            variables: [Variable.withString(userId)],
+          )
+          .get();
 
       final popularTags = tags.map((row) => row.read<String>('tag')).toList();
       _cacheStrategy.cachePopularTags(userId, popularTags);
 
-      _logger.debug('[CacheOrchestrator] Warmed popular tags', data: {
-        'userId': userId,
-        'tagCount': popularTags.length,
-      });
+      _logger.debug(
+        '[CacheOrchestrator] Warmed popular tags',
+        data: {'userId': userId, 'tagCount': popularTags.length},
+      );
     } catch (e) {
       _logger.warning('[CacheOrchestrator] Failed to warm popular tags: $e');
     }
@@ -308,14 +317,17 @@ class CacheOrchestrator {
   Future<void> _warmFolderStructure(String? userId) async {
     try {
       // Load and cache folder hierarchy
-      final folders = await _db.customSelect('''
+      final folders = await _db.customSelect(
+        '''
         SELECT f.*, COUNT(nf.note_id) as note_count
         FROM local_folders f
         LEFT JOIN note_folders nf ON f.id = nf.folder_id
         ${userId != null ? 'WHERE f.user_id = ?' : ''}
         GROUP BY f.id
         ORDER BY f.sort_order
-      ''', variables: userId != null ? [Variable.withString(userId)] : []).get();
+      ''',
+        variables: userId != null ? [Variable.withString(userId)] : [],
+      ).get();
 
       for (final row in folders) {
         final folderData = {
@@ -325,24 +337,26 @@ class CacheOrchestrator {
           'parent_id': row.read<String?>('parent_id'),
           'sort_order': row.read<int>('sort_order'),
         };
-        _cacheStrategy.cacheFolderWithCount(
-          row.read<String>('id'),
-          folderData,
-        );
+        _cacheStrategy.cacheFolderWithCount(row.read<String>('id'), folderData);
       }
 
-      _logger.debug('[CacheOrchestrator] Warmed folder structure', data: {
-        'folderCount': folders.length,
-      });
+      _logger.debug(
+        '[CacheOrchestrator] Warmed folder structure',
+        data: {'folderCount': folders.length},
+      );
     } catch (e) {
-      _logger.warning('[CacheOrchestrator] Failed to warm folder structure: $e');
+      _logger.warning(
+        '[CacheOrchestrator] Failed to warm folder structure: $e',
+      );
     }
   }
 
   void _warmInitialCache() {
     // Start initial cache warming in background
     Timer.run(() async {
-      await Future<void>.delayed(const Duration(seconds: 2)); // Wait for app to stabilize
+      await Future<void>.delayed(
+        const Duration(seconds: 2),
+      ); // Wait for app to stabilize
       await warmCache();
     });
   }
@@ -371,8 +385,10 @@ class CacheOrchestrator {
           break;
       }
     } catch (e) {
-      _logger.warning('[CacheOrchestrator] Failed to invalidate related caches',
-          data: {'entityId': entityId, 'entityType': entityType});
+      _logger.warning(
+        '[CacheOrchestrator] Failed to invalidate related caches',
+        data: {'entityId': entityId, 'entityType': entityType},
+      );
     }
   }
 
@@ -393,9 +409,10 @@ class CacheOrchestrator {
       final hitRatio = stats['hit_ratio'] as double;
 
       if (hitRatio < 0.7) {
-        _logger.info('[CacheOrchestrator] Low cache hit ratio detected', data: {
-          'hit_ratio': hitRatio,
-        });
+        _logger.info(
+          '[CacheOrchestrator] Low cache hit ratio detected',
+          data: {'hit_ratio': hitRatio},
+        );
 
         // Trigger cache warming for frequently accessed data
         warmCache();
@@ -406,7 +423,6 @@ class CacheOrchestrator {
 
       // Log performance metrics
       _logPerformanceMetrics();
-
     } catch (e) {
       _logger.warning('[CacheOrchestrator] Cache optimization failed: $e');
     }
@@ -419,7 +435,9 @@ class CacheOrchestrator {
 
     // Keep only last 100 metrics per operation
     if (_operationMetrics[operation]!.length > 100) {
-      _operationMetrics[operation] = _operationMetrics[operation]!.skip(50).toList();
+      _operationMetrics[operation] = _operationMetrics[operation]!
+          .skip(50)
+          .toList();
     }
   }
 

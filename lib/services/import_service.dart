@@ -28,10 +28,10 @@ class ImportService {
     required NoteIndexer noteIndexer, // Kept for backward compatibility
     required AppLogger logger,
     required AnalyticsService analytics,
-  })  : _notesRepository = notesRepository,
-        _noteIndexer = noteIndexer,
-        _logger = logger,
-        _analytics = analytics;
+  }) : _notesRepository = notesRepository,
+       _noteIndexer = noteIndexer,
+       _logger = logger,
+       _analytics = analytics;
   final NotesRepository _notesRepository;
   final NoteIndexer _noteIndexer;
   final AppLogger _logger;
@@ -1004,7 +1004,8 @@ class ImportService {
     }
 
     // Validate tags
-    final validTags = tags
+    final validTags =
+        tags
             ?.where(
               (tag) =>
                   tag.trim().isNotEmpty && tag.length <= 50 && tag.length >= 2,

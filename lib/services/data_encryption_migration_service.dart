@@ -49,13 +49,16 @@ class DataEncryptionMigrationService {
     bool skipBackup = false,
     bool verifyOnly = false,
   }) async {
-    _logger.warning('DataEncryptionMigrationService is deprecated - migration completed via schema');
+    _logger.warning(
+      'DataEncryptionMigrationService is deprecated - migration completed via schema',
+    );
     return MigrationResult(
       status: MigrationStatus.alreadyComplete,
       startTime: DateTime.now(),
       endTime: DateTime.now(),
       userId: userId,
-      message: 'Migration already completed via database schema migration_12_phase3_optimization.dart',
+      message:
+          'Migration already completed via database schema migration_12_phase3_optimization.dart',
     );
   }
 
@@ -89,7 +92,9 @@ class MigrationResult {
 
   int get totalSuccessful => 0;
   int get totalFailures => 0;
-  bool get isSuccess => status == MigrationStatus.success || status == MigrationStatus.alreadyComplete;
+  bool get isSuccess =>
+      status == MigrationStatus.success ||
+      status == MigrationStatus.alreadyComplete;
 }
 
 /// Migration status

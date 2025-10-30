@@ -19,11 +19,13 @@ void main() async {
   print('📦 Running build_runner to generate mocks...');
 
   // Run build_runner
-  final result = await Process.run(
-    'flutter',
-    ['pub', 'run', 'build_runner', 'build', '--delete-conflicting-outputs'],
-    runInShell: true,
-  );
+  final result = await Process.run('flutter', [
+    'pub',
+    'run',
+    'build_runner',
+    'build',
+    '--delete-conflicting-outputs',
+  ], runInShell: true);
 
   if (result.exitCode == 0) {
     print('✅ Mocks generated successfully!\n');

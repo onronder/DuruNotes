@@ -78,7 +78,11 @@ class UnifiedExportService {
       _logger.info('[UnifiedExport] Export completed: ${file.path}');
       return file;
     } catch (e, stack) {
-      _logger.error('[UnifiedExport] Export failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedExport] Export failed',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
@@ -91,7 +95,9 @@ class UnifiedExportService {
     String? customFileName,
   }) async {
     try {
-      _logger.info('[UnifiedExport] Exporting ${notes.length} notes as ${format.displayName}');
+      _logger.info(
+        '[UnifiedExport] Exporting ${notes.length} notes as ${format.displayName}',
+      );
 
       if (notes.isEmpty) return null;
 
@@ -119,7 +125,9 @@ class UnifiedExportService {
 
       // Save to file
       final directory = await resolveTemporaryDirectory();
-      final fileName = customFileName ?? 'duru_notes_export_${DateTime.now().millisecondsSinceEpoch}';
+      final fileName =
+          customFileName ??
+          'duru_notes_export_${DateTime.now().millisecondsSinceEpoch}';
       final file = File(
         path.join(directory.path, '$fileName.${format.extension}'),
       );
@@ -132,7 +140,11 @@ class UnifiedExportService {
       _logger.info('[UnifiedExport] Batch export completed: ${file.path}');
       return file;
     } catch (e, stack) {
-      _logger.error('[UnifiedExport] Batch export failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedExport] Batch export failed',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
@@ -141,14 +153,15 @@ class UnifiedExportService {
   Future<void> shareExport(File file) async {
     try {
       await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          subject: 'Duru Notes Export',
-        ),
+        ShareParams(files: [XFile(file.path)], subject: 'Duru Notes Export'),
       );
       _logger.info('[UnifiedExport] Shared file: ${file.path}');
     } catch (e, stack) {
-      _logger.error('[UnifiedExport] Share failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedExport] Share failed',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -179,7 +192,10 @@ class UnifiedExportService {
   }
 
   /// Generate markdown content
-  Future<String> _generateMarkdown(Map<String, dynamic> noteData, ExportOptions options) async {
+  Future<String> _generateMarkdown(
+    Map<String, dynamic> noteData,
+    ExportOptions options,
+  ) async {
     final buffer = StringBuffer();
 
     // Title
@@ -208,7 +224,10 @@ class UnifiedExportService {
   }
 
   /// Generate HTML content
-  Future<String> _generateHtml(Map<String, dynamic> noteData, ExportOptions options) async {
+  Future<String> _generateHtml(
+    Map<String, dynamic> noteData,
+    ExportOptions options,
+  ) async {
     final buffer = StringBuffer();
 
     buffer.writeln('<!DOCTYPE html>');
@@ -224,7 +243,9 @@ class UnifiedExportService {
 
     if (options.includeMetadata && options.includeTimestamps) {
       final updatedAt = noteData['updatedAt'] as DateTime;
-      buffer.writeln('<p class="metadata">Last updated: ${_formatDate(updatedAt)}</p>');
+      buffer.writeln(
+        '<p class="metadata">Last updated: ${_formatDate(updatedAt)}</p>',
+      );
     }
 
     if (options.includeTags && (noteData['tags'] as List).isNotEmpty) {
@@ -246,7 +267,10 @@ class UnifiedExportService {
   }
 
   /// Generate plain text content
-  Future<String> _generatePlainText(Map<String, dynamic> noteData, ExportOptions options) async {
+  Future<String> _generatePlainText(
+    Map<String, dynamic> noteData,
+    ExportOptions options,
+  ) async {
     final buffer = StringBuffer();
 
     buffer.writeln(noteData['title']);
@@ -265,7 +289,10 @@ class UnifiedExportService {
   }
 
   /// Generate PDF content
-  Future<File?> _generatePdf(Map<String, dynamic> noteData, ExportOptions options) async {
+  Future<File?> _generatePdf(
+    Map<String, dynamic> noteData,
+    ExportOptions options,
+  ) async {
     try {
       final pdf = pw.Document();
       final font = await PdfGoogleFonts.nunitoRegular();
@@ -285,7 +312,11 @@ class UnifiedExportService {
             if (options.includeMetadata && options.includeTimestamps)
               pw.Text(
                 'Last updated: ${_formatDate(noteData['updatedAt'] as DateTime)}',
-                style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey),
+                style: pw.TextStyle(
+                  font: font,
+                  fontSize: 10,
+                  color: PdfColors.grey,
+                ),
               ),
             pw.SizedBox(height: 20),
             pw.Text(
@@ -303,13 +334,20 @@ class UnifiedExportService {
       await file.writeAsBytes(await pdf.save());
       return file;
     } catch (e, stack) {
-      _logger.error('[UnifiedExport] PDF generation failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedExport] PDF generation failed',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
 
   /// Generate markdown for multiple notes
-  Future<String> _generateMultipleMarkdown(List<Map<String, dynamic>> notesData, ExportOptions options) async {
+  Future<String> _generateMultipleMarkdown(
+    List<Map<String, dynamic>> notesData,
+    ExportOptions options,
+  ) async {
     final buffer = StringBuffer();
 
     for (int i = 0; i < notesData.length; i++) {
@@ -321,7 +359,10 @@ class UnifiedExportService {
   }
 
   /// Generate HTML for multiple notes
-  Future<String> _generateMultipleHtml(List<Map<String, dynamic>> notesData, ExportOptions options) async {
+  Future<String> _generateMultipleHtml(
+    List<Map<String, dynamic>> notesData,
+    ExportOptions options,
+  ) async {
     final buffer = StringBuffer();
 
     buffer.writeln('<!DOCTYPE html>');
@@ -342,7 +383,9 @@ class UnifiedExportService {
 
       if (options.includeMetadata && options.includeTimestamps) {
         final updatedAt = noteData['updatedAt'] as DateTime;
-        buffer.writeln('<p class="metadata">Last updated: ${_formatDate(updatedAt)}</p>');
+        buffer.writeln(
+          '<p class="metadata">Last updated: ${_formatDate(updatedAt)}</p>',
+        );
       }
 
       final htmlBody = _markdownToHtml(noteData['body'] as String);
@@ -357,7 +400,10 @@ class UnifiedExportService {
   }
 
   /// Generate plain text for multiple notes
-  Future<String> _generateMultiplePlainText(List<Map<String, dynamic>> notesData, ExportOptions options) async {
+  Future<String> _generateMultiplePlainText(
+    List<Map<String, dynamic>> notesData,
+    ExportOptions options,
+  ) async {
     final buffer = StringBuffer();
 
     for (int i = 0; i < notesData.length; i++) {
@@ -369,7 +415,11 @@ class UnifiedExportService {
   }
 
   /// Generate PDF for multiple notes
-  Future<File?> _generateMultiplePdf(List<Map<String, dynamic>> notesData, ExportOptions options, String? customFileName) async {
+  Future<File?> _generateMultiplePdf(
+    List<Map<String, dynamic>> notesData,
+    ExportOptions options,
+    String? customFileName,
+  ) async {
     try {
       final pdf = pw.Document();
       final font = await PdfGoogleFonts.nunitoRegular();
@@ -390,7 +440,11 @@ class UnifiedExportService {
               if (options.includeMetadata && options.includeTimestamps)
                 pw.Text(
                   'Last updated: ${_formatDate(noteData['updatedAt'] as DateTime)}',
-                  style: pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey),
+                  style: pw.TextStyle(
+                    font: font,
+                    fontSize: 10,
+                    color: PdfColors.grey,
+                  ),
                 ),
               pw.SizedBox(height: 20),
               pw.Text(
@@ -403,13 +457,19 @@ class UnifiedExportService {
       }
 
       final directory = await resolveTemporaryDirectory();
-      final fileName = customFileName ?? 'duru_notes_export_${DateTime.now().millisecondsSinceEpoch}';
+      final fileName =
+          customFileName ??
+          'duru_notes_export_${DateTime.now().millisecondsSinceEpoch}';
       final file = File(path.join(directory.path, '$fileName.pdf'));
 
       await file.writeAsBytes(await pdf.save());
       return file;
     } catch (e, stack) {
-      _logger.error('[UnifiedExport] Multi-PDF generation failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedExport] Multi-PDF generation failed',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
@@ -459,11 +519,14 @@ class UnifiedExportService {
   Future<void> _trackExport(ExportFormat format, int count) async {
     try {
       final analytics = ref.read(analyticsProvider);
-      analytics.event('note_exported', properties: {
-        'format': format.displayName,
-        'count': count,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      analytics.event(
+        'note_exported',
+        properties: {
+          'format': format.displayName,
+          'count': count,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
     } catch (e) {
       _logger.warning('[UnifiedExport] Failed to track export analytics');
     }

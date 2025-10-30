@@ -3,44 +3,49 @@ import 'package:duru_notes/domain/entities/folder.dart' as domain_folder;
 import 'package:duru_notes/features/folders/note_folder_integration_service.dart';
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart';
-import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Note-folder integration service provider for enhanced operations
 ///
 /// Uses domain folder repository for folder operations.
-final noteFolderIntegrationServiceProvider = Provider<NoteFolderIntegrationService>((ref) {
-  // Use folder repository for folder operations
-  final folderRepository = ref.watch(folderCoreRepositoryProvider);
-  final analyticsService = ref.watch(analyticsProvider);
+final noteFolderIntegrationServiceProvider =
+    Provider<NoteFolderIntegrationService>((ref) {
+      // Use folder repository for folder operations
+      final folderRepository = ref.watch(folderCoreRepositoryProvider);
+      final analyticsService = ref.watch(analyticsProvider);
 
-  return NoteFolderIntegrationService(
-    folderRepository: folderRepository,
-    analyticsService: analyticsService,
-  );
-});
+      return NoteFolderIntegrationService(
+        folderRepository: folderRepository,
+        analyticsService: analyticsService,
+      );
+    });
 
 /// Root folders provider for quick access
 /// This provider is invalidated whenever folders change to ensure consistency
-final rootFoldersProvider = FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
-  // Watch the folder hierarchy state to ensure both providers stay in sync
-  ref.watch(folderHierarchyProvider);
+final rootFoldersProvider =
+    FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
+      // Watch the folder hierarchy state to ensure both providers stay in sync
+      ref.watch(folderHierarchyProvider);
 
-  final folderRepo = ref.watch(folderRepositoryProvider);
+      final folderRepo = ref.watch(folderRepositoryProvider);
 
-  // Guard against null repository (unauthenticated)
-  if (folderRepo == null) {
-    return <domain_folder.Folder>[];
-  }
+      // Guard against null repository (unauthenticated)
+      if (folderRepo == null) {
+        return <domain_folder.Folder>[];
+      }
 
-  final folders = await folderRepo.listFolders();
+      final folders = await folderRepo.listFolders();
 
-  // Filter for root folders (no parent)
-  final rootFolders = folders.where((f) => f.parentId == null || f.parentId!.isEmpty).toList();
+      // Filter for root folders (no parent)
+      final rootFolders = folders
+          .where((f) => f.parentId == null || f.parentId!.isEmpty)
+          .toList();
 
-  return rootFolders;
-});
+      return rootFolders;
+    });
 
 /// All folders count provider for accurate statistics
 final allFoldersCountProvider = FutureProvider.autoDispose<int>((ref) async {
@@ -68,9 +73,9 @@ final unfiledNotesCountProvider = FutureProvider.autoDispose<int>((ref) async {
   final repo = ref.watch(notesCoreRepositoryProvider);
 
   final allNotes = await repo.localNotes(); // Returns [] if not auth'd
-  final unfiledNotes = allNotes.where((note) =>
-    note.folderId == null || note.folderId!.isEmpty
-  ).toList();
+  final unfiledNotes = allNotes
+      .where((note) => note.folderId == null || note.folderId!.isEmpty)
+      .toList();
 
   return unfiledNotes.length;
 });

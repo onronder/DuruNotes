@@ -26,10 +26,7 @@ class DomainTaskListItem extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Container(
-      margin: EdgeInsets.only(
-        left: indentLevel * 24.0,
-        bottom: 8,
-      ),
+      margin: EdgeInsets.only(left: indentLevel * 24.0, bottom: 8),
       decoration: BoxDecoration(
         color: isSelected
             ? colorScheme.primaryContainer.withValues(alpha: 0.3)
@@ -74,7 +71,8 @@ class DomainTaskListItem extends StatelessWidget {
                       ),
 
                       // Task description (if present)
-                      if (task.description != null && task.description!.isNotEmpty) ...[
+                      if (task.description != null &&
+                          task.description!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           task.description!,
@@ -99,9 +97,9 @@ class DomainTaskListItem extends StatelessWidget {
                               _buildPriorityChip(context),
                             if (task.dueDate != null)
                               _buildDueDateChip(context),
-                            ...task.tags.take(3).map(
-                                  (tag) => _buildTagChip(context, tag),
-                                ),
+                            ...task.tags
+                                .take(3)
+                                .map((tag) => _buildTagChip(context, tag)),
                           ],
                         ),
                       ],
@@ -161,8 +159,10 @@ class DomainTaskListItem extends StatelessWidget {
                       value: 'delete',
                       child: ListTile(
                         leading: Icon(Icons.delete, color: Colors.red),
-                        title:
-                            Text('Delete', style: TextStyle(color: Colors.red)),
+                        title: Text(
+                          'Delete',
+                          style: TextStyle(color: Colors.red),
+                        ),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -217,9 +217,9 @@ class DomainTaskListItem extends StatelessWidget {
           Text(
             _getPriorityLabel(task.priority),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -238,8 +238,8 @@ class DomainTaskListItem extends StatelessWidget {
     final color = isOverdue
         ? Colors.red
         : isDueToday
-            ? Colors.orange
-            : Theme.of(context).colorScheme.primary;
+        ? Colors.orange
+        : Theme.of(context).colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -256,9 +256,9 @@ class DomainTaskListItem extends StatelessWidget {
           Text(
             _formatDate(dueDate, isOverdue, isDueToday),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -269,16 +269,12 @@ class DomainTaskListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .tertiaryContainer
-            .withValues(alpha: 0.5),
+        color: Theme.of(
+          context,
+        ).colorScheme.tertiaryContainer.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        '#$tag',
-        style: Theme.of(context).textTheme.bodySmall,
-      ),
+      child: Text('#$tag', style: Theme.of(context).textTheme.bodySmall),
     );
   }
 

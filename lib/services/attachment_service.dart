@@ -49,16 +49,15 @@ class AttachmentException implements Exception {
 /// Exception for file size violations
 class AttachmentSizeException extends AttachmentException {
   const AttachmentSizeException(super.message, this.actualSize, this.maxSize)
-      : super(code: 'FILE_TOO_LARGE');
+    : super(code: 'FILE_TOO_LARGE');
   final int actualSize;
   final int maxSize;
 }
 
 /// Attachment service for handling file uploads and downloads
 class AttachmentService {
-  AttachmentService(this._ref, {
-    SupabaseClient? client,
-  })  : _client = client ?? Supabase.instance.client;
+  AttachmentService(this._ref, {SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
 
   final Ref _ref;
   final SupabaseClient _client;

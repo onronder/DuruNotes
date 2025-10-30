@@ -29,11 +29,7 @@ final _reminderServiceProvider = Provider<TestReminderService>((ref) {
 });
 
 class TestReminderService extends BaseReminderService {
-  TestReminderService(
-    super.ref,
-    super.plugin,
-    super.db,
-  );
+  TestReminderService(super.ref, super.plugin, super.db);
 
   @override
   Future<int?> createReminder(ReminderConfig config) async => -1;
@@ -94,8 +90,7 @@ void main() {
 
   group('BaseReminderService database operations', () {
     test('createReminderInDb returns inserted identifier', () async {
-      when(mockDb.createReminder(any))
-          .thenAnswer((_) async => 99);
+      when(mockDb.createReminder(any)).thenAnswer((_) async => 99);
 
       final config = ReminderConfig(
         noteId: 'note-123',
@@ -110,20 +105,24 @@ void main() {
       verify(mockDb.createReminder(companion)).called(1);
     });
 
-    test('updateReminderStatus updates record when user authenticated',
-        () async {
-      NoteRemindersCompanion? updatedCompanion;
-      when(mockDb.updateReminder(any, any, any)).thenAnswer((invocation) async {
-        updatedCompanion =
-            invocation.positionalArguments[2] as NoteRemindersCompanion;
-      });
+    test(
+      'updateReminderStatus updates record when user authenticated',
+      () async {
+        NoteRemindersCompanion? updatedCompanion;
+        when(mockDb.updateReminder(any, any, any)).thenAnswer((
+          invocation,
+        ) async {
+          updatedCompanion =
+              invocation.positionalArguments[2] as NoteRemindersCompanion;
+        });
 
-      await service.updateReminderStatus(42, true);
+        await service.updateReminderStatus(42, true);
 
-      verify(mockDb.updateReminder(42, 'user-123', any)).called(1);
-      expect(updatedCompanion, isNotNull);
-      expect(updatedCompanion!.isActive.value, isTrue);
-    });
+        verify(mockDb.updateReminder(42, 'user-123', any)).called(1);
+        expect(updatedCompanion, isNotNull);
+        expect(updatedCompanion!.isActive.value, isTrue);
+      },
+    );
 
     test('updateReminderStatus skips update when user missing', () async {
       when(mockAuth.currentUser).thenReturn(null);
@@ -133,8 +132,7 @@ void main() {
       verifyNever(mockDb.updateReminder(any, any, any));
     });
 
-    test('getRemindersForNote delegates to database with user scope',
-        () async {
+    test('getRemindersForNote delegates to database with user scope', () async {
       final reminder = NoteReminder(
         id: 1,
         noteId: 'note-abc',
@@ -162,8 +160,9 @@ void main() {
         triggerCount: 0,
       );
 
-      when(mockDb.getRemindersForNote('note-abc', 'user-123'))
-          .thenAnswer((_) async => [reminder]);
+      when(
+        mockDb.getRemindersForNote('note-abc', 'user-123'),
+      ).thenAnswer((_) async => [reminder]);
 
       final results = await service.getRemindersForNote('note-abc');
 

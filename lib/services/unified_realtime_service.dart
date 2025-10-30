@@ -78,10 +78,10 @@ class UnifiedRealtimeService extends ChangeNotifier {
     required AppLogger logger,
     ConnectionManager? connectionManager,
     FolderSyncCoordinator? folderSyncCoordinator,
-  })  : _supabase = supabase,
-        _logger = logger,
-        _connectionManager = connectionManager ?? ConnectionManager(),
-        _folderSyncCoordinator = folderSyncCoordinator {
+  }) : _supabase = supabase,
+       _logger = logger,
+       _connectionManager = connectionManager ?? ConnectionManager(),
+       _folderSyncCoordinator = folderSyncCoordinator {
     // Start periodic cleanup of processed event IDs
     _cleanupTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       _cleanupProcessedIds();
@@ -292,11 +292,7 @@ class UnifiedRealtimeService extends ChangeNotifier {
     final topic = 'inbox:user:$userId';
     final channel = _supabase.channel(
       topic,
-      opts: const RealtimeChannelConfig(
-        private: true,
-        ack: false,
-        self: false,
-      ),
+      opts: const RealtimeChannelConfig(private: true, ack: false, self: false),
     );
 
     void handleBroadcast(String event, Map<String, dynamic> rawPayload) {
@@ -311,8 +307,8 @@ class UnifiedRealtimeService extends ChangeNotifier {
         final enrichedPayload = <String, dynamic>{
           'schema': payload['schema'] ?? 'public',
           'table': payload['table'] ?? 'clipper_inbox',
-          'commit_timestamp': payload['commit_timestamp'] ??
-              DateTime.now().toIso8601String(),
+          'commit_timestamp':
+              payload['commit_timestamp'] ?? DateTime.now().toIso8601String(),
           'eventType': event,
           'new': newRaw is Map<String, dynamic>
               ? Map<String, dynamic>.from(newRaw)
@@ -323,8 +319,9 @@ class UnifiedRealtimeService extends ChangeNotifier {
           'errors': payload['errors'],
         };
 
-        final changePayload =
-            PostgresChangePayload.fromPayload(enrichedPayload);
+        final changePayload = PostgresChangePayload.fromPayload(
+          enrichedPayload,
+        );
         final eventPayload = DatabaseChangeEvent.fromPayload(
           DatabaseTableType.clipperInbox,
           changePayload,
@@ -459,7 +456,11 @@ class UnifiedRealtimeService extends ChangeNotifier {
         data: {'table': table.name, 'eventType': payload.eventType.name},
       );
     } catch (error, stack) {
-      _logger.error('Error handling change event', error: error, stackTrace: stack);
+      _logger.error(
+        'Error handling change event',
+        error: error,
+        stackTrace: stack,
+      );
       _captureRealtimeException(
         operation: 'handleChange',
         error: error,
@@ -534,7 +535,11 @@ class UnifiedRealtimeService extends ChangeNotifier {
         notifyListeners();
         // Fire and forget the reconnect scheduling
         _scheduleReconnect().catchError((Object error, StackTrace stack) {
-          _logger.error('Failed to schedule reconnect', error: error, stackTrace: stack);
+          _logger.error(
+            'Failed to schedule reconnect',
+            error: error,
+            stackTrace: stack,
+          );
           _captureRealtimeException(
             operation: 'scheduleReconnect.defer',
             error: error,
@@ -616,7 +621,11 @@ class UnifiedRealtimeService extends ChangeNotifier {
         _connectionManager.unregisterRealtimeChannel(_channel!);
         await _channel!.unsubscribe();
       } catch (error, stack) {
-        _logger.error('Error during unsubscribe', error: error, stackTrace: stack);
+        _logger.error(
+          'Error during unsubscribe',
+          error: error,
+          stackTrace: stack,
+        );
         _captureRealtimeException(
           operation: 'stop.unsubscribe',
           error: error,

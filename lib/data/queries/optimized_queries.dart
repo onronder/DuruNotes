@@ -104,8 +104,9 @@ class OptimizedQueries {
   /// Get folders with note counts efficiently
   Future<List<FolderWithCount>> getFoldersWithCounts(String userId) async {
     // Use raw SQL for efficient counting
-    final result = await db.customSelect(
-      '''
+    final result = await db
+        .customSelect(
+          '''
       SELECT
         f.*,
         COUNT(DISTINCT n.id) as note_count
@@ -115,27 +116,26 @@ class OptimizedQueries {
       GROUP BY f.id
       ORDER BY f.position, f.name
       ''',
-      variables: [Variable.withString(userId)],
-      readsFrom: {db.localFolders, db.localNotes},
-    ).get();
+          variables: [Variable.withString(userId)],
+          readsFrom: {db.localFolders, db.localNotes},
+        )
+        .get();
 
     return result.map((row) {
       final folder = db.localFolders.map(row.data);
       final noteCount = row.read<int>('note_count');
 
-      return FolderWithCount(
-        folder: folder,
-        noteCount: noteCount,
-      );
+      return FolderWithCount(folder: folder, noteCount: noteCount);
     }).toList();
   }
 
   /// Get tasks with subtasks efficiently
   Future<List<TaskWithSubtasks>> getTasksWithSubtasks(String noteId) async {
-    final allTasks = await (db.select(db.noteTasks)
-      ..where((t) => t.noteId.equals(noteId))
-      ..orderBy([(t) => OrderingTerm(expression: t.position)]))
-      .get();
+    final allTasks =
+        await (db.select(db.noteTasks)
+              ..where((t) => t.noteId.equals(noteId))
+              ..orderBy([(t) => OrderingTerm(expression: t.position)]))
+            .get();
 
     // Build hierarchy map
     final taskMap = <String, TaskWithSubtasks>{};
@@ -143,10 +143,7 @@ class OptimizedQueries {
 
     // First pass: create all task nodes
     for (final task in allTasks) {
-      taskMap[task.id] = TaskWithSubtasks(
-        task: task,
-        subtasks: [],
-      );
+      taskMap[task.id] = TaskWithSubtasks(task: task, subtasks: []);
     }
 
     // Second pass: build hierarchy
@@ -166,28 +163,28 @@ class OptimizedQueries {
   /// Private helper methods
   Future<List<NoteTask>> _getTasksForNote(String noteId) async {
     return (db.select(db.noteTasks)
-      ..where((t) => t.noteId.equals(noteId))
-      ..orderBy([(t) => OrderingTerm(expression: t.position)]))
-      .get();
+          ..where((t) => t.noteId.equals(noteId))
+          ..orderBy([(t) => OrderingTerm(expression: t.position)]))
+        .get();
   }
 
   Future<List<NoteTask>> _getTasksForNotes(List<String> noteIds) async {
     return (db.select(db.noteTasks)
-      ..where((t) => t.noteId.isIn(noteIds))
-      ..orderBy([(t) => OrderingTerm(expression: t.position)]))
-      .get();
+          ..where((t) => t.noteId.isIn(noteIds))
+          ..orderBy([(t) => OrderingTerm(expression: t.position)]))
+        .get();
   }
 
   Future<List<NoteTag>> _getTagsForNote(String noteId) async {
-    return (db.select(db.noteTags)
-      ..where((t) => t.noteId.equals(noteId)))
-      .get();
+    return (db.select(
+      db.noteTags,
+    )..where((t) => t.noteId.equals(noteId))).get();
   }
 
   Future<List<NoteTag>> _getTagsForNotes(List<String> noteIds) async {
-    return (db.select<$NoteTagsTable, NoteTag>(db.noteTags)
-      ..where((t) => t.noteId.isIn(noteIds)))
-      .get();
+    return (db.select<$NoteTagsTable, NoteTag>(
+      db.noteTags,
+    )..where((t) => t.noteId.isIn(noteIds))).get();
   }
 
   // ============================================================================
@@ -258,28 +255,19 @@ class NoteWithRelations {
 }
 
 class FolderWithCount {
-  const FolderWithCount({
-    required this.folder,
-    required this.noteCount,
-  });
+  const FolderWithCount({required this.folder, required this.noteCount});
 
   final LocalFolder folder;
   final int noteCount;
 
   /// Convert to JSON for API responses
   Map<String, dynamic> toJson() {
-    return {
-      'folder': folder,
-      'note_count': noteCount,
-    };
+    return {'folder': folder, 'note_count': noteCount};
   }
 }
 
 class TaskWithSubtasks {
-  TaskWithSubtasks({
-    required this.task,
-    required this.subtasks,
-  });
+  TaskWithSubtasks({required this.task, required this.subtasks});
 
   final NoteTask task;
   final List<TaskWithSubtasks> subtasks;

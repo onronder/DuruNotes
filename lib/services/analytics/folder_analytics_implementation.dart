@@ -14,13 +14,12 @@ class FolderServiceWithAnalytics {
   // User state tracking
   final Map<String, UserFolderMetrics> _userMetrics = {};
 
-  FolderServiceWithAnalytics({
-    required AnalyticsService analyticsService,
-  })  : _analyticsService = analyticsService,
-        _folderAnalytics = FolderAnalyticsService(analyticsService),
-        _abTestService = FolderABTestService(
-          FolderAnalyticsService(analyticsService),
-        );
+  FolderServiceWithAnalytics({required AnalyticsService analyticsService})
+    : _analyticsService = analyticsService,
+      _folderAnalytics = FolderAnalyticsService(analyticsService),
+      _abTestService = FolderABTestService(
+        FolderAnalyticsService(analyticsService),
+      );
 
   /// Create a new folder with analytics tracking
   Future<String> createFolder({
@@ -112,7 +111,8 @@ class FolderServiceWithAnalytics {
       return folderId;
     } catch (error, stackTrace) {
       // Log error
-      _logger.error('Failed to create folder',
+      _logger.error(
+        'Failed to create folder',
         error: error,
         stackTrace: stackTrace,
         data: {
@@ -207,7 +207,8 @@ class FolderServiceWithAnalytics {
       return contents;
     } catch (error, stackTrace) {
       // Log error
-      _logger.error('Failed to open folder',
+      _logger.error(
+        'Failed to open folder',
         error: error,
         stackTrace: stackTrace,
         data: {
@@ -241,10 +242,7 @@ class FolderServiceWithAnalytics {
       _analyticsService.trackError(
         'Folder load failed',
         context: 'openFolder',
-        properties: {
-          'folder_id': folderId,
-          'error': error.toString(),
-        },
+        properties: {'folder_id': folderId, 'error': error.toString()},
       );
       rethrow;
     }
@@ -292,14 +290,11 @@ class FolderServiceWithAnalytics {
 
       return results;
     } catch (error, stackTrace) {
-      _logger.error('Folder search failed',
+      _logger.error(
+        'Folder search failed',
         error: error,
         stackTrace: stackTrace,
-        data: {
-          'query': query,
-          'folderId': folderId,
-          'scope': scope.toString(),
-        },
+        data: {'query': query, 'folderId': folderId, 'scope': scope.toString()},
       );
 
       await Sentry.captureException(
@@ -318,10 +313,7 @@ class FolderServiceWithAnalytics {
       _analyticsService.trackError(
         'Folder search failed',
         context: 'searchInFolders',
-        properties: {
-          'query': query,
-          'error': error.toString(),
-        },
+        properties: {'query': query, 'error': error.toString()},
       );
       rethrow;
     }
@@ -359,11 +351,7 @@ class FolderServiceWithAnalytics {
       );
 
       // Perform bulk operation (actual implementation)
-      await _performBulkOperation(
-        operationType,
-        folderIds,
-        operationParams,
-      );
+      await _performBulkOperation(operationType, folderIds, operationParams);
 
       // Track completion
       _analyticsService.event(
@@ -371,7 +359,8 @@ class FolderServiceWithAnalytics {
         properties: {
           FolderAnalyticsProperties.operationType: operationType,
           FolderAnalyticsProperties.bulkOperationSize: folderIds.length,
-          FolderAnalyticsProperties.responseTimeMs: stopwatch.elapsedMilliseconds,
+          FolderAnalyticsProperties.responseTimeMs:
+              stopwatch.elapsedMilliseconds,
           'success': true,
         },
       );
@@ -393,7 +382,8 @@ class FolderServiceWithAnalytics {
         timeSaved,
       );
     } catch (error, stackTrace) {
-      _logger.error('Bulk folder operation failed',
+      _logger.error(
+        'Bulk folder operation failed',
         error: error,
         stackTrace: stackTrace,
         data: {
@@ -490,18 +480,16 @@ class FolderServiceWithAnalytics {
     return 7; // Placeholder
   }
 
-  Future<void> _updateFolderAccessMetrics(String userId, String folderId) async {
+  Future<void> _updateFolderAccessMetrics(
+    String userId,
+    String folderId,
+  ) async {
     // Update folder access frequency metrics
   }
 
   double _estimateTimeSaved(String operationType, int itemCount) {
     // Estimate time saved in seconds based on operation type
-    const timePerItem = {
-      'move': 5.0,
-      'delete': 3.0,
-      'tag': 4.0,
-      'share': 10.0,
-    };
+    const timePerItem = {'move': 5.0, 'delete': 3.0, 'tag': 4.0, 'share': 10.0};
     return (timePerItem[operationType] ?? 5.0) * itemCount;
   }
 
@@ -519,7 +507,9 @@ class FolderServiceWithAnalytics {
     }
 
     if (metrics.totalNotesInFolders < metrics.totalFolders * 5) {
-      recommendations.add('Move more notes into folders for better organization');
+      recommendations.add(
+        'Move more notes into folders for better organization',
+      );
     }
 
     return recommendations;
@@ -541,11 +531,7 @@ class FolderServiceWithAnalytics {
     String viewType,
   ) async {
     // Actual folder loading logic
-    return FolderContents(
-      notes: [],
-      subfolders: [],
-      totalItems: 0,
-    );
+    return FolderContents(notes: [], subfolders: [], totalItems: 0);
   }
 
   Future<List<SearchResult>> _performSearch(
@@ -607,11 +593,7 @@ class SearchResult {
   final String type;
   final String title;
 
-  SearchResult({
-    required this.id,
-    required this.type,
-    required this.title,
-  });
+  SearchResult({required this.id, required this.type, required this.title});
 }
 
 class FolderInsights {
@@ -638,11 +620,7 @@ class FolderInsights {
 
 // === ENUMS ===
 
-enum SearchScope {
-  currentFolder,
-  currentAndSubfolders,
-  allFolders,
-}
+enum SearchScope { currentFolder, currentAndSubfolders, allFolders }
 
 // === EXCEPTIONS ===
 

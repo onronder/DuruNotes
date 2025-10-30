@@ -71,10 +71,7 @@ class MetricCardConfig {
 class UnifiedMetricCard extends StatelessWidget {
   final MetricCardConfig config;
 
-  const UnifiedMetricCard({
-    super.key,
-    required this.config,
-  });
+  const UnifiedMetricCard({super.key, required this.config});
 
   factory UnifiedMetricCard.simple({
     required String title,
@@ -132,7 +129,8 @@ class UnifiedMetricCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(config.borderRadius),
         child: Padding(
           padding: config.padding,
-          child: config.customContent ??
+          child:
+              config.customContent ??
               _buildDefaultContent(context, effectiveColor),
         ),
       ),
@@ -155,11 +153,7 @@ class UnifiedMetricCard extends StatelessWidget {
                 color: effectiveColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                config.icon,
-                color: effectiveColor,
-                size: 24,
-              ),
+              child: Icon(config.icon, color: effectiveColor, size: 24),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -212,14 +206,14 @@ class UnifiedMetricCard extends StatelessWidget {
     final trendColor = isNeutral
         ? theme.colorScheme.onSurfaceVariant
         : isPositive
-            ? Colors.green
-            : Colors.red;
+        ? Colors.green
+        : Colors.red;
 
     final trendIcon = isNeutral
         ? Icons.remove
         : isPositive
-            ? Icons.trending_up
-            : Icons.trending_down;
+        ? Icons.trending_up
+        : Icons.trending_down;
 
     final trendText = isNeutral
         ? '0%'
@@ -227,12 +221,7 @@ class UnifiedMetricCard extends StatelessWidget {
 
     return Row(
       children: [
-        if (config.showTrendIcon)
-          Icon(
-            trendIcon,
-            color: trendColor,
-            size: 16,
-          ),
+        if (config.showTrendIcon) Icon(trendIcon, color: trendColor, size: 16),
         if (config.showTrendIcon) const SizedBox(width: 4),
         Text(
           trendText,
@@ -332,11 +321,7 @@ class StreakCard extends StatelessWidget {
                     color: effectiveColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    icon,
-                    color: effectiveColor,
-                    size: 24,
-                  ),
+                  child: Icon(icon, color: effectiveColor, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -353,8 +338,9 @@ class StreakCard extends StatelessWidget {
                       Text(
                         'Best: $bestStreak days',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.7),
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],
@@ -389,8 +375,9 @@ class StreakCard extends StatelessWidget {
                     Icons.local_fire_department,
                     color: currentStreak >= 7
                         ? Colors.orange
-                        : theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.3),
+                        : theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.3,
+                          ),
                     size: 32,
                   ),
               ],

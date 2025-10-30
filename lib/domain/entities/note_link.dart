@@ -48,13 +48,12 @@ class NoteLink {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is NoteLink &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is NoteLink && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'NoteLink(from: $fromNoteId, to: $toNoteId, type: $linkType)';
+  String toString() =>
+      'NoteLink(from: $fromNoteId, to: $toNoteId, type: $linkType)';
 }

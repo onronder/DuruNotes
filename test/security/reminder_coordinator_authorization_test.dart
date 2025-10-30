@@ -43,11 +43,7 @@ List<SecurityEvent> _eventsFor(List<SecurityEvent> events, String resource) =>
     events.where((event) => event.metadata?['resource'] == resource).toList();
 
 class _TestReminderCoordinator extends ReminderCoordinator {
-  _TestReminderCoordinator(
-    super.ref,
-    super.plugin,
-    super.db,
-  );
+  _TestReminderCoordinator(super.ref, super.plugin, super.db);
 
   @override
   Future<bool> hasNotificationPermissions() async => true;
@@ -121,21 +117,26 @@ void main() {
 
     mockAnalytics = MockAnalyticsService();
     when(mockAnalytics.isEnabled).thenReturn(true);
-    when(mockAnalytics.event(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.event(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
     when(mockAnalytics.startTiming(any)).thenReturn(null);
-    when(mockAnalytics.endTiming(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.endTiming(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
 
     mockPlugin = MockFlutterLocalNotificationsPlugin();
     mockAndroidPlugin = MockAndroidFlutterLocalNotificationsPlugin();
     when(mockPlugin.initialize(any)).thenAnswer((_) async => true);
     when(
-      mockPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>(),
+      mockPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >(),
     ).thenReturn(mockAndroidPlugin);
-    when(mockAndroidPlugin.createNotificationChannel(any))
-        .thenAnswer((_) async => {});
+    when(
+      mockAndroidPlugin.createNotificationChannel(any),
+    ).thenAnswer((_) async => {});
     when(
       mockPlugin.zonedSchedule(
         any,
@@ -148,8 +149,7 @@ void main() {
         matchDateTimeComponents: anyNamed('matchDateTimeComponents'),
       ),
     ).thenAnswer((_) async {});
-    when(mockPlugin.cancel(any, tag: anyNamed('tag')))
-        .thenAnswer((_) async {});
+    when(mockPlugin.cancel(any, tag: anyNamed('tag'))).thenAnswer((_) async {});
 
     container = ProviderContainer(
       overrides: [
@@ -217,7 +217,10 @@ void main() {
       );
       expect(auditEvents, isNotEmpty);
       expect(auditEvents.last.metadata?['granted'], isTrue);
-      expect('${auditEvents.last.metadata?['reason']}', contains('reminderId='));
+      expect(
+        '${auditEvents.last.metadata?['reason']}',
+        contains('reminderId='),
+      );
     });
 
     test('createTimeReminder logs denial when unauthenticated', () async {
@@ -241,27 +244,29 @@ void main() {
       expect(auditEvents.last.metadata?['reason'], 'missing_user');
     });
 
-    test('cancelReminder logs not_found when reminder belongs to another user',
-        () async {
-      await setupCoordinator(userId: _userB);
-      final reminderId = await insertReminder(
-        noteId: 'note-2',
-        userId: _userA,
-        remindAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
-      );
+    test(
+      'cancelReminder logs not_found when reminder belongs to another user',
+      () async {
+        await setupCoordinator(userId: _userB);
+        final reminderId = await insertReminder(
+          noteId: 'note-2',
+          userId: _userA,
+          remindAt: DateTime.now().toUtc().add(const Duration(hours: 1)),
+        );
 
-      final events = await _captureAuditEvents(() async {
-        await coordinator.cancelReminder(reminderId);
-      });
+        final events = await _captureAuditEvents(() async {
+          await coordinator.cancelReminder(reminderId);
+        });
 
-      final auditEvents = _eventsFor(
-        events,
-        'reminderCoordinator.cancelReminder',
-      );
-      expect(auditEvents, isNotEmpty);
-      expect(auditEvents.last.metadata?['granted'], isFalse);
-      expect(auditEvents.last.metadata?['reason'], 'not_found');
-    });
+        final auditEvents = _eventsFor(
+          events,
+          'reminderCoordinator.cancelReminder',
+        );
+        expect(auditEvents, isNotEmpty);
+        expect(auditEvents.last.metadata?['granted'], isFalse);
+        expect(auditEvents.last.metadata?['reason'], 'not_found');
+      },
+    );
 
     test('processDueReminders logs denial when unauthenticated', () async {
       await setupCoordinator(userId: null);

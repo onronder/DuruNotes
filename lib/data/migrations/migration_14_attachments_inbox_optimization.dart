@@ -12,7 +12,8 @@ import 'package:duru_notes/data/local/app_db.dart';
 /// Performance target: &lt;100ms query response time
 class Migration14AttachmentsInboxOptimization {
   static const int version = 14;
-  static const String description = 'Add attachments, inbox items, and comprehensive performance optimization';
+  static const String description =
+      'Add attachments, inbox items, and comprehensive performance optimization';
 
   /// Apply migration to database (idempotent - safe to run multiple times)
   static Future<void> apply(AppDb db) async {
@@ -289,21 +290,31 @@ class Migration14AttachmentsInboxOptimization {
     await db.customStatement('DROP INDEX IF EXISTS idx_inbox_unprocessed');
     await db.customStatement('DROP INDEX IF EXISTS idx_inbox_user_source');
     await db.customStatement('DROP INDEX IF EXISTS idx_inbox_status_priority');
-    await db.customStatement('DROP INDEX IF EXISTS idx_inbox_processed_cleanup');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_inbox_processed_cleanup',
+    );
 
     // Drop performance indexes
-    await db.customStatement('DROP INDEX IF EXISTS idx_notes_active_pinned_updated');
-    await db.customStatement('DROP INDEX IF EXISTS idx_notes_user_type_updated');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_notes_active_pinned_updated',
+    );
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_notes_user_type_updated',
+    );
     await db.customStatement('DROP INDEX IF EXISTS idx_tags_note_covering');
     await db.customStatement('DROP INDEX IF EXISTS idx_tags_lookup_covering');
-    await db.customStatement('DROP INDEX IF EXISTS idx_tasks_note_status_position');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_tasks_note_status_position',
+    );
     await db.customStatement('DROP INDEX IF EXISTS idx_tasks_user_status_due');
     await db.customStatement('DROP INDEX IF EXISTS idx_tasks_overdue_active');
     await db.customStatement('DROP INDEX IF EXISTS idx_reminders_active_time');
     await db.customStatement('DROP INDEX IF EXISTS idx_reminders_note_active');
     await db.customStatement('DROP INDEX IF EXISTS idx_folders_parent_order');
     await db.customStatement('DROP INDEX IF EXISTS idx_folders_path_lookup');
-    await db.customStatement('DROP INDEX IF EXISTS idx_note_folders_folder_coverage');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_note_folders_folder_coverage',
+    );
 
     // Drop covering indexes
     await db.customStatement('DROP INDEX IF EXISTS idx_notes_list_covering');
@@ -311,7 +322,9 @@ class Migration14AttachmentsInboxOptimization {
     await db.customStatement('DROP INDEX IF EXISTS idx_tags_count_covering');
     await db.customStatement('DROP INDEX IF EXISTS idx_notes_text_search');
     await db.customStatement('DROP INDEX IF EXISTS idx_tags_popularity');
-    await db.customStatement('DROP INDEX IF EXISTS idx_templates_category_system');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_templates_category_system',
+    );
     await db.customStatement('DROP INDEX IF EXISTS idx_saved_searches_active');
 
     // Drop new tables
@@ -391,11 +404,29 @@ class Migration14AttachmentsInboxOptimization {
   static Future<Map<String, dynamic>> getPerformanceMetrics(AppDb db) async {
     try {
       // Table row counts
-      final noteCount = await db.customSelect('SELECT COUNT(*) as count FROM local_notes WHERE deleted = 0').getSingle();
-      final tagCount = await db.customSelect('SELECT COUNT(*) as count FROM note_tags').getSingle();
-      final taskCount = await db.customSelect('SELECT COUNT(*) as count FROM note_tasks WHERE deleted = 0').getSingle();
-      final attachmentCount = await db.customSelect('SELECT COUNT(*) as count FROM local_attachments WHERE deleted = 0').getSingle();
-      final inboxCount = await db.customSelect('SELECT COUNT(*) as count FROM local_inbox_items WHERE deleted = 0').getSingle();
+      final noteCount = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM local_notes WHERE deleted = 0',
+          )
+          .getSingle();
+      final tagCount = await db
+          .customSelect('SELECT COUNT(*) as count FROM note_tags')
+          .getSingle();
+      final taskCount = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_tasks WHERE deleted = 0',
+          )
+          .getSingle();
+      final attachmentCount = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM local_attachments WHERE deleted = 0',
+          )
+          .getSingle();
+      final inboxCount = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM local_inbox_items WHERE deleted = 0',
+          )
+          .getSingle();
 
       // Index count
       final indexCount = await db.customSelect('''

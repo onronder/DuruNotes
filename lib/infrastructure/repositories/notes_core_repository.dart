@@ -1239,9 +1239,7 @@ class NotesCoreRepository implements INotesRepository {
       await _securityAuditTrail.logAccess(
         resource: 'reminders.push.upsert',
         granted: success,
-        reason: success
-            ? 'id=$reminderId'
-            : 'api_failure',
+        reason: success ? 'id=$reminderId' : 'api_failure',
       );
 
       return success;
@@ -2282,11 +2280,7 @@ class NotesCoreRepository implements INotesRepository {
 
   @override
   Future<void> deleteNote(String id) async {
-    await updateLocalNote(
-      id,
-      deleted: true,
-      updatedAt: DateTime.now().toUtc(),
-    );
+    await updateLocalNote(id, deleted: true, updatedAt: DateTime.now().toUtc());
   }
 
   @override

@@ -237,7 +237,8 @@ class PerformanceMonitor {
       averageDuration: avgDuration,
       minDuration: minDuration,
       maxDuration: maxDuration,
-      successRate: metrics.where((m) => m.metadata['success'] != false).length /
+      successRate:
+          metrics.where((m) => m.metadata['success'] != false).length /
           metrics.length,
     );
   }
@@ -479,10 +480,10 @@ class MemoryUsage {
   });
 
   factory MemoryUsage.unknown() => const MemoryUsage(
-        usedMemoryMB: 0,
-        availableMemoryMB: 0,
-        totalMemoryMB: 0,
-      );
+    usedMemoryMB: 0,
+    availableMemoryMB: 0,
+    totalMemoryMB: 0,
+  );
   final double usedMemoryMB;
   final double availableMemoryMB;
   final double totalMemoryMB;
@@ -511,13 +512,13 @@ class DevicePerformanceInfo {
   });
 
   factory DevicePerformanceInfo.unknown() => const DevicePerformanceInfo(
-        platform: 'Unknown',
-        model: 'Unknown',
-        version: 'Unknown',
-        cpuCores: 4,
-        ramSizeGB: 4,
-        performanceClass: PerformanceClass.medium,
-      );
+    platform: 'Unknown',
+    model: 'Unknown',
+    version: 'Unknown',
+    cpuCores: 4,
+    ramSizeGB: 4,
+    performanceClass: PerformanceClass.medium,
+  );
   final String platform;
   final String model;
   final String version;
@@ -545,13 +546,13 @@ class PerformanceSummary {
   });
 
   factory PerformanceSummary.empty(String operationName) => PerformanceSummary(
-        operationName: operationName,
-        totalOperations: 0,
-        averageDuration: Duration.zero,
-        minDuration: Duration.zero,
-        maxDuration: Duration.zero,
-        successRate: 0,
-      );
+    operationName: operationName,
+    totalOperations: 0,
+    averageDuration: Duration.zero,
+    minDuration: Duration.zero,
+    maxDuration: Duration.zero,
+    successRate: 0,
+  );
   final String operationName;
   final int totalOperations;
   final Duration averageDuration;

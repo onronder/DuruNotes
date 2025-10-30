@@ -18,19 +18,9 @@ class TaskUpdate {
   final TaskUpdateAction action;
 }
 
-enum TaskUpdateAction {
-  created,
-  updated,
-  deleted,
-  synced,
-}
+enum TaskUpdateAction { created, updated, deleted, synced }
 
-enum SyncStatus {
-  idle,
-  syncing,
-  success,
-  error,
-}
+enum SyncStatus { idle, syncing, success, error }
 
 /// DEPRECATED: Legacy task sync service - use UnifiedSyncService instead
 ///
@@ -57,16 +47,20 @@ enum SyncStatus {
 ///   // All tasks synced: ${result.syncedTasks} tasks
 /// }
 /// ```
-@Deprecated('Use UnifiedSyncService instead. This service will be removed in a future version.')
+@Deprecated(
+  'Use UnifiedSyncService instead. This service will be removed in a future version.',
+)
 class TaskSyncService {
   TaskSyncService({
     required ITaskRepository repository,
     required AppDb db, // Kept for backward compatibility
     AppLogger? logger,
-  })  : _repository = repository,
-        _logger = logger ?? LoggerFactory.instance,
-        _taskUpdatesController = BehaviorSubject<TaskUpdate>(),
-        _syncStatusController = BehaviorSubject<SyncStatus>.seeded(SyncStatus.idle);
+  }) : _repository = repository,
+       _logger = logger ?? LoggerFactory.instance,
+       _taskUpdatesController = BehaviorSubject<TaskUpdate>(),
+       _syncStatusController = BehaviorSubject<SyncStatus>.seeded(
+         SyncStatus.idle,
+       );
 
   final ITaskRepository _repository;
   final AppLogger _logger;
@@ -129,31 +123,37 @@ class TaskSyncService {
       }
 
       _syncStatusController.add(SyncStatus.success);
-      _logger.info('[TaskSyncService] Local task sync completed (remote sync NOT performed)', data: {
-        'taskCount': localTasks.length,
-      });
+      _logger.info(
+        '[TaskSyncService] Local task sync completed (remote sync NOT performed)',
+        data: {'taskCount': localTasks.length},
+      );
     } catch (e, stack) {
       _syncStatusController.add(SyncStatus.error);
-      _logger.error('[TaskSyncService] Task sync failed',
-          error: e, stackTrace: stack);
+      _logger.error(
+        '[TaskSyncService] Task sync failed',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
   /// Sync tasks for a specific note
   Future<void> syncTasksForNote(String noteId) async {
     if (_syncInProgress.contains(noteId)) {
-      _logger.debug('[TaskSyncService] Sync already in progress for note', data: {
-        'noteId': noteId,
-      });
+      _logger.debug(
+        '[TaskSyncService] Sync already in progress for note',
+        data: {'noteId': noteId},
+      );
       return;
     }
 
     _syncInProgress.add(noteId);
 
     try {
-      _logger.debug('[TaskSyncService] Syncing tasks for note', data: {
-        'noteId': noteId,
-      });
+      _logger.debug(
+        '[TaskSyncService] Syncing tasks for note',
+        data: {'noteId': noteId},
+      );
 
       // Get tasks for this note
       final tasks = await _repository.getTasksForNote(noteId);
@@ -161,20 +161,22 @@ class TaskSyncService {
       // Check for pending changes
       final pending = _pendingChanges[noteId] ?? [];
       if (pending.isNotEmpty) {
-        _logger.info('[TaskSyncService] Processing pending changes', data: {
-          'noteId': noteId,
-          'pendingCount': pending.length,
-        });
+        _logger.info(
+          '[TaskSyncService] Processing pending changes',
+          data: {'noteId': noteId, 'pendingCount': pending.length},
+        );
 
         // Apply pending changes
         for (final task in pending) {
           await _repository.updateTask(task);
 
-          _taskUpdatesController.add(TaskUpdate(
-            taskId: task.id,
-            task: task,
-            action: TaskUpdateAction.synced,
-          ));
+          _taskUpdatesController.add(
+            TaskUpdate(
+              taskId: task.id,
+              task: task,
+              action: TaskUpdateAction.synced,
+            ),
+          );
         }
 
         _pendingChanges[noteId]?.clear();
@@ -183,13 +185,17 @@ class TaskSyncService {
       // Update sync time
       _lastSyncTimes[noteId] = DateTime.now();
 
-      _logger.info('[TaskSyncService] Tasks synced for note', data: {
-        'noteId': noteId,
-        'taskCount': tasks.length,
-      });
+      _logger.info(
+        '[TaskSyncService] Tasks synced for note',
+        data: {'noteId': noteId, 'taskCount': tasks.length},
+      );
     } catch (e, stack) {
-      _logger.error('[TaskSyncService] Failed to sync tasks for note',
-          error: e, stackTrace: stack, data: {'noteId': noteId});
+      _logger.error(
+        '[TaskSyncService] Failed to sync tasks for note',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
     } finally {
       _syncInProgress.remove(noteId);
     }
@@ -204,11 +210,9 @@ class TaskSyncService {
     _pendingChanges[noteId]!.add(task);
 
     // Notify listeners
-    _taskUpdatesController.add(TaskUpdate(
-      taskId: task.id,
-      task: task,
-      action: TaskUpdateAction.updated,
-    ));
+    _taskUpdatesController.add(
+      TaskUpdate(taskId: task.id, task: task, action: TaskUpdateAction.updated),
+    );
 
     // Schedule sync
     _scheduleDebouncedSync(noteId);
@@ -227,11 +231,14 @@ class TaskSyncService {
     domain.Task local,
     domain.Task remote,
   ) async {
-    _logger.info('[TaskSyncService] Resolving task conflict', data: {
-      'taskId': local.id,
-      'localUpdated': _getUpdatedAt(local).toIso8601String(),
-      'remoteUpdated': _getUpdatedAt(remote).toIso8601String(),
-    });
+    _logger.info(
+      '[TaskSyncService] Resolving task conflict',
+      data: {
+        'taskId': local.id,
+        'localUpdated': _getUpdatedAt(local).toIso8601String(),
+        'remoteUpdated': _getUpdatedAt(remote).toIso8601String(),
+      },
+    );
 
     // Simple last-write-wins strategy
     if (_getUpdatedAt(local).isAfter(_getUpdatedAt(remote))) {
@@ -254,11 +261,14 @@ class TaskSyncService {
         if (attempt < _maxRetries - 1) {
           // Exponential backoff
           final delay = Duration(seconds: (attempt + 1) * 2);
-          _logger.debug('[TaskSyncService] Retrying sync after delay', data: {
-            'noteId': noteId,
-            'attempt': attempt + 1,
-            'delay': delay.inSeconds,
-          });
+          _logger.debug(
+            '[TaskSyncService] Retrying sync after delay',
+            data: {
+              'noteId': noteId,
+              'attempt': attempt + 1,
+              'delay': delay.inSeconds,
+            },
+          );
           await Future<void>.delayed(delay);
         }
       }

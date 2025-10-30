@@ -128,8 +128,8 @@ class _BootstrapLoadingScreenState extends State<BootstrapLoadingScreen>
                             child: LinearProgressIndicator(
                               value: widget.progress,
                               minHeight: 6,
-                              backgroundColor:
-                                  theme.colorScheme.primary.withValues(alpha: 0.2),
+                              backgroundColor: theme.colorScheme.primary
+                                  .withValues(alpha: 0.2),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -260,7 +260,9 @@ class BootstrapErrorScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.3,
+                    ),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -271,7 +273,10 @@ class BootstrapErrorScreen extends StatelessWidget {
                         style: theme.textTheme.labelLarge,
                       ),
                       const SizedBox(height: 8),
-                      ...errors.skip(1).take(3).map(
+                      ...errors
+                          .skip(1)
+                          .take(3)
+                          .map(
                             (error) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(
@@ -281,7 +286,9 @@ class BootstrapErrorScreen extends StatelessWidget {
                                     _getErrorIcon(error.severity),
                                     size: 16,
                                     color: _getErrorColor(
-                                        error.severity, theme),
+                                      error.severity,
+                                      theme,
+                                    ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(

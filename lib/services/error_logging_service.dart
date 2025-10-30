@@ -175,7 +175,10 @@ class ErrorLoggingService {
   }
 
   /// Log warning message
-  Future<void> logWarning(String message, [Map<String, dynamic>? metadata]) async {
+  Future<void> logWarning(
+    String message, [
+    Map<String, dynamic>? metadata,
+  ]) async {
     await logError(
       WarningMessage(message),
       null,
@@ -185,7 +188,10 @@ class ErrorLoggingService {
   }
 
   /// Log debug message
-  Future<void> logDebug(String message, [Map<String, dynamic>? metadata]) async {
+  Future<void> logDebug(
+    String message, [
+    Map<String, dynamic>? metadata,
+  ]) async {
     if (kDebugMode) {
       await logError(
         DebugMessage(message),
@@ -241,7 +247,9 @@ class ErrorLoggingService {
     var errors = _sessionErrors.reversed.toList();
 
     if (minSeverity != null) {
-      errors = errors.where((e) => e.severity.index >= minSeverity.index).toList();
+      errors = errors
+          .where((e) => e.severity.index >= minSeverity.index)
+          .toList();
     }
 
     if (category != null) {
@@ -364,7 +372,9 @@ class ErrorLoggingService {
       final errorsJson = prefs.getStringList('persisted_errors') ?? [];
 
       for (final json in errorsJson) {
-        final entry = ErrorLogEntry.fromJson(jsonDecode(json) as Map<String, dynamic>);
+        final entry = ErrorLogEntry.fromJson(
+          jsonDecode(json) as Map<String, dynamic>,
+        );
         _errorQueue.add(entry);
       }
 
@@ -414,7 +424,8 @@ class ErrorLoggingService {
 
     debugPrint(message);
 
-    if (entry.stackTrace != null && entry.severity.index >= ErrorSeverity.error.index) {
+    if (entry.stackTrace != null &&
+        entry.severity.index >= ErrorSeverity.error.index) {
       debugPrint('Stack trace:\n${entry.stackTrace}');
     }
   }
@@ -457,14 +468,16 @@ class ErrorLoggingService {
   void _aggregateError(ErrorLogEntry entry) {
     final key = '${entry.error.hashCode}_${entry.category}';
 
-    _errorAggregations.putIfAbsent(
-      key,
-      () => ErrorAggregation(
-        firstOccurrence: entry.timestamp,
-        error: entry.error,
-        category: entry.category,
-      ),
-    ).addOccurrence(entry.timestamp);
+    _errorAggregations
+        .putIfAbsent(
+          key,
+          () => ErrorAggregation(
+            firstOccurrence: entry.timestamp,
+            error: entry.error,
+            category: entry.category,
+          ),
+        )
+        .addOccurrence(entry.timestamp);
   }
 
   void _cleanupOldAggregations() {
@@ -478,10 +491,9 @@ class ErrorLoggingService {
   void _trackPerformanceImpact(ErrorLogEntry entry) {
     final category = entry.category ?? 'Unknown';
 
-    _performanceMetrics.putIfAbsent(
-      category,
-      () => PerformanceMetrics(category: category),
-    ).recordError(entry.severity);
+    _performanceMetrics
+        .putIfAbsent(category, () => PerformanceMetrics(category: category))
+        .recordError(entry.severity);
   }
 
   Future<void> _uploadPendingErrors() async {
@@ -515,10 +527,7 @@ class ErrorLoggingService {
   }
 
   Map<String, dynamic> _getMemoryUsage() {
-    return {
-      'rss': ProcessInfo.currentRss,
-      'maxRss': ProcessInfo.maxRss,
-    };
+    return {'rss': ProcessInfo.currentRss, 'maxRss': ProcessInfo.maxRss};
   }
 
   String _getSeverityEmoji(ErrorSeverity severity) {
@@ -560,14 +569,16 @@ class ErrorLoggingService {
     buffer.writeln('Timestamp,Severity,Category,Error,User,Session');
 
     for (final error in errors) {
-      buffer.writeln([
-        error.timestamp.toIso8601String(),
-        error.severity.name,
-        error.category ?? '',
-        '"${error.error.replaceAll('"', '""')}"',
-        error.userId ?? '',
-        error.sessionId ?? '',
-      ].join(','));
+      buffer.writeln(
+        [
+          error.timestamp.toIso8601String(),
+          error.severity.name,
+          error.category ?? '',
+          '"${error.error.replaceAll('"', '""')}"',
+          error.userId ?? '',
+          error.sessionId ?? '',
+        ].join(','),
+      );
     }
 
     return buffer.toString();
@@ -603,19 +614,9 @@ class ErrorLoggingService {
 
 // Data models
 
-enum ErrorSeverity {
-  debug,
-  info,
-  warning,
-  error,
-  critical,
-}
+enum ErrorSeverity { debug, info, warning, error, critical }
 
-enum ExportFormat {
-  json,
-  csv,
-  plainText,
-}
+enum ExportFormat { json, csv, plainText }
 
 class ErrorLogEntry {
   final String id;
@@ -662,7 +663,9 @@ class ErrorLogEntry {
     sessionId: json['sessionId'] as String?,
     error: json['error'] as String,
     stackTrace: json['stackTrace'] as String?,
-    severity: ErrorSeverity.values.firstWhere((e) => e.name == json['severity']),
+    severity: ErrorSeverity.values.firstWhere(
+      (e) => e.name == json['severity'],
+    ),
     category: json['category'] as String?,
     metadata: json['metadata'] as Map<String, dynamic>?,
     shouldNotifyUser: json['shouldNotifyUser'] as bool? ?? false,

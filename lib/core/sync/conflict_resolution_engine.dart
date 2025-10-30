@@ -27,14 +27,18 @@ class ConflictResolutionEngine {
 
   /// Detect and resolve conflicts for notes with comprehensive strategies
   Future<ConflictResolutionResult> detectAndResolveNoteConflicts({
-    ConflictResolutionStrategy strategy = ConflictResolutionStrategy.lastWriteWins,
+    ConflictResolutionStrategy strategy =
+        ConflictResolutionStrategy.lastWriteWins,
     DateTime? conflictWindow,
   }) async {
     final stopwatch = Stopwatch()..start();
-    _logger.info('Starting conflict detection and resolution', data: {
-      'strategy': strategy.name,
-      'conflict_window': conflictWindow?.toIso8601String(),
-    });
+    _logger.info(
+      'Starting conflict detection and resolution',
+      data: {
+        'strategy': strategy.name,
+        'conflict_window': conflictWindow?.toIso8601String(),
+      },
+    );
 
     try {
       final conflicts = <DataConflict>[];
@@ -60,12 +64,15 @@ class ConflictResolutionEngine {
 
       stopwatch.stop();
 
-      _logger.info('Conflict resolution completed', data: {
-        'total_conflicts': conflicts.length,
-        'resolved_conflicts': resolutions.where((r) => r.isResolved).length,
-        'duration_ms': stopwatch.elapsedMilliseconds,
-        'strategy': strategy.name,
-      });
+      _logger.info(
+        'Conflict resolution completed',
+        data: {
+          'total_conflicts': conflicts.length,
+          'resolved_conflicts': resolutions.where((r) => r.isResolved).length,
+          'duration_ms': stopwatch.elapsedMilliseconds,
+          'strategy': strategy.name,
+        },
+      );
 
       return ConflictResolutionResult(
         totalConflicts: conflicts.length,
@@ -76,7 +83,6 @@ class ConflictResolutionEngine {
         duration: stopwatch.elapsed,
         timestamp: DateTime.now(),
       );
-
     } catch (e, stackTrace) {
       stopwatch.stop();
       _logger.error(
@@ -134,7 +140,6 @@ class ConflictResolutionEngine {
           }
         }
       }
-
     } catch (e, stackTrace) {
       _logger.error(
         'Conflict detection failed',
@@ -156,9 +161,13 @@ class ConflictResolutionEngine {
       final remoteUpdated = DateTime.parse(remoteNote['updated_at'] as String);
 
       // Calculate content hashes for comparison using encrypted fields
-      final localHash = _calculateNoteHash(localNote.titleEncrypted, localNote.encryptedMetadata);
+      final localHash = _calculateNoteHash(
+        localNote.titleEncrypted,
+        localNote.encryptedMetadata,
+      );
       final remoteHash = _calculateNoteHash(
-        remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String?,
+        remoteNote['title_encrypted'] as String? ??
+            remoteNote['title'] as String?,
         remoteNote['encrypted_metadata'] as String?,
       );
 
@@ -180,7 +189,10 @@ class ConflictResolutionEngine {
       }
 
       // Calculate content similarity for merge strategies
-      final similarity = await _calculateContentSimilarity(localNote, remoteNote);
+      final similarity = await _calculateContentSimilarity(
+        localNote,
+        remoteNote,
+      );
 
       return DataConflict(
         recordId: localNote.id,
@@ -198,12 +210,12 @@ class ConflictResolutionEngine {
         },
         remoteData: {
           'title': remoteNote['title'] ?? remoteNote['title_enc'],
-          'encrypted_metadata': remoteNote['encrypted_metadata'] ?? remoteNote['props_enc'],
+          'encrypted_metadata':
+              remoteNote['encrypted_metadata'] ?? remoteNote['props_enc'],
           'updated_at': remoteUpdated,
         },
         detectedAt: DateTime.now(),
       );
-
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to analyze note conflict',
@@ -216,7 +228,9 @@ class ConflictResolutionEngine {
   }
 
   /// Analyze remote-only note for potential conflicts
-  Future<DataConflict?> _analyzeRemoteOnlyNote(Map<String, dynamic> remoteNote) async {
+  Future<DataConflict?> _analyzeRemoteOnlyNote(
+    Map<String, dynamic> remoteNote,
+  ) async {
     try {
       final remoteId = remoteNote['id'] as String;
 
@@ -246,10 +260,10 @@ class ConflictResolutionEngine {
 
       return null;
     } catch (e) {
-      _logger.warning('Failed to analyze remote-only note', data: {
-        'note_id': remoteNote['id'],
-        'error': e.toString(),
-      });
+      _logger.warning(
+        'Failed to analyze remote-only note',
+        data: {'note_id': remoteNote['id'], 'error': e.toString()},
+      );
       return null;
     }
   }
@@ -308,7 +322,8 @@ class ConflictResolutionEngine {
       action: useLocal ? ResolutionAction.useLocal : ResolutionAction.useRemote,
       isResolved: true,
       chosenVersion: useLocal ? 'local' : 'remote',
-      reasoning: 'Selected newer version (${useLocal ? 'local' : 'remote'} updated at ${useLocal ? conflict.localTimestamp : conflict.remoteTimestamp})',
+      reasoning:
+          'Selected newer version (${useLocal ? 'local' : 'remote'} updated at ${useLocal ? conflict.localTimestamp : conflict.remoteTimestamp})',
       timestamp: DateTime.now(),
     );
   }
@@ -352,7 +367,9 @@ class ConflictResolutionEngine {
   }
 
   /// Attempt intelligent merge of conflicting content
-  Future<ConflictResolution> _attemptIntelligentMerge(DataConflict conflict) async {
+  Future<ConflictResolution> _attemptIntelligentMerge(
+    DataConflict conflict,
+  ) async {
     try {
       // For high similarity content, attempt merge
       if (conflict.contentSimilarity > 0.8) {
@@ -364,7 +381,8 @@ class ConflictResolutionEngine {
           action: ResolutionAction.merge,
           isResolved: true,
           chosenVersion: 'merged',
-          reasoning: 'Content merged due to high similarity (${(conflict.contentSimilarity * 100).toStringAsFixed(1)}%)',
+          reasoning:
+              'Content merged due to high similarity (${(conflict.contentSimilarity * 100).toStringAsFixed(1)}%)',
           timestamp: DateTime.now(),
         );
       } else {
@@ -372,10 +390,10 @@ class ConflictResolutionEngine {
         return _resolveLastWriteWins(conflict);
       }
     } catch (e) {
-      _logger.warning('Intelligent merge failed, falling back to last-write-wins', data: {
-        'conflict_id': conflict.recordId,
-        'error': e.toString(),
-      });
+      _logger.warning(
+        'Intelligent merge failed, falling back to last-write-wins',
+        data: {'conflict_id': conflict.recordId, 'error': e.toString()},
+      );
       return _resolveLastWriteWins(conflict);
     }
   }
@@ -421,11 +439,13 @@ class ConflictResolutionEngine {
           break;
       }
 
-      _logger.info('Resolution applied successfully', data: {
-        'conflict_id': resolution.conflictId,
-        'action': resolution.action.name,
-      });
-
+      _logger.info(
+        'Resolution applied successfully',
+        data: {
+          'conflict_id': resolution.conflictId,
+          'action': resolution.action.name,
+        },
+      );
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to apply resolution',
@@ -444,7 +464,9 @@ class ConflictResolutionEngine {
       await _remoteApi.upsertEncryptedNote(
         id: localNote.id,
         titleEnc: Uint8List.fromList(utf8.encode(localNote.titleEncrypted)),
-        propsEnc: Uint8List.fromList(utf8.encode(localNote.encryptedMetadata ?? '')),
+        propsEnc: Uint8List.fromList(
+          utf8.encode(localNote.encryptedMetadata ?? ''),
+        ),
         deleted: localNote.deleted,
         createdAt: localNote.createdAt,
       );
@@ -460,21 +482,31 @@ class ConflictResolutionEngine {
     );
 
     if (remoteNote.isNotEmpty) {
-      await _localDb.into(_localDb.localNotes).insertOnConflictUpdate(
-        LocalNotesCompanion.insert(
-          id: noteId,
-          titleEncrypted: Value(remoteNote['title_encrypted'] as String? ?? remoteNote['title'] as String? ?? ''),
-          bodyEncrypted: Value(remoteNote['body_encrypted'] as String? ?? ''),
-          encryptionVersion: const Value(1),
-          noteType: Value(NoteKind.note),
-          encryptedMetadata: Value(remoteNote['encrypted_metadata'] as String?),
-          createdAt: remoteNote['created_at'] != null
-              ? DateTime.parse(remoteNote['created_at'] as String)
-              : DateTime.now().toUtc(),
-          updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
-          deleted: Value(remoteNote['deleted'] as bool? ?? false),
-        ),
-      );
+      await _localDb
+          .into(_localDb.localNotes)
+          .insertOnConflictUpdate(
+            LocalNotesCompanion.insert(
+              id: noteId,
+              titleEncrypted: Value(
+                remoteNote['title_encrypted'] as String? ??
+                    remoteNote['title'] as String? ??
+                    '',
+              ),
+              bodyEncrypted: Value(
+                remoteNote['body_encrypted'] as String? ?? '',
+              ),
+              encryptionVersion: const Value(1),
+              noteType: Value(NoteKind.note),
+              encryptedMetadata: Value(
+                remoteNote['encrypted_metadata'] as String?,
+              ),
+              createdAt: remoteNote['created_at'] != null
+                  ? DateTime.parse(remoteNote['created_at'] as String)
+                  : DateTime.now().toUtc(),
+              updatedAt: DateTime.parse(remoteNote['updated_at'] as String),
+              deleted: Value(remoteNote['deleted'] as bool? ?? false),
+            ),
+          );
     }
   }
 
@@ -507,35 +539,40 @@ class ConflictResolutionEngine {
     if (localNote != null) {
       final duplicateId = SupabaseNoteApi.generateId();
 
-      await _localDb.into(_localDb.localNotes).insert(
-        LocalNotesCompanion.insert(
-          id: duplicateId,
-          titleEncrypted: Value(localNote.titleEncrypted),
-          bodyEncrypted: Value(localNote.bodyEncrypted),
-          encryptionVersion: Value(localNote.encryptionVersion),
-          noteType: Value(localNote.noteType),
-          encryptedMetadata: Value(localNote.encryptedMetadata),
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          deleted: Value(false),
-        ),
-      );
+      await _localDb
+          .into(_localDb.localNotes)
+          .insert(
+            LocalNotesCompanion.insert(
+              id: duplicateId,
+              titleEncrypted: Value(localNote.titleEncrypted),
+              bodyEncrypted: Value(localNote.bodyEncrypted),
+              encryptionVersion: Value(localNote.encryptionVersion),
+              noteType: Value(localNote.noteType),
+              encryptedMetadata: Value(localNote.encryptedMetadata),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              deleted: Value(false),
+            ),
+          );
 
-      _logger.info('Created duplicate note for conflict resolution', data: {
-        'original_id': originalId,
-        'duplicate_id': duplicateId,
-      });
+      _logger.info(
+        'Created duplicate note for conflict resolution',
+        data: {'original_id': originalId, 'duplicate_id': duplicateId},
+      );
     }
   }
 
   /// Flag note for user review
   Future<void> _flagForUserReview(String noteId) async {
     // Store conflict information for user interface
-    await _localDb.customStatement('''
+    await _localDb.customStatement(
+      '''
       INSERT OR REPLACE INTO conflict_review_queue (
         note_id, flagged_at, review_required, conflict_type
       ) VALUES (?, ?, ?, ?)
-    ''', [noteId, DateTime.now().toIso8601String(), 1, 'sync_conflict']);
+    ''',
+      [noteId, DateTime.now().toIso8601String(), 1, 'sync_conflict'],
+    );
   }
 
   /// Update conflict history for tracking and analytics
@@ -548,24 +585,30 @@ class ConflictResolutionEngine {
         final conflict = conflicts[i];
         final resolution = resolutions[i];
 
-        await _localDb.customStatement('''
+        await _localDb.customStatement(
+          '''
           INSERT OR REPLACE INTO conflict_history (
             record_id, table_name, conflict_type, resolution_strategy,
             detected_at, resolved_at, is_resolved, resolution_action
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', [
-          conflict.recordId,
-          conflict.table,
-          conflict.conflictType.name,
-          resolution.strategy.name,
-          conflict.detectedAt.toIso8601String(),
-          resolution.timestamp.toIso8601String(),
-          resolution.isResolved ? 1 : 0,
-          resolution.action.name,
-        ]);
+        ''',
+          [
+            conflict.recordId,
+            conflict.table,
+            conflict.conflictType.name,
+            resolution.strategy.name,
+            conflict.detectedAt.toIso8601String(),
+            resolution.timestamp.toIso8601String(),
+            resolution.isResolved ? 1 : 0,
+            resolution.action.name,
+          ],
+        );
       }
     } catch (e) {
-      _logger.warning('Failed to update conflict history', data: {'error': e.toString()});
+      _logger.warning(
+        'Failed to update conflict history',
+        data: {'error': e.toString()},
+      );
     }
   }
 
@@ -576,7 +619,10 @@ class ConflictResolutionEngine {
   ) async {
     try {
       // Simple hash-based similarity (in production, you might want more sophisticated comparison)
-      final localHash = _calculateNoteHash(localNote.titleEncrypted, localNote.encryptedMetadata);
+      final localHash = _calculateNoteHash(
+        localNote.titleEncrypted,
+        localNote.encryptedMetadata,
+      );
       final remoteHash = _calculateNoteHash(
         remoteNote['title'] as String?,
         remoteNote['encrypted_metadata'] as String?,
@@ -594,7 +640,8 @@ class ConflictResolutionEngine {
   String _calculateNoteHash(String? title, String? encryptedMetadata) {
     final content = <int>[];
     if (title != null) content.addAll(utf8.encode(title));
-    if (encryptedMetadata != null) content.addAll(utf8.encode(encryptedMetadata));
+    if (encryptedMetadata != null)
+      content.addAll(utf8.encode(encryptedMetadata));
 
     final digest = sha256.convert(content);
     return digest.toString();
@@ -651,7 +698,9 @@ class ConflictResolution {
     this.chosenVersion,
     this.reasoning,
     this.errorMessage,
-  }) : requiresAction = action != ResolutionAction.error && action != ResolutionAction.requiresManualReview;
+  }) : requiresAction =
+           action != ResolutionAction.error &&
+           action != ResolutionAction.requiresManualReview;
 }
 
 class ConflictResolutionResult {
@@ -678,20 +727,20 @@ class ConflictResolutionResult {
   factory ConflictResolutionResult.failed({
     required String error,
     required Duration duration,
-  }) =>
-      ConflictResolutionResult(
-        totalConflicts: 0,
-        resolvedConflicts: 0,
-        conflicts: [],
-        resolutions: [],
-        strategy: ConflictResolutionStrategy.lastWriteWins,
-        duration: duration,
-        timestamp: DateTime.now(),
-        error: error,
-      );
+  }) => ConflictResolutionResult(
+    totalConflicts: 0,
+    resolvedConflicts: 0,
+    conflicts: [],
+    resolutions: [],
+    strategy: ConflictResolutionStrategy.lastWriteWins,
+    duration: duration,
+    timestamp: DateTime.now(),
+    error: error,
+  );
 
   bool get hasUnresolvedConflicts => totalConflicts > resolvedConflicts;
-  double get resolutionRate => totalConflicts > 0 ? resolvedConflicts / totalConflicts : 1.0;
+  double get resolutionRate =>
+      totalConflicts > 0 ? resolvedConflicts / totalConflicts : 1.0;
 }
 
 enum ConflictType {

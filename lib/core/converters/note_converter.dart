@@ -9,13 +9,19 @@ import 'package:duru_notes/domain/entities/note_link.dart';
 /// encryption/decryption at the repository layer.
 ///
 /// This file should not be used in new code and will be removed after migration.
-@Deprecated('Use infrastructure/mappers/note_mapper.dart instead. This converter no longer supports encrypted fields after encryption migration.')
+@Deprecated(
+  'Use infrastructure/mappers/note_mapper.dart instead. This converter no longer supports encrypted fields after encryption migration.',
+)
 class NoteConverter {
   /// Convert LocalNote (infrastructure) to domain.Note (domain)
-  static domain.Note fromLocal(LocalNote local, {List<String>? tags, List<NoteLink>? links}) {
+  static domain.Note fromLocal(
+    LocalNote local, {
+    List<String>? tags,
+    List<NoteLink>? links,
+  }) {
     throw UnsupportedError(
       'NoteConverter.fromLocal is deprecated and no longer supported after encryption migration. '
-      'Use infrastructure/mappers/note_mapper.dart instead, which properly handles encryption/decryption.'
+      'Use infrastructure/mappers/note_mapper.dart instead, which properly handles encryption/decryption.',
     );
   }
 
@@ -23,7 +29,7 @@ class NoteConverter {
   static LocalNote toLocal(domain.Note note) {
     throw UnsupportedError(
       'NoteConverter.toLocal is deprecated and no longer supported after encryption migration. '
-      'Use infrastructure/mappers/note_mapper.dart instead, which properly handles encryption/decryption.'
+      'Use infrastructure/mappers/note_mapper.dart instead, which properly handles encryption/decryption.',
     );
   }
 
@@ -74,7 +80,7 @@ class NoteConverter {
   static String getNoteTitle(dynamic note) {
     throw UnsupportedError(
       'NoteConverter.getNoteTitle is deprecated. LocalNote now uses encrypted fields. '
-      'Use infrastructure/mappers/note_mapper.dart with encryption service instead.'
+      'Use infrastructure/mappers/note_mapper.dart with encryption service instead.',
     );
   }
 
@@ -82,7 +88,7 @@ class NoteConverter {
   static String getNoteBody(dynamic note) {
     throw UnsupportedError(
       'NoteConverter.getNoteBody is deprecated. LocalNote now uses encrypted fields. '
-      'Use infrastructure/mappers/note_mapper.dart with encryption service instead.'
+      'Use infrastructure/mappers/note_mapper.dart with encryption service instead.',
     );
   }
 }

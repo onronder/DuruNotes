@@ -143,8 +143,9 @@ class ErrorReportingService {
   /// Analyze error patterns
   ErrorAnalysis analyzeErrors({Duration? timeWindow, ErrorCategory? category}) {
     final now = DateTime.now();
-    final windowStart =
-        timeWindow != null ? now.subtract(timeWindow) : DateTime(1970);
+    final windowStart = timeWindow != null
+        ? now.subtract(timeWindow)
+        : DateTime(1970);
 
     final relevantErrors = _recentErrors.where((report) {
       if (report.timestamp.isBefore(windowStart)) return false;
@@ -296,8 +297,9 @@ class ErrorReportingService {
     final errorMessage = _extractErrorMessage(error);
 
     // Get source location
-    final sourceLocation =
-        frames.isNotEmpty ? _extractSourceLocation(frames.first) : null;
+    final sourceLocation = frames.isNotEmpty
+        ? _extractSourceLocation(frames.first)
+        : null;
 
     return ErrorReport(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -496,19 +498,19 @@ class ErrorReport {
   final bool isDebug;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'timestamp': timestamp.toIso8601String(),
-        'error_type': errorType,
-        'message': message,
-        'category': category.name,
-        'severity': severity.name,
-        'stack_trace': stackTrace,
-        'source_location': sourceLocation,
-        'context': context?.toJson(),
-        'extra': extra,
-        'platform': platform,
-        'is_debug': isDebug,
-      };
+    'id': id,
+    'timestamp': timestamp.toIso8601String(),
+    'error_type': errorType,
+    'message': message,
+    'category': category.name,
+    'severity': severity.name,
+    'stack_trace': stackTrace,
+    'source_location': sourceLocation,
+    'context': context?.toJson(),
+    'extra': extra,
+    'platform': platform,
+    'is_debug': isDebug,
+  };
 }
 
 /// Error context model
@@ -528,12 +530,12 @@ class ErrorContext {
   final bool isCritical;
 
   Map<String, dynamic> toJson() => {
-        if (operation != null) 'operation': operation,
-        if (message != null) 'message': message,
-        if (data != null) 'data': data,
-        'is_handled': isHandled,
-        'is_critical': isCritical,
-      };
+    if (operation != null) 'operation': operation,
+    if (message != null) 'message': message,
+    if (data != null) 'data': data,
+    'is_handled': isHandled,
+    'is_critical': isCritical,
+  };
 }
 
 /// Error statistics model
@@ -555,12 +557,12 @@ class ErrorStatistics {
   }
 
   Map<String, dynamic> toJson() => {
-        'error_type': errorType,
-        'count': count,
-        'first_occurrence': firstOccurrence?.toIso8601String(),
-        'last_occurrence': lastOccurrence?.toIso8601String(),
-        'severity_counts': severityCounts.map((k, v) => MapEntry(k.name, v)),
-      };
+    'error_type': errorType,
+    'count': count,
+    'first_occurrence': firstOccurrence?.toIso8601String(),
+    'last_occurrence': lastOccurrence?.toIso8601String(),
+    'severity_counts': severityCounts.map((k, v) => MapEntry(k.name, v)),
+  };
 }
 
 /// Error analysis result
@@ -582,13 +584,13 @@ class ErrorAnalysis {
   final ErrorCategory? category;
 
   Map<String, dynamic> toJson() => {
-        'total_errors': totalErrors,
-        'errors_by_type': errorsByType.map((k, v) => MapEntry(k, v.length)),
-        'most_common_errors': mostCommonErrors,
-        'error_rate': errorRate,
-        'time_window_minutes': timeWindow?.inMinutes,
-        'category': category?.name,
-      };
+    'total_errors': totalErrors,
+    'errors_by_type': errorsByType.map((k, v) => MapEntry(k, v.length)),
+    'most_common_errors': mostCommonErrors,
+    'error_rate': errorRate,
+    'time_window_minutes': timeWindow?.inMinutes,
+    'category': category?.name,
+  };
 }
 
 /// Error categories

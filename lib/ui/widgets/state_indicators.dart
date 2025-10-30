@@ -23,11 +23,7 @@ class ModernEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final colors = gradientColors ??
-        [
-          DuruColors.primary,
-          DuruColors.accent,
-        ];
+    final colors = gradientColors ?? [DuruColors.primary, DuruColors.accent];
 
     return Center(
       child: Padding(
@@ -76,18 +72,16 @@ class ModernEmptyState extends StatelessWidget {
                 subtitle!,
                 style: TextStyle(
                   fontSize: 14,
-                  color: (isDark ? Colors.white : Colors.black87)
-                      .withValues(alpha: 0.6),
+                  color: (isDark ? Colors.white : Colors.black87).withValues(
+                    alpha: 0.6,
+                  ),
                 ),
                 textAlign: TextAlign.center,
               ),
             ],
 
             // Action button
-            if (action != null) ...[
-              const SizedBox(height: 32.0),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: 32.0), action!],
           ],
         ),
       ),
@@ -125,13 +119,9 @@ class _ModernLoadingStateState extends State<ModernLoadingState>
       vsync: this,
     )..repeat();
 
-    _rotationAnimation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.linear,
-    ));
+    _rotationAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.linear),
+    );
   }
 
   @override
@@ -220,8 +210,9 @@ class _ModernLoadingStateState extends State<ModernLoadingState>
               widget.message!,
               style: TextStyle(
                 fontSize: 14,
-                color: (isDark ? Colors.white : Colors.black87)
-                    .withValues(alpha: 0.7),
+                color: (isDark ? Colors.white : Colors.black87).withValues(
+                  alpha: 0.7,
+                ),
               ),
               textAlign: TextAlign.center,
             ),
@@ -287,13 +278,9 @@ class ModernErrorState extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(24.0),
           decoration: BoxDecoration(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : Colors.white,
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: errorColor.withValues(alpha: 0.2),
-            ),
+            border: Border.all(color: errorColor.withValues(alpha: 0.2)),
             boxShadow: [
               BoxShadow(
                 color: errorColor.withValues(alpha: 0.1),
@@ -347,8 +334,9 @@ class ModernErrorState extends StatelessWidget {
                   message!,
                   style: TextStyle(
                     fontSize: 14,
-                    color: (isDark ? Colors.white : Colors.black87)
-                        .withValues(alpha: 0.7),
+                    color: (isDark ? Colors.white : Colors.black87).withValues(
+                      alpha: 0.7,
+                    ),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -445,13 +433,9 @@ class _ModernShimmerState extends State<ModernShimmer>
       vsync: this,
     )..repeat();
 
-    _shimmerAnimation = Tween<double>(
-      begin: -1.0,
-      end: 2.0,
-    ).animate(CurvedAnimation(
-      parent: _shimmerController,
-      curve: Curves.linear,
-    ));
+    _shimmerAnimation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.linear),
+    );
   }
 
   @override
@@ -498,10 +482,7 @@ class _ModernShimmerState extends State<ModernShimmer>
 class ModernContentSkeleton extends StatelessWidget {
   final int itemCount;
 
-  const ModernContentSkeleton({
-    super.key,
-    this.itemCount = 3,
-  });
+  const ModernContentSkeleton({super.key, this.itemCount = 3});
 
   @override
   Widget build(BuildContext context) {
@@ -517,9 +498,7 @@ class ModernContentSkeleton extends StatelessWidget {
                 ? Colors.white.withValues(alpha: 0.05)
                 : Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.grey.withValues(alpha: 0.1),
-            ),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

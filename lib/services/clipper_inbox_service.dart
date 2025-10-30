@@ -41,10 +41,11 @@ class ClipperInboxService {
     required SupabaseClient supabase,
     required NotesCapturePort notesPort,
     required IncomingMailFolderManager folderManager,
-    InboxUnreadService? unreadService, // Kept in constructor for backward compatibility
-  })  : _supabase = supabase,
-        _notesPort = notesPort,
-        _folderManager = folderManager;
+    InboxUnreadService?
+    unreadService, // Kept in constructor for backward compatibility
+  }) : _supabase = supabase,
+       _notesPort = notesPort,
+       _folderManager = folderManager;
 
   final SupabaseClient _supabase;
   final NotesCapturePort _notesPort;
@@ -86,16 +87,16 @@ class ClipperInboxService {
     }
 
     // Auto-processing ENABLED - start monitoring inbox
-    _logger.info(
-      '✅ [ClipperInbox] Auto-processing ENABLED - starting service',
-    );
+    _logger.info('✅ [ClipperInbox] Auto-processing ENABLED - starting service');
     stop();
     _startRealtimeSubscription();
     _startPolling();
 
     // Initial poll - process any pending items (including stuck items from previous sessions)
     unawaited(processOnce());
-    _logger.info('[ClipperInbox] Service started successfully - monitoring inbox for auto-conversion');
+    _logger.info(
+      '[ClipperInbox] Service started successfully - monitoring inbox for auto-conversion',
+    );
   }
 
   /// One-time cleanup to process any stuck inbox items (useful after re-enabling auto-process)
@@ -107,7 +108,9 @@ class ClipperInboxService {
         return;
       }
 
-      _logger.info('🧹 [ClipperInbox] Starting cleanup of pending inbox items...');
+      _logger.info(
+        '🧹 [ClipperInbox] Starting cleanup of pending inbox items...',
+      );
 
       // Fetch ALL pending items without filtering by processed IDs
       final rows = await _supabase
@@ -122,7 +125,9 @@ class ClipperInboxService {
         return;
       }
 
-      _logger.info('📥 [ClipperInbox] Found ${rows.length} pending items to process');
+      _logger.info(
+        '📥 [ClipperInbox] Found ${rows.length} pending items to process',
+      );
 
       // Clear processed IDs to allow reprocessing
       final originalProcessedIds = Set<String>.from(_processedIds);
@@ -137,7 +142,9 @@ class ClipperInboxService {
           successCount++;
         } catch (e) {
           failCount++;
-          _logger.error('❌ [ClipperInbox] Failed to process item ${row['id']}: $e');
+          _logger.error(
+            '❌ [ClipperInbox] Failed to process item ${row['id']}: $e',
+          );
         }
       }
 
@@ -148,7 +155,11 @@ class ClipperInboxService {
       // Restore processed IDs for normal operation
       _processedIds.addAll(originalProcessedIds);
     } catch (e, st) {
-      _logger.error('❌ [ClipperInbox] Cleanup error: $e', error: e, stackTrace: st);
+      _logger.error(
+        '❌ [ClipperInbox] Cleanup error: $e',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -162,8 +173,9 @@ class ClipperInboxService {
   void _startPolling() {
     _stopPolling();
     // Use longer interval when realtime is connected
-    final interval =
-        _realtimeConnected ? _realtimePollingInterval : _normalPollingInterval;
+    final interval = _realtimeConnected
+        ? _realtimePollingInterval
+        : _normalPollingInterval;
     _timer = Timer.periodic(interval, (_) => unawaited(processOnce()));
     _logger.debug(' Polling started with interval: ${interval.inSeconds}s');
   }
@@ -182,18 +194,19 @@ class ClipperInboxService {
       }
 
       // Create channel for clipper_inbox inserts
-      _realtimeChannel =
-          _supabase.channel('clipper_inbox_changes').onPostgresChanges(
-                event: PostgresChangeEvent.insert,
-                schema: 'public',
-                table: 'clipper_inbox',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'user_id',
-                  value: userId,
-                ),
-                callback: _handleRealtimeInsert,
-              );
+      _realtimeChannel = _supabase
+          .channel('clipper_inbox_changes')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'clipper_inbox',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: _handleRealtimeInsert,
+          );
 
       // Subscribe to the channel
       _realtimeChannel!.subscribe((status, error) {
@@ -273,11 +286,15 @@ class ClipperInboxService {
     try {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
-        _logger.debug('🔒 [ClipperInbox] No authenticated user for processOnce');
+        _logger.debug(
+          '🔒 [ClipperInbox] No authenticated user for processOnce',
+        );
         return;
       }
 
-      _logger.debug('🔄 [ClipperInbox] Polling inbox for user: ${userId.substring(0, 8)}...');
+      _logger.debug(
+        '🔄 [ClipperInbox] Polling inbox for user: ${userId.substring(0, 8)}...',
+      );
 
       // Fetch both email and web entries - strictly scoped to user
       final rows = await _supabase
@@ -302,13 +319,21 @@ class ClipperInboxService {
           processed++;
         } catch (e) {
           failed++;
-          _logger.error('❌ [ClipperInbox] Failed to process row ${row['id']}: $e');
+          _logger.error(
+            '❌ [ClipperInbox] Failed to process row ${row['id']}: $e',
+          );
         }
       }
 
-      _logger.info('✅ [ClipperInbox] Batch complete: $processed processed, $failed failed');
+      _logger.info(
+        '✅ [ClipperInbox] Batch complete: $processed processed, $failed failed',
+      );
     } catch (e, st) {
-      _logger.error('❌ [ClipperInbox] Processing error: $e', error: e, stackTrace: st);
+      _logger.error(
+        '❌ [ClipperInbox] Processing error: $e',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -340,8 +365,10 @@ class ClipperInboxService {
       // Limit the size of processed IDs set
       if (_processedIds.length > _maxProcessedIds) {
         // Remove oldest entries (convert to list, take last N, convert back)
-        final recentIds =
-            _processedIds.toList().skip(_processedIds.length - 500).toSet();
+        final recentIds = _processedIds
+            .toList()
+            .skip(_processedIds.length - 500)
+            .toSet();
         _processedIds.clear();
         _processedIds.addAll(recentIds);
       }
@@ -363,7 +390,8 @@ class ClipperInboxService {
       final text = (payload['text'] as String?)?.trim() ?? '';
       final html = payload['html'] as String?;
       final to = (payload['to'] as String?)?.trim();
-      final receivedAt = (payload['received_at'] as String?)?.trim() ??
+      final receivedAt =
+          (payload['received_at'] as String?)?.trim() ??
           DateTime.now().toIso8601String();
 
       // Build note body (plain text + footer)
@@ -398,7 +426,9 @@ class ClipperInboxService {
       }
 
       // Production logging - info level for tracking
-      _logger.info('📧 [ClipperInbox/Email] Processing: "$subject" from $from (inbox_id: $id)');
+      _logger.info(
+        '📧 [ClipperInbox/Email] Processing: "$subject" from $from (inbox_id: $id)',
+      );
       if (hasAttachments) {
         _logger.info('[ClipperInbox/Email] Has $attachmentCount attachment(s)');
       }
@@ -411,7 +441,9 @@ class ClipperInboxService {
         tags: tags,
       );
 
-      _logger.info('✅ [ClipperInbox/Email] Created note: $noteId with tags: ${tags.join(', ')} (from inbox_id: $id)');
+      _logger.info(
+        '✅ [ClipperInbox/Email] Created note: $noteId with tags: ${tags.join(', ')} (from inbox_id: $id)',
+      );
 
       // Add note to Incoming Mail folder
       try {
@@ -450,7 +482,8 @@ class ClipperInboxService {
       final text = (payload['text'] as String?)?.trim() ?? '';
       final url = (payload['url'] as String?)?.trim() ?? '';
       final html = payload['html'] as String?;
-      final clippedAt = (payload['clipped_at'] as String?)?.trim() ??
+      final clippedAt =
+          (payload['clipped_at'] as String?)?.trim() ??
           DateTime.now().toIso8601String();
 
       // Build note body with clipped content and source reference
@@ -475,7 +508,9 @@ class ClipperInboxService {
       final tags = <String>['Web'];
 
       // Production logging - info level for tracking
-      _logger.info('🌐 [ClipperInbox/Web] Processing: "$title" from $url (inbox_id: $id)');
+      _logger.info(
+        '🌐 [ClipperInbox/Web] Processing: "$title" from $url (inbox_id: $id)',
+      );
 
       // Create encrypted note
       final noteId = await _notesPort.createEncryptedNote(
@@ -485,7 +520,9 @@ class ClipperInboxService {
         tags: tags,
       );
 
-      _logger.info('✅ [ClipperInbox/Web] Created note: $noteId (from inbox_id: $id)');
+      _logger.info(
+        '✅ [ClipperInbox/Web] Created note: $noteId (from inbox_id: $id)',
+      );
 
       // Add note to Incoming Mail folder (serves as unified inbox)
       try {

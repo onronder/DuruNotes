@@ -75,8 +75,9 @@ class _TemplateRepositoryHarness {
         userId: activeUserId ?? '',
         tags: tags,
         metadata: metadata != null ? jsonEncode(metadata) : null,
-        attachmentMeta:
-            attachmentMeta != null ? jsonEncode(attachmentMeta) : null,
+        attachmentMeta: attachmentMeta != null
+            ? jsonEncode(attachmentMeta)
+            : null,
         encryptedMetadata: null,
         links: const [],
       );
@@ -124,7 +125,9 @@ class _TemplateRepositoryHarness {
     Map<String, dynamic> variables = const {},
     int sortOrder = 0,
   }) async {
-    await db.into(db.localTemplates).insert(
+    await db
+        .into(db.localTemplates)
+        .insert(
           LocalTemplatesCompanion.insert(
             id: id,
             userId: ownerId == null
@@ -244,16 +247,16 @@ void main() {
       final created = await harness.repository.createTemplate(template);
       expect(created.id, isNotEmpty);
 
-      final stored = await (harness.db.select(harness.db.localTemplates)
-            ..where((t) => t.id.equals(created.id)))
-          .getSingle();
+      final stored = await (harness.db.select(
+        harness.db.localTemplates,
+      )..where((t) => t.id.equals(created.id))).getSingle();
 
       expect(stored.userId, equals('user-a'));
       expect(stored.isSystem, isFalse);
 
-      final pending = await (harness.db.select(harness.db.pendingOps)
-            ..where((op) => op.userId.equals('user-a')))
-          .get();
+      final pending = await (harness.db.select(
+        harness.db.pendingOps,
+      )..where((op) => op.userId.equals('user-a'))).get();
       expect(pending, isNotEmpty);
       expect(pending.last.entityId, created.id);
       expect(pending.last.kind, 'upsert_template');
@@ -280,7 +283,9 @@ void main() {
         content: 'Original content',
       );
 
-      final existing = await harness.repository.getTemplateById('edit-template');
+      final existing = await harness.repository.getTemplateById(
+        'edit-template',
+      );
       expect(existing, isNotNull);
 
       harness.useUserB();
@@ -293,7 +298,9 @@ void main() {
       );
 
       harness.useUserA();
-      final unchanged = await harness.repository.getTemplateById('edit-template');
+      final unchanged = await harness.repository.getTemplateById(
+        'edit-template',
+      );
       expect(unchanged!.name, equals('Original'));
     });
 
@@ -309,16 +316,18 @@ void main() {
       await harness.repository.deleteTemplate('delete-template');
 
       harness.useUserA();
-      var template = await harness.repository.getTemplateById('delete-template');
+      var template = await harness.repository.getTemplateById(
+        'delete-template',
+      );
       expect(template, isNotNull);
 
       await harness.repository.deleteTemplate('delete-template');
       template = await harness.repository.getTemplateById('delete-template');
       expect(template, isNull);
 
-      final pending = await (harness.db.select(harness.db.pendingOps)
-            ..where((op) => op.userId.equals('user-a')))
-          .get();
+      final pending = await (harness.db.select(
+        harness.db.pendingOps,
+      )..where((op) => op.userId.equals('user-a'))).get();
       expect(pending.map((op) => op.kind), contains('delete_template'));
     });
 
@@ -329,7 +338,10 @@ void main() {
         timestamp: now,
         ownerId: 'user-a',
         content: '# Meeting Notes\n{{notes}}',
-        variables: {'title': 'Meeting Notes', 'tags': ['meeting']},
+        variables: {
+          'title': 'Meeting Notes',
+          'tags': ['meeting'],
+        },
       );
 
       harness.useUserA();

@@ -272,7 +272,9 @@ class ServiceAdapter {
             data: contentEncBytes,
           );
         } catch (e) {
-          _logger.warning('Failed to decrypt task content, falling back to plaintext: $e');
+          _logger.warning(
+            'Failed to decrypt task content, falling back to plaintext: $e',
+          );
           title = (data['content'] ?? '') as String;
         }
       } else {
@@ -291,7 +293,9 @@ class ServiceAdapter {
             data: notesEncBytes,
           );
         } catch (e) {
-          _logger.warning('Failed to decrypt task notes, falling back to plaintext: $e');
+          _logger.warning(
+            'Failed to decrypt task notes, falling back to plaintext: $e',
+          );
           description = null; // Will be extracted from metadata below
         }
       }
@@ -309,7 +313,9 @@ class ServiceAdapter {
           final decoded = jsonDecode(labelsJson);
           tags = _normalizeStringList(decoded);
         } catch (e) {
-          _logger.warning('Failed to decrypt task labels, falling back to plaintext: $e');
+          _logger.warning(
+            'Failed to decrypt task labels, falling back to plaintext: $e',
+          );
           tags = null; // Will be extracted below
         }
       }
@@ -326,7 +332,9 @@ class ServiceAdapter {
           );
           metadata = _parseMetadata(metadataJson);
         } catch (e) {
-          _logger.warning('Failed to decrypt task metadata, falling back to plaintext: $e');
+          _logger.warning(
+            'Failed to decrypt task metadata, falling back to plaintext: $e',
+          );
           metadata = _parseMetadata(data['metadata']);
         }
       } else {
@@ -339,12 +347,16 @@ class ServiceAdapter {
         ..putIfAbsent('position', () => data['position'])
         ..putIfAbsent('parentTaskId', () => data['parent_id'])
         ..putIfAbsent('deleted', () => data['deleted'])
-        ..putIfAbsent('userId', () => (data['user_id'] as String?) ?? userId ?? '')
+        ..putIfAbsent(
+          'userId',
+          () => (data['user_id'] as String?) ?? userId ?? '',
+        )
         ..removeWhere((key, value) => value == null);
 
       // Extract description and tags if not already decrypted
       description ??= _extractDescription(metadata, data['notes']);
-      tags ??= _extractTags(data['labels']) ?? _normalizeStringList(data['tags']);
+      tags ??=
+          _extractTags(data['labels']) ?? _normalizeStringList(data['tags']);
 
       return domain.Task(
         id: data['id'] as String,

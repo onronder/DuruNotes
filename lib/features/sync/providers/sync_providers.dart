@@ -64,18 +64,20 @@ final unifiedSyncServiceProvider = Provider<UnifiedSyncService>((ref) {
   final quickCaptureService = ref.watch(quickCaptureServiceProvider);
 
   // Initialize the service with all dependencies
-  service.initialize(
-    database: appDb,
-    client: supabase,
-    migrationConfig: migrationConfig,
-    domainNotesRepo: notesRepo,
-    domainTasksRepo: tasksRepo,
-    keyManager: keyManager,
-    cryptoBox: cryptoBox,
-    quickCaptureService: quickCaptureService,
-  ).catchError((Object error) {
-    debugPrint('[Sync] Failed to initialize UnifiedSyncService: $error');
-  });
+  service
+      .initialize(
+        database: appDb,
+        client: supabase,
+        migrationConfig: migrationConfig,
+        domainNotesRepo: notesRepo,
+        domainTasksRepo: tasksRepo,
+        keyManager: keyManager,
+        cryptoBox: cryptoBox,
+        quickCaptureService: quickCaptureService,
+      )
+      .catchError((Object error) {
+        debugPrint('[Sync] Failed to initialize UnifiedSyncService: $error');
+      });
 
   // Get unified realtime service if available
   final unifiedRealtime = ref.watch(unifiedRealtimeServiceProvider);
@@ -84,7 +86,9 @@ final unifiedSyncServiceProvider = Provider<UnifiedSyncService>((ref) {
   if (unifiedRealtime != null) {
     void onRealtimeEvent() {
       if (service.isInitialized) {
-        debugPrint('[Sync] 📡 Realtime event received - triggering automatic sync');
+        debugPrint(
+          '[Sync] 📡 Realtime event received - triggering automatic sync',
+        );
         service.syncAll().catchError((Object error) {
           debugPrint('[Sync] Auto-sync from realtime event failed: $error');
           // Return a failed sync result for error handler
@@ -176,61 +180,61 @@ final folderSyncCoordinatorProvider = Provider<FolderSyncCoordinator?>((ref) {
 /// This replaces individual realtime services to reduce database load
 final unifiedRealtimeServiceProvider =
     ChangeNotifierProvider<UnifiedRealtimeService?>((ref) {
-  // PRODUCTION FIX #5: Keep provider alive to prevent disposal/recreation cycles
-  ref.keepAlive();
+      // PRODUCTION FIX #5: Keep provider alive to prevent disposal/recreation cycles
+      ref.keepAlive();
 
-  // Watch auth state to properly manage lifecycle
-  final authStateAsync = ref.watch(authStateChangesProvider);
+      // Watch auth state to properly manage lifecycle
+      final authStateAsync = ref.watch(authStateChangesProvider);
 
-  return authStateAsync.when(
-    data: (authState) {
-      // Return null if not authenticated
-      if (authState.session == null) {
-        debugPrint(
-          '[Providers] No session - unified realtime service not created',
-        );
-        return null;
-      }
+      return authStateAsync.when(
+        data: (authState) {
+          // Return null if not authenticated
+          if (authState.session == null) {
+            debugPrint(
+              '[Providers] No session - unified realtime service not created',
+            );
+            return null;
+          }
 
-      final userId = authState.session!.user.id;
-      final logger = ref.watch(loggerProvider);
-      final folderSyncCoordinator = ref.watch(
-        folderSyncCoordinatorProvider,
+          final userId = authState.session!.user.id;
+          final logger = ref.watch(loggerProvider);
+          final folderSyncCoordinator = ref.watch(
+            folderSyncCoordinatorProvider,
+          );
+
+          debugPrint(
+            '[Providers] Creating unified realtime service for user: $userId',
+          );
+
+          // Create service with injected dependencies
+          final service = UnifiedRealtimeService(
+            supabase: Supabase.instance.client,
+            userId: userId,
+            logger: logger,
+            connectionManager: ConnectionManager(),
+            folderSyncCoordinator: folderSyncCoordinator,
+          );
+
+          // Start the service with proper error handling
+          service.start().catchError((Object error) {
+            logger.error(
+              '[Providers] Failed to start unified realtime',
+              error: error,
+            );
+          });
+
+          // CRITICAL: Proper disposal on logout or provider disposal
+          ref.onDispose(() {
+            debugPrint('[Providers] Disposing unified realtime service');
+            service.dispose();
+          });
+
+          return service;
+        },
+        loading: () => null,
+        error: (error, stack) {
+          debugPrint('[Providers] Auth state error: $error');
+          return null;
+        },
       );
-
-      debugPrint(
-        '[Providers] Creating unified realtime service for user: $userId',
-      );
-
-      // Create service with injected dependencies
-      final service = UnifiedRealtimeService(
-        supabase: Supabase.instance.client,
-        userId: userId,
-        logger: logger,
-        connectionManager: ConnectionManager(),
-        folderSyncCoordinator: folderSyncCoordinator,
-      );
-
-      // Start the service with proper error handling
-      service.start().catchError((Object error) {
-        logger.error(
-          '[Providers] Failed to start unified realtime',
-          error: error,
-        );
-      });
-
-      // CRITICAL: Proper disposal on logout or provider disposal
-      ref.onDispose(() {
-        debugPrint('[Providers] Disposing unified realtime service');
-        service.dispose();
-      });
-
-      return service;
-    },
-    loading: () => null,
-    error: (error, stack) {
-      debugPrint('[Providers] Auth state error: $error');
-      return null;
-    },
-  );
-});
+    });

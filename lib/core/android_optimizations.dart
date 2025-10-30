@@ -39,14 +39,16 @@ class AndroidOptimizations {
     try {
       // Configure platform channels
       const platform = MethodChannel('com.fittechs.duruNotesApp/optimization');
-      await platform.invokeMethod('configure', {
-        'enableHardwareAcceleration': true,
-        'reduceSurfaceRedraw': true,
-        'optimizeMemory': true,
-      }).catchError((e) {
-        // Ignore if channel doesn't exist
-        return null;
-      });
+      await platform
+          .invokeMethod('configure', {
+            'enableHardwareAcceleration': true,
+            'reduceSurfaceRedraw': true,
+            'optimizeMemory': true,
+          })
+          .catchError((e) {
+            // Ignore if channel doesn't exist
+            return null;
+          });
     } catch (e) {
       // Ignore configuration errors
     }

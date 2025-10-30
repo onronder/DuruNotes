@@ -107,19 +107,21 @@ class DatabaseMigrationHelper {
 
         // Get table schema using parameterized query (sqlite3 package doesn't support for all queries)
         // Security: Use quoted identifier instead of string interpolation
-        final createStatement = oldDb
-            .select(
-              'SELECT sql FROM sqlite_master WHERE type="table" AND name=?',
-              [tableName],
-            )
-            .first['sql'] as String;
+        final createStatement =
+            oldDb.select(
+                  'SELECT sql FROM sqlite_master WHERE type="table" AND name=?',
+                  [tableName],
+                ).first['sql']
+                as String;
 
         // Create table in new database
         newDb.execute(createStatement);
 
         // Copy data using quoted identifiers to prevent injection
         final quotedTableName = _quoteIdentifier(tableName);
-        newDb.execute('INSERT INTO main.$quotedTableName SELECT * FROM old_db.$quotedTableName');
+        newDb.execute(
+          'INSERT INTO main.$quotedTableName SELECT * FROM old_db.$quotedTableName',
+        );
       }
 
       // Copy indices
@@ -239,7 +241,16 @@ class DatabaseMigrationHelper {
     }
 
     // Additional check: SQLite reserved words
-    const reservedWords = {'table', 'index', 'trigger', 'view', 'select', 'delete', 'update', 'insert'};
+    const reservedWords = {
+      'table',
+      'index',
+      'trigger',
+      'view',
+      'select',
+      'delete',
+      'update',
+      'insert',
+    };
     if (reservedWords.contains(tableName.toLowerCase())) {
       throw SecurityException(
         'Invalid table name: "$tableName" is a reserved SQL keyword.',

@@ -52,5 +52,8 @@ abstract class IConflictRepository {
   Future<Map<ConflictType, int>> getStatsByType();
 
   /// Batch resolve multiple conflicts
-  Future<void> batchResolve(List<String> conflictIds, ConflictResolutionStrategy strategy);
+  Future<void> batchResolve(
+    List<String> conflictIds,
+    ConflictResolutionStrategy strategy,
+  );
 }

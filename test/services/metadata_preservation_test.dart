@@ -26,32 +26,28 @@ class _StubCryptoBox extends Mock implements CryptoBox {
     required String userId,
     required String noteId,
     required String text,
-  }) async =>
-      _encode(text);
+  }) async => _encode(text);
 
   @override
   Future<String> decryptStringForNote({
     required String userId,
     required String noteId,
     required Uint8List data,
-  }) async =>
-      _decode(data);
+  }) async => _decode(data);
 
   @override
   Future<Uint8List> encryptJsonForNote({
     required String userId,
     required String noteId,
     required Map<String, dynamic> json,
-  }) async =>
-      _encode(jsonEncode(json));
+  }) async => _encode(jsonEncode(json));
 
   @override
   Future<Map<String, dynamic>> decryptJsonForNote({
     required String userId,
     required String noteId,
     required Uint8List data,
-  }) async =>
-      jsonDecode(_decode(data)) as Map<String, dynamic>;
+  }) async => jsonDecode(_decode(data)) as Map<String, dynamic>;
 }
 
 void main() {
@@ -93,7 +89,9 @@ void main() {
     }
 
     Future<void> seedNote() async {
-      await database.into(database.localNotes).insert(
+      await database
+          .into(database.localNotes)
+          .insert(
             db.LocalNotesCompanion.insert(
               id: noteId,
               userId: const Value(userId),
@@ -129,50 +127,56 @@ void main() {
       await database.close();
     });
 
-    test('updating task content retains labels and structured metadata', () async {
-      await seedNote();
-      final createdAt = DateTime.utc(2025, 1, 24);
-      final task = buildTask(
-        id: '',
-        timestamp: createdAt,
-        tags: const ['urgent', 'work'],
-        metadata: const {
-          'estimatedMinutes': 45,
-          'actualMinutes': 15,
-          'parentTaskId': 'parent-42',
-        },
-      );
+    test(
+      'updating task content retains labels and structured metadata',
+      () async {
+        await seedNote();
+        final createdAt = DateTime.utc(2025, 1, 24);
+        final task = buildTask(
+          id: '',
+          timestamp: createdAt,
+          tags: const ['urgent', 'work'],
+          metadata: const {
+            'estimatedMinutes': 45,
+            'actualMinutes': 15,
+            'parentTaskId': 'parent-42',
+          },
+        );
 
-      final created = await repository.createTask(task);
-      final original = await repository.getTaskById(created.id);
-      expect(original, isNotNull);
-      expect(original!.tags, equals(['urgent', 'work']));
-      expect(original.metadata['estimatedMinutes'], 45);
-      expect(original.metadata['parentTaskId'], 'parent-42');
+        final created = await repository.createTask(task);
+        final original = await repository.getTaskById(created.id);
+        expect(original, isNotNull);
+        expect(original!.tags, equals(['urgent', 'work']));
+        expect(original.metadata['estimatedMinutes'], 45);
+        expect(original.metadata['parentTaskId'], 'parent-42');
 
-      final updated = original.copyWith(
-        title: 'Updated Task Content',
-        description: 'Preserve this description',
-      );
+        final updated = original.copyWith(
+          title: 'Updated Task Content',
+          description: 'Preserve this description',
+        );
 
-      final result = await repository.updateTask(updated);
+        final result = await repository.updateTask(updated);
 
-      expect(result.title, 'Updated Task Content');
-      expect(result.description, 'Preserve this description');
-      expect(result.tags, equals(['urgent', 'work']),
-          reason: 'Labels must survive content edits');
-      expect(result.metadata['estimatedMinutes'], 45);
-      expect(result.metadata['actualMinutes'], 15);
-      expect(result.metadata['parentTaskId'], 'parent-42');
-      expect(result.metadata['contentHash'], isNotEmpty);
-      expect(
-        DateTime.parse(result.metadata['updatedAt'] as String).isAfter(
-          DateTime.parse(original.metadata['updatedAt'] as String),
-        ),
-        isTrue,
-        reason: 'Updated timestamp should advance after content change',
-      );
-    });
+        expect(result.title, 'Updated Task Content');
+        expect(result.description, 'Preserve this description');
+        expect(
+          result.tags,
+          equals(['urgent', 'work']),
+          reason: 'Labels must survive content edits',
+        );
+        expect(result.metadata['estimatedMinutes'], 45);
+        expect(result.metadata['actualMinutes'], 15);
+        expect(result.metadata['parentTaskId'], 'parent-42');
+        expect(result.metadata['contentHash'], isNotEmpty);
+        expect(
+          DateTime.parse(
+            result.metadata['updatedAt'] as String,
+          ).isAfter(DateTime.parse(original.metadata['updatedAt'] as String)),
+          isTrue,
+          reason: 'Updated timestamp should advance after content change',
+        );
+      },
+    );
 
     test('reminder metadata is preserved across updates', () async {
       await seedNote();
@@ -181,9 +185,7 @@ void main() {
         buildTask(
           id: '',
           timestamp: timestamp,
-          metadata: const {
-            'estimatedMinutes': 30,
-          },
+          metadata: const {'estimatedMinutes': 30},
         ),
       );
 
@@ -205,8 +207,11 @@ void main() {
       );
       final result = await repository.updateTask(updated);
 
-      expect(result.metadata['reminderId'], 99,
-          reason: 'Reminder linkage must not be cleared by content updates');
+      expect(
+        result.metadata['reminderId'],
+        99,
+        reason: 'Reminder linkage must not be cleared by content updates',
+      );
       expect(result.metadata['estimatedMinutes'], 30);
     });
 
@@ -218,10 +223,7 @@ void main() {
         buildTask(
           id: '',
           timestamp: timestamp,
-          metadata: const {
-            'position': 2,
-            'estimatedMinutes': 20,
-          },
+          metadata: const {'position': 2, 'estimatedMinutes': 20},
           title: 'Task before reorder',
         ),
       );
@@ -244,8 +246,11 @@ void main() {
       );
       final result = await repository.updateTask(updated);
 
-      expect(result.metadata['position'], 4,
-          reason: 'Position metadata should persist through updates');
+      expect(
+        result.metadata['position'],
+        4,
+        reason: 'Position metadata should persist through updates',
+      );
       expect(result.metadata['estimatedMinutes'], 20);
     });
   });

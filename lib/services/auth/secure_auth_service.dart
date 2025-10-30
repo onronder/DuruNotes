@@ -118,10 +118,12 @@ class SecureAuthService {
         refreshToken: authResult.refreshToken,
       );
     } catch (error, stack) {
-      _errorLogger.logError(error, stack, category: 'Auth', metadata: {
-        'operation': 'signup',
-        'email': email,
-      });
+      _errorLogger.logError(
+        error,
+        stack,
+        category: 'Auth',
+        metadata: {'operation': 'signup', 'email': email},
+      );
 
       if (error is AuthException) rethrow;
       throw AuthException('Sign up failed: ${error.toString()}');
@@ -173,8 +175,10 @@ class SecureAuthService {
           throw AuthException('2FA required', requiresMfa: true);
         }
         if (authResult.requiresDeviceVerification) {
-          throw AuthException('Device verification required',
-            requiresDeviceVerification: true);
+          throw AuthException(
+            'Device verification required',
+            requiresDeviceVerification: true,
+          );
         }
         throw AuthException(authResult.error ?? 'Authentication failed');
       }
@@ -209,10 +213,12 @@ class SecureAuthService {
         refreshToken: authResult.refreshToken,
       );
     } catch (error, stack) {
-      _errorLogger.logError(error, stack, category: 'Auth', metadata: {
-        'operation': 'signin',
-        'email': email,
-      });
+      _errorLogger.logError(
+        error,
+        stack,
+        category: 'Auth',
+        metadata: {'operation': 'signin', 'email': email},
+      );
 
       if (error is AuthException) rethrow;
       throw AuthException('Sign in failed: ${error.toString()}');
@@ -273,10 +279,12 @@ class SecureAuthService {
 
       return true;
     } catch (error, stack) {
-      _errorLogger.logError(error, stack, category: 'Auth', metadata: {
-        'operation': 'refresh',
-        'sessionId': _currentSessionId,
-      });
+      _errorLogger.logError(
+        error,
+        stack,
+        category: 'Auth',
+        metadata: {'operation': 'refresh', 'sessionId': _currentSessionId},
+      );
       return false;
     }
   }
@@ -301,9 +309,12 @@ class SecureAuthService {
 
       _errorLogger.logInfo('User signed out successfully');
     } catch (error, stack) {
-      _errorLogger.logError(error, stack, category: 'Auth', metadata: {
-        'operation': 'signout',
-      });
+      _errorLogger.logError(
+        error,
+        stack,
+        category: 'Auth',
+        metadata: {'operation': 'signout'},
+      );
     }
   }
 
@@ -368,7 +379,7 @@ class SecureAuthService {
 
     if (strength < 3) {
       throw AuthException(
-        'Password must contain at least 3 of: uppercase, lowercase, digit, special character'
+        'Password must contain at least 3 of: uppercase, lowercase, digit, special character',
       );
     }
   }
@@ -437,8 +448,12 @@ class SecureAuthService {
 
       if (emailJson == null || tokenJson == null) return null;
 
-      final emailData = EncryptedData.fromJson(jsonDecode(emailJson) as Map<String, dynamic>);
-      final tokenData = EncryptedData.fromJson(jsonDecode(tokenJson) as Map<String, dynamic>);
+      final emailData = EncryptedData.fromJson(
+        jsonDecode(emailJson) as Map<String, dynamic>,
+      );
+      final tokenData = EncryptedData.fromJson(
+        jsonDecode(tokenJson) as Map<String, dynamic>,
+      );
 
       final email = await _encryption.decryptData(emailData) as String;
       final token = await _encryption.decryptData(tokenData) as String;

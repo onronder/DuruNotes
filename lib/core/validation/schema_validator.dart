@@ -83,16 +83,17 @@ class SchemaValidator {
     'tasks',
   ];
 
-
   /// Validate schema compatibility between local and remote
   static Future<SchemaValidationResult> validateSchema(AppDb db) async {
     final result = SchemaValidationResult();
 
     try {
       // Get all existing tables
-      final tables = await db.customSelect(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-      ).get();
+      final tables = await db
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+          )
+          .get();
 
       final existingTables = tables.map((t) => t.read<String>('name')).toSet();
 
@@ -133,7 +134,6 @@ class SchemaValidator {
       _logValidationResults(result);
 
       return result;
-
     } catch (e, stack) {
       _logger.error('Schema validation failed: $e\nStack: $stack');
       result.errors.add('Validation error: $e');
@@ -142,7 +142,10 @@ class SchemaValidator {
   }
 
   /// Check if a table exists under a different name
-  static String? _checkForRenamedTable(String requiredTable, Set<String> existingTables) {
+  static String? _checkForRenamedTable(
+    String requiredTable,
+    Set<String> existingTables,
+  ) {
     // Map of remote -> local table names
     final renames = {
       'notes': 'local_notes',
@@ -184,7 +187,10 @@ class SchemaValidator {
   }
 
   /// Validate critical indexes exist
-  static Future<void> _validateIndexes(AppDb db, SchemaValidationResult result) async {
+  static Future<void> _validateIndexes(
+    AppDb db,
+    SchemaValidationResult result,
+  ) async {
     final criticalIndexes = [
       'idx_notes_user_id',
       'idx_notes_updated_at',
@@ -194,9 +200,9 @@ class SchemaValidator {
       'idx_note_folders_note_id',
     ];
 
-    final indexes = await db.customSelect(
-      "SELECT name FROM sqlite_master WHERE type='index'"
-    ).get();
+    final indexes = await db
+        .customSelect("SELECT name FROM sqlite_master WHERE type='index'")
+        .get();
 
     final existingIndexes = indexes.map((i) => i.read<String>('name')).toSet();
 
@@ -212,10 +218,14 @@ class SchemaValidator {
     if (result.isFullyCompatible) {
       _logger.info('✅ Schema validation PASSED - Full compatibility');
     } else if (result.compatibilityScore >= 80) {
-      _logger.warning('⚠️ Schema validation: ${result.compatibilityScore}% compatible');
+      _logger.warning(
+        '⚠️ Schema validation: ${result.compatibilityScore}% compatible',
+      );
       _logger.warning('Missing tables: ${result.missingTables.join(', ')}');
     } else {
-      _logger.error('❌ Schema validation FAILED: ${result.compatibilityScore}% compatible');
+      _logger.error(
+        '❌ Schema validation FAILED: ${result.compatibilityScore}% compatible',
+      );
       _logger.error('Missing ${result.missingTables.length} tables');
       _logger.error('Missing tables: ${result.missingTables.join(', ')}');
     }
@@ -263,9 +273,7 @@ class SchemaValidationResult {
   int compatibilityScore = 0;
 
   bool get isFullyCompatible =>
-      missingTables.isEmpty &&
-      renamedTables.isEmpty &&
-      errors.isEmpty;
+      missingTables.isEmpty && renamedTables.isEmpty && errors.isEmpty;
 
   bool get hasMinimalCompatibility => compatibilityScore >= 50;
 
@@ -282,7 +290,8 @@ class SchemaValidationResult {
     // Renamed tables count as 80% compatible
     final effectiveMissing = missing + (renamed * 0.2);
 
-    compatibilityScore = ((totalRequired - effectiveMissing) / totalRequired * 100).round();
+    compatibilityScore =
+        ((totalRequired - effectiveMissing) / totalRequired * 100).round();
     compatibilityScore = compatibilityScore.clamp(0, 100);
   }
 
@@ -300,6 +309,6 @@ class SchemaValidationResult {
       'securityAudit': FeatureFlags.securityAuditEnabled,
       'blockContent': FeatureFlags.blockContentEnabled,
       'tags': FeatureFlags.tagsEnabled,
-    }
+    },
   };
 }

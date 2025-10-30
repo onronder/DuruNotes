@@ -82,18 +82,18 @@ class NoteFolderChangeOperation extends UndoableOperation {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'note_folder_change',
-        'id': id,
-        'timestamp': timestamp.toIso8601String(),
-        'description': description,
-        'expiresAt': expiresAt?.toIso8601String(),
-        'noteId': noteId,
-        'noteTitle': noteTitle,
-        'previousFolderId': previousFolderId,
-        'previousFolderName': previousFolderName,
-        'newFolderId': newFolderId,
-        'newFolderName': newFolderName,
-      };
+    'type': 'note_folder_change',
+    'id': id,
+    'timestamp': timestamp.toIso8601String(),
+    'description': description,
+    'expiresAt': expiresAt?.toIso8601String(),
+    'noteId': noteId,
+    'noteTitle': noteTitle,
+    'previousFolderId': previousFolderId,
+    'previousFolderName': previousFolderName,
+    'newFolderId': newFolderId,
+    'newFolderName': newFolderName,
+  };
 
   static NoteFolderChangeOperation? fromJson(Map<String, dynamic> json) {
     // Note: repository needs to be injected when restoring
@@ -137,16 +137,16 @@ class BatchFolderChangeOperation extends UndoableOperation {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'batch_folder_change',
-        'id': id,
-        'timestamp': timestamp.toIso8601String(),
-        'description': description,
-        'expiresAt': expiresAt?.toIso8601String(),
-        'noteIds': noteIds,
-        'previousFolderIds': previousFolderIds,
-        'newFolderId': newFolderId,
-        'newFolderName': newFolderName,
-      };
+    'type': 'batch_folder_change',
+    'id': id,
+    'timestamp': timestamp.toIso8601String(),
+    'description': description,
+    'expiresAt': expiresAt?.toIso8601String(),
+    'noteIds': noteIds,
+    'previousFolderIds': previousFolderIds,
+    'newFolderId': newFolderId,
+    'newFolderName': newFolderName,
+  };
 
   static BatchFolderChangeOperation? fromJson(Map<String, dynamic> json) {
     // Note: repository needs to be injected when restoring
@@ -186,16 +186,16 @@ class FolderMoveOperation extends UndoableOperation {
 
   @override
   Map<String, dynamic> toJson() => {
-        'type': 'folder_move',
-        'id': id,
-        'timestamp': timestamp.toIso8601String(),
-        'description': description,
-        'expiresAt': expiresAt?.toIso8601String(),
-        'folderId': folderId,
-        'folderName': folderName,
-        'previousParentId': previousParentId,
-        'newParentId': newParentId,
-      };
+    'type': 'folder_move',
+    'id': id,
+    'timestamp': timestamp.toIso8601String(),
+    'description': description,
+    'expiresAt': expiresAt?.toIso8601String(),
+    'folderId': folderId,
+    'folderName': folderName,
+    'previousParentId': previousParentId,
+    'newParentId': newParentId,
+  };
 
   static FolderMoveOperation? fromJson(Map<String, dynamic> json) {
     // Note: repository needs to be injected when restoring
@@ -430,14 +430,8 @@ class UndoRedoService extends ChangeNotifier {
           .map((op) => op.toJson())
           .toList();
 
-      await _prefs?.setString(
-        'undo_stack_$userId',
-        jsonEncode(undoJson),
-      );
-      await _prefs?.setString(
-        'redo_stack_$userId',
-        jsonEncode(redoJson),
-      );
+      await _prefs?.setString('undo_stack_$userId', jsonEncode(undoJson));
+      await _prefs?.setString('redo_stack_$userId', jsonEncode(redoJson));
     } catch (e) {
       _logger.error('Failed to persist undo/redo operations', error: e);
     }

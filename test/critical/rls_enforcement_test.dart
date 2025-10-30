@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:duru_notes/core/parser/note_indexer.dart';
-import 'package:duru_notes/core/providers/search_providers.dart' show noteIndexerProvider;
+import 'package:duru_notes/core/providers/search_providers.dart'
+    show noteIndexerProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/models/note_kind.dart';
@@ -14,14 +15,14 @@ import '../helpers/security_test_setup.dart';
 class _StubGoTrueClient extends GoTrueClient {
   _StubGoTrueClient(User? user)
     : _session = user == null
-            ? null
-            : Session(
-                accessToken: 'stub-access-token',
-                refreshToken: 'stub-refresh-token',
-                tokenType: 'bearer',
-                expiresIn: 3600,
-                user: user,
-              ),
+          ? null
+          : Session(
+              accessToken: 'stub-access-token',
+              refreshToken: 'stub-refresh-token',
+              tokenType: 'bearer',
+              expiresIn: 3600,
+              user: user,
+            ),
       super(
         url: 'https://stub.supabase.co/auth/v1',
         headers: const {},
@@ -44,8 +45,9 @@ class _StubSupabaseClient extends SupabaseClient {
         'https://stub.supabase.co',
         'stub-public-anon-key',
         authOptions: const AuthClientOptions(autoRefreshToken: false),
-        realtimeClientOptions:
-            const RealtimeClientOptions(logLevel: RealtimeLogLevel.error),
+        realtimeClientOptions: const RealtimeClientOptions(
+          logLevel: RealtimeLogLevel.error,
+        ),
       );
 
   final GoTrueClient _auth;
@@ -93,102 +95,138 @@ void main() {
       container.dispose();
     });
 
-    test('Unauthenticated repository cannot mutate or observe user data', () async {
-      await _seedUserNotes(db);
-      final crypto = SecurityTestSetup.createTestCryptoBox();
+    test(
+      'Unauthenticated repository cannot mutate or observe user data',
+      () async {
+        await _seedUserNotes(db);
+        final crypto = SecurityTestSetup.createTestCryptoBox();
 
-      final unauthRepo = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _clientForUser(null),
-        indexer: indexer,
-      );
+        final unauthRepo = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _clientForUser(null),
+          indexer: indexer,
+        );
 
-      // Attempt to toggle pin without authentication should be ignored
-      await unauthRepo.toggleNotePin('note-a');
-      final noteA = await (db.select(db.localNotes)..where((tbl) => tbl.id.equals('note-a'))).getSingle();
-      expect(noteA.isPinned, isFalse, reason: 'toggleNotePin should be ignored without user');
+        // Attempt to toggle pin without authentication should be ignored
+        await unauthRepo.toggleNotePin('note-a');
+        final noteA = await (db.select(
+          db.localNotes,
+        )..where((tbl) => tbl.id.equals('note-a'))).getSingle();
+        expect(
+          noteA.isPinned,
+          isFalse,
+          reason: 'toggleNotePin should be ignored without user',
+        );
 
-      // Attempt to set pin should be ignored
-      await unauthRepo.setNotePin('note-a', true);
-      final noteAAfterSet =
-          await (db.select(db.localNotes)..where((tbl) => tbl.id.equals('note-a'))).getSingle();
-      expect(noteAAfterSet.isPinned, isFalse, reason: 'setNotePin requires authenticated user');
+        // Attempt to set pin should be ignored
+        await unauthRepo.setNotePin('note-a', true);
+        final noteAAfterSet = await (db.select(
+          db.localNotes,
+        )..where((tbl) => tbl.id.equals('note-a'))).getSingle();
+        expect(
+          noteAAfterSet.isPinned,
+          isFalse,
+          reason: 'setNotePin requires authenticated user',
+        );
 
-      // Attempt to add pending operation (via push) should be skipped
-      expect(await db.select(db.pendingOps).get(), isEmpty);
-    });
+        // Attempt to add pending operation (via push) should be skipped
+        expect(await db.select(db.pendingOps).get(), isEmpty);
+      },
+    );
 
-    test('Authenticated repository only mutates data for its own user', () async {
-      await _seedUserNotes(db);
-      final crypto = SecurityTestSetup.createTestCryptoBox();
+    test(
+      'Authenticated repository only mutates data for its own user',
+      () async {
+        await _seedUserNotes(db);
+        final crypto = SecurityTestSetup.createTestCryptoBox();
 
-      final repoUserA = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _clientForUser('user-a'),
-        indexer: indexer,
-      );
+        final repoUserA = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _clientForUser('user-a'),
+          indexer: indexer,
+        );
 
-      final repoUserB = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _clientForUser('user-b'),
-        indexer: indexer,
-      );
+        final repoUserB = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _clientForUser('user-b'),
+          indexer: indexer,
+        );
 
-      await repoUserA.toggleNotePin('note-a');
-      final updatedNoteA =
-          await (db.select(db.localNotes)..where((tbl) => tbl.id.equals('note-a'))).getSingle();
-      expect(updatedNoteA.isPinned, isTrue, reason: 'User A should pin their note');
+        await repoUserA.toggleNotePin('note-a');
+        final updatedNoteA = await (db.select(
+          db.localNotes,
+        )..where((tbl) => tbl.id.equals('note-a'))).getSingle();
+        expect(
+          updatedNoteA.isPinned,
+          isTrue,
+          reason: 'User A should pin their note',
+        );
 
-      await repoUserA.toggleNotePin('note-b');
-      final noteBAfterA =
-          await (db.select(db.localNotes)..where((tbl) => tbl.id.equals('note-b'))).getSingle();
-      expect(noteBAfterA.isPinned, isFalse, reason: 'User A must NOT mutate User B data');
+        await repoUserA.toggleNotePin('note-b');
+        final noteBAfterA = await (db.select(
+          db.localNotes,
+        )..where((tbl) => tbl.id.equals('note-b'))).getSingle();
+        expect(
+          noteBAfterA.isPinned,
+          isFalse,
+          reason: 'User A must NOT mutate User B data',
+        );
 
-      await repoUserB.setNotePin('note-b', true);
-      final noteBAfterB =
-          await (db.select(db.localNotes)..where((tbl) => tbl.id.equals('note-b'))).getSingle();
-      expect(noteBAfterB.isPinned, isTrue, reason: 'User B pins own note');
-    });
+        await repoUserB.setNotePin('note-b', true);
+        final noteBAfterB = await (db.select(
+          db.localNotes,
+        )..where((tbl) => tbl.id.equals('note-b'))).getSingle();
+        expect(noteBAfterB.isPinned, isTrue, reason: 'User B pins own note');
+      },
+    );
 
-    test('Authenticated repository cannot access other users tasks or reminders', () async {
-      await _seedUserNotes(db);
-      final crypto = SecurityTestSetup.createTestCryptoBox();
+    test(
+      'Authenticated repository cannot access other users tasks or reminders',
+      () async {
+        await _seedUserNotes(db);
+        final crypto = SecurityTestSetup.createTestCryptoBox();
 
-      final repoUserA = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _clientForUser('user-a'),
-        indexer: indexer,
-      );
+        final repoUserA = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _clientForUser('user-a'),
+          indexer: indexer,
+        );
 
-      final repoUserB = NotesCoreRepository(
-        db: db,
-        crypto: crypto,
-        client: _clientForUser('user-b'),
-        indexer: indexer,
-      );
+        final repoUserB = NotesCoreRepository(
+          db: db,
+          crypto: crypto,
+          client: _clientForUser('user-b'),
+          indexer: indexer,
+        );
 
-      expect(await repoUserA.list(), hasLength(1));
-      expect(await repoUserB.list(), hasLength(1));
+        expect(await repoUserA.list(), hasLength(1));
+        expect(await repoUserB.list(), hasLength(1));
 
-      final tasksForA = await (db.select(db.noteTasks)
-            ..where((tbl) => tbl.userId.equals('user-a')))
-          .get();
-      expect(tasksForA, hasLength(1));
+        final tasksForA = await (db.select(
+          db.noteTasks,
+        )..where((tbl) => tbl.userId.equals('user-a'))).get();
+        expect(tasksForA, hasLength(1));
 
-      final tasksForB = await (db.select(db.noteTasks)
-            ..where((tbl) => tbl.userId.equals('user-b')))
-          .get();
-      expect(tasksForB, hasLength(1));
+        final tasksForB = await (db.select(
+          db.noteTasks,
+        )..where((tbl) => tbl.userId.equals('user-b'))).get();
+        expect(tasksForB, hasLength(1));
 
-      await repoUserA.deleteNote('note-b');
-      final noteB =
-          await (db.select(db.localNotes)..where((tbl) => tbl.id.equals('note-b'))).getSingle();
-      expect(noteB.deleted, isFalse, reason: 'User A cannot delete User B note');
-    });
+        await repoUserA.deleteNote('note-b');
+        final noteB = await (db.select(
+          db.localNotes,
+        )..where((tbl) => tbl.id.equals('note-b'))).getSingle();
+        expect(
+          noteB.deleted,
+          isFalse,
+          reason: 'User A cannot delete User B note',
+        );
+      },
+    );
   });
 }
 

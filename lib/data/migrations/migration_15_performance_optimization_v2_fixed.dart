@@ -8,7 +8,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 /// FIXED: Now checks for column existence before creating indexes
 class Migration15PerformanceOptimizationV2 {
   static const int version = 15;
-  static const String description = 'Performance optimization V2 - eliminate remaining bottlenecks';
+  static const String description =
+      'Performance optimization V2 - eliminate remaining bottlenecks';
 
   /// Apply migration to database (idempotent - safe to run multiple times)
   static Future<void> apply(AppDb db) async {
@@ -34,11 +35,27 @@ class Migration15PerformanceOptimizationV2 {
       logger.info('Checking column existence before creating indexes...');
 
       // Check if user_id columns exist
-      final hasUserIdInFolders = await _columnExists(db, 'local_folders', 'user_id');
-      final hasUserIdInNotes = await _columnExists(db, 'local_notes', 'user_id');
+      final hasUserIdInFolders = await _columnExists(
+        db,
+        'local_folders',
+        'user_id',
+      );
+      final hasUserIdInNotes = await _columnExists(
+        db,
+        'local_notes',
+        'user_id',
+      );
       final hasUserIdInTasks = await _columnExists(db, 'note_tasks', 'user_id');
-      final hasIsSystemInTemplates = await _columnExists(db, 'local_templates', 'is_system');
-      final hasCategoryInTemplates = await _columnExists(db, 'local_templates', 'category');
+      final hasIsSystemInTemplates = await _columnExists(
+        db,
+        'local_templates',
+        'is_system',
+      );
+      final hasCategoryInTemplates = await _columnExists(
+        db,
+        'local_templates',
+        'category',
+      );
 
       // ============================================
       // 2. CREATE INDEXES CONDITIONALLY
@@ -183,8 +200,9 @@ class Migration15PerformanceOptimizationV2 {
         VALUES ($version, CURRENT_TIMESTAMP, '$description')
       ''');
 
-      logger.info('Migration 15 completed successfully - Performance optimizations applied');
-
+      logger.info(
+        'Migration 15 completed successfully - Performance optimizations applied',
+      );
     } catch (e, stack) {
       logger.error('Failed to apply Migration 15: $e\nStack: $stack');
       // Don't rethrow - allow app to continue with degraded performance
@@ -193,11 +211,13 @@ class Migration15PerformanceOptimizationV2 {
   }
 
   /// Check if a column exists in a table
-  static Future<bool> _columnExists(AppDb db, String table, String column) async {
+  static Future<bool> _columnExists(
+    AppDb db,
+    String table,
+    String column,
+  ) async {
     try {
-      final result = await db.customSelect(
-        "PRAGMA table_info('$table')"
-      ).get();
+      final result = await db.customSelect("PRAGMA table_info('$table')").get();
 
       for (final row in result) {
         if (row.read<String>('name') == column) {
@@ -224,10 +244,12 @@ class Migration15PerformanceOptimizationV2 {
 
   /// Check if this migration has already been applied
   static Future<bool> _isMigrationAlreadyApplied(AppDb db) async {
-    final result = await db.customSelect(
-      'SELECT 1 FROM schema_versions WHERE version = ?',
-      variables: [Variable.withInt(version)],
-    ).getSingleOrNull();
+    final result = await db
+        .customSelect(
+          'SELECT 1 FROM schema_versions WHERE version = ?',
+          variables: [Variable.withInt(version)],
+        )
+        .getSingleOrNull();
     return result != null;
   }
 

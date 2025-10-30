@@ -402,7 +402,11 @@ class ReminderCoordinator {
     }
 
     if (reminderId == null) {
-      _audit('createLocationReminder', granted: false, reason: 'creation_failed');
+      _audit(
+        'createLocationReminder',
+        granted: false,
+        reason: 'creation_failed',
+      );
     }
     return reminderId;
   }
@@ -608,7 +612,11 @@ class ReminderCoordinator {
         stackTrace: stack,
         data: {'id': reminderId},
       );
-      _audit('cancelReminder', granted: false, reason: 'error=${e.runtimeType}');
+      _audit(
+        'cancelReminder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
     }
   }
 
@@ -664,7 +672,11 @@ class ReminderCoordinator {
         error: e,
         stackTrace: stack,
       );
-      _audit('processDueReminders', granted: false, reason: 'error=${e.runtimeType}');
+      _audit(
+        'processDueReminders',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
     }
   }
 

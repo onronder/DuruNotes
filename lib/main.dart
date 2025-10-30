@@ -55,9 +55,10 @@ class _BootstrapHostState extends State<BootstrapHost> {
         final overrides = <Override>[
           // Always override with either actual data or fallback
           bootstrapResultProvider.overrideWithValue(
-              snapshot.hasData && snapshot.data != null
-                  ? snapshot.data!
-                  : _createFallbackBootstrapResult()),
+            snapshot.hasData && snapshot.data != null
+                ? snapshot.data!
+                : _createFallbackBootstrapResult(),
+          ),
           navigatorKeyProvider.overrideWithValue(_navigatorKey!),
         ];
 
@@ -122,11 +123,7 @@ class _BootstrapBody extends StatelessWidget {
 
     final result = snapshot.data!;
     final key = navigatorKey ?? GlobalKey<NavigatorState>();
-    return BootstrapShell(
-      result: result,
-      navigatorKey: key,
-      onRetry: onRetry,
-    );
+    return BootstrapShell(result: result, navigatorKey: key, onRetry: onRetry);
   }
 }
 
@@ -137,11 +134,7 @@ class _BootstrapLoadingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
+      home: Scaffold(body: Center(child: CircularProgressIndicator())),
     );
   }
 }
@@ -229,84 +222,83 @@ class BootstrapFailureContent extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 32),
-              Text(
-                'Unable to start Duru Notes',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'We ran into some issues while preparing the app. '
-                'You can retry or contact support if the problem persists.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 24),
-              if (failures.isNotEmpty) ...[
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 32),
                 Text(
-                  'Errors',
-                  style: Theme.of(context).textTheme.titleMedium,
+                  'Unable to start Duru Notes',
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const SizedBox(height: 8),
-                ...failures.map(
-                  (failure) => Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            failure.stage.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(failure.error.toString()),
-                        ],
+                const SizedBox(height: 16),
+                Text(
+                  'We ran into some issues while preparing the app. '
+                  'You can retry or contact support if the problem persists.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 24),
+                if (failures.isNotEmpty) ...[
+                  Text(
+                    'Errors',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  ...failures.map(
+                    (failure) => Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              failure.stage.name,
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(failure.error.toString()),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-              if (warnings.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Text(
-                  'Warnings',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                ...warnings.map(
-                  (warning) => Card(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(warning),
+                ],
+                if (warnings.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    'Warnings',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  ...warnings.map(
+                    (warning) => Card(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(warning),
+                      ),
                     ),
+                  ),
+                ],
+                const Spacer(),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    onPressed: onRetry,
+                    child: const Text('Retry'),
                   ),
                 ),
               ],
-              const Spacer(),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton(
-                  onPressed: onRetry,
-                  child: const Text('Retry'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }

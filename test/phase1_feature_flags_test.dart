@@ -76,7 +76,10 @@ void main() {
         expect(flags.useRefactoredComponents, isFalse);
         expect(flags.useNewBlockEditor, isFalse);
         expect(flags.useUnifiedPermissionManager, isTrue); // Not overridden
-        expect(flags.useBlockEditorForNotes, isFalse); // Default remains unchanged
+        expect(
+          flags.useBlockEditorForNotes,
+          isFalse,
+        ); // Default remains unchanged
       });
 
       test('should clear all overrides', () {
@@ -173,10 +176,7 @@ void main() {
     group('Remote Config Placeholder', () {
       test('updateFromRemoteConfig should not throw', () async {
         // This is a placeholder that would connect to Firebase Remote Config
-        await expectLater(
-          flags.updateFromRemoteConfig(),
-          completes,
-        );
+        await expectLater(flags.updateFromRemoteConfig(), completes);
       });
     });
 

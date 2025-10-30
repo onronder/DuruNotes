@@ -11,7 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// - Fallback values
 /// - Error aggregation and reporting
 class ProviderErrorRecovery {
-  static final ProviderErrorRecovery _instance = ProviderErrorRecovery._internal();
+  static final ProviderErrorRecovery _instance =
+      ProviderErrorRecovery._internal();
   factory ProviderErrorRecovery() => _instance;
   ProviderErrorRecovery._internal();
 
@@ -38,7 +39,9 @@ class ProviderErrorRecovery {
       _retryPolicies[providerId] = retryPolicy;
     }
     if (circuitBreakerConfig != null) {
-      _circuitBreakers[providerId] = CircuitBreaker(config: circuitBreakerConfig);
+      _circuitBreakers[providerId] = CircuitBreaker(
+        config: circuitBreakerConfig,
+      );
     }
   }
 
@@ -59,7 +62,8 @@ class ProviderErrorRecovery {
     }
 
     // Get retry policy
-    final retryPolicy = _retryPolicies[providerId] ?? RetryPolicy.defaultPolicy();
+    final retryPolicy =
+        _retryPolicies[providerId] ?? RetryPolicy.defaultPolicy();
 
     // Track error state
     final errorState = _getOrCreateErrorState(providerId);
@@ -74,7 +78,10 @@ class ProviderErrorRecovery {
         // Add timeout
         final result = await operation().timeout(
           retryPolicy.timeout ?? _defaultTimeout,
-          onTimeout: () => throw TimeoutException('Provider operation timed out', _defaultTimeout),
+          onTimeout: () => throw TimeoutException(
+            'Provider operation timed out',
+            _defaultTimeout,
+          ),
         );
 
         // Success - reset error state
@@ -102,7 +109,9 @@ class ProviderErrorRecovery {
         final delay = _calculateRetryDelay(attempts, retryPolicy);
 
         if (kDebugMode) {
-          debugPrint('Provider $providerId failed (attempt $attempts). Retrying in ${delay.inSeconds}s...');
+          debugPrint(
+            'Provider $providerId failed (attempt $attempts). Retrying in ${delay.inSeconds}s...',
+          );
         }
 
         // Wait before retry
@@ -130,7 +139,8 @@ class ProviderErrorRecovery {
   }) {
     final controller = StreamController<T>.broadcast();
     final errorState = _getOrCreateErrorState(providerId);
-    final retryPolicy = _retryPolicies[providerId] ?? RetryPolicy.defaultPolicy();
+    final retryPolicy =
+        _retryPolicies[providerId] ?? RetryPolicy.defaultPolicy();
 
     StreamSubscription<T>? subscription;
     int reconnectAttempts = 0;
@@ -156,7 +166,10 @@ class ProviderErrorRecovery {
               }
 
               // Schedule reconnection
-              final delay = _calculateRetryDelay(reconnectAttempts, retryPolicy);
+              final delay = _calculateRetryDelay(
+                reconnectAttempts,
+                retryPolicy,
+              );
               await Future<void>.delayed(delay);
 
               // Reconnect
@@ -165,7 +178,11 @@ class ProviderErrorRecovery {
             } else {
               // Max retries reached
               controller.addError(error, stack ?? StackTrace.current);
-              _reportProviderError(providerId, error, stack ?? StackTrace.current);
+              _reportProviderError(
+                providerId,
+                error,
+                stack ?? StackTrace.current,
+              );
             }
           },
           onDone: () {
@@ -269,18 +286,28 @@ class ProviderErrorRecovery {
     // Exponential backoff with jitter
     final exponentialDelay = policy.retryDelay * (1 << (attempt - 1));
     final maxDelay = policy.maxRetryDelay ?? const Duration(seconds: 60);
-    final clampedDelay = exponentialDelay > maxDelay ? maxDelay : exponentialDelay;
+    final clampedDelay = exponentialDelay > maxDelay
+        ? maxDelay
+        : exponentialDelay;
 
     // Add jitter to prevent thundering herd
     final jitter = Duration(
-      milliseconds: (clampedDelay.inMilliseconds * 0.2 *
-                     (DateTime.now().millisecondsSinceEpoch % 100) / 100).round(),
+      milliseconds:
+          (clampedDelay.inMilliseconds *
+                  0.2 *
+                  (DateTime.now().millisecondsSinceEpoch % 100) /
+                  100)
+              .round(),
     );
 
     return clampedDelay + jitter;
   }
 
-  void _reportProviderError(String providerId, Object error, StackTrace? stack) {
+  void _reportProviderError(
+    String providerId,
+    Object error,
+    StackTrace? stack,
+  ) {
     if (kDebugMode) {
       debugPrint('Provider error [$providerId]: $error');
       if (stack != null) {
@@ -374,10 +401,7 @@ class RetryPolicy {
 }
 
 /// Backoff strategies for retry delays
-enum BackoffStrategy {
-  fixed,
-  exponential,
-}
+enum BackoffStrategy { fixed, exponential }
 
 /// Circuit breaker implementation
 class CircuitBreaker {
@@ -512,14 +536,11 @@ class ProviderErrorException implements Exception {
   final bool isRetryable;
   final String? code;
 
-  ProviderErrorException(
-    this.message, {
-    this.isRetryable = true,
-    this.code,
-  });
+  ProviderErrorException(this.message, {this.isRetryable = true, this.code});
 
   @override
-  String toString() => 'ProviderErrorException: $message${code != null ? ' (Code: $code)' : ''}';
+  String toString() =>
+      'ProviderErrorException: $message${code != null ? ' (Code: $code)' : ''}';
 }
 
 /// Extension for easy provider error recovery integration
@@ -567,7 +588,8 @@ extension ProviderErrorRecoveryExtension<T> on AutoDisposeFutureProvider<T> {
 /// });
 /// ```
 @Deprecated('Use manual async* generator pattern instead - see documentation')
-extension StreamProviderErrorRecoveryExtension<T> on AutoDisposeStreamProvider<T> {
+extension StreamProviderErrorRecoveryExtension<T>
+    on AutoDisposeStreamProvider<T> {
   @Deprecated('Use manual async* generator pattern instead')
   AutoDisposeStreamProvider<T> withErrorRecovery({
     T? fallbackValue,

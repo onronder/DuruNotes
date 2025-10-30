@@ -12,8 +12,8 @@ class PreferencesInitializer {
   PreferencesInitializer({
     required UserPreferencesService preferencesService,
     required AppLogger logger,
-  })  : _preferencesService = preferencesService,
-        _logger = logger;
+  }) : _preferencesService = preferencesService,
+       _logger = logger;
 
   final UserPreferencesService _preferencesService;
   final AppLogger _logger;
@@ -26,7 +26,9 @@ class PreferencesInitializer {
   /// 3. Ensures push notifications use correct language from day 1
   Future<void> initialize() async {
     try {
-      _logger.info('[PreferencesInitializer] Starting preferences initialization');
+      _logger.info(
+        '[PreferencesInitializer] Starting preferences initialization',
+      );
 
       // Load local preferences
       final prefs = await SharedPreferences.getInstance();
@@ -44,7 +46,9 @@ class PreferencesInitializer {
         notificationsEnabled: true, // Default to enabled
       );
 
-      _logger.info('[PreferencesInitializer] Preferences initialization completed');
+      _logger.info(
+        '[PreferencesInitializer] Preferences initialization completed',
+      );
     } catch (e) {
       // Don't throw - this is a non-critical operation
       // If it fails, preferences will sync when user changes settings
@@ -63,21 +67,28 @@ class PreferencesInitializer {
       // Check if user has database preferences
       final dbPrefs = await _preferencesService.getUserPreferences();
       if (dbPrefs != null) {
-        _logger.info('[PreferencesInitializer] Database preferences exist, no initialization needed');
+        _logger.info(
+          '[PreferencesInitializer] Database preferences exist, no initialization needed',
+        );
         return false;
       }
 
       // Check if user has local preferences
       final prefs = await SharedPreferences.getInstance();
-      final hasLocalPreferences = prefs.getString('app_locale') != null ||
+      final hasLocalPreferences =
+          prefs.getString('app_locale') != null ||
           prefs.getString('theme_mode') != null;
 
       if (hasLocalPreferences) {
-        _logger.info('[PreferencesInitializer] Local preferences exist but no database record - initialization needed');
+        _logger.info(
+          '[PreferencesInitializer] Local preferences exist but no database record - initialization needed',
+        );
         return true;
       }
 
-      _logger.info('[PreferencesInitializer] No preferences found - will initialize on first change');
+      _logger.info(
+        '[PreferencesInitializer] No preferences found - will initialize on first change',
+      );
       return false;
     } catch (e) {
       _logger.error(

@@ -28,7 +28,8 @@ class DataMigrationDialog extends ConsumerStatefulWidget {
   const DataMigrationDialog({super.key});
 
   @override
-  ConsumerState<DataMigrationDialog> createState() => _DataMigrationDialogState();
+  ConsumerState<DataMigrationDialog> createState() =>
+      _DataMigrationDialogState();
 }
 
 class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
@@ -71,7 +72,8 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
 
       if (mounted) {
         setState(() {
-          _error = 'Migration service is deprecated. Encryption is now handled automatically during app startup.';
+          _error =
+              'Migration service is deprecated. Encryption is now handled automatically during app startup.';
           _isRunning = false;
         });
       }
@@ -85,7 +87,8 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
         setState(() {
-          _error = 'We could not process the migration request. Please try again later.';
+          _error =
+              'We could not process the migration request. Please try again later.';
           _isRunning = false;
         });
       }
@@ -102,9 +105,7 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
         children: [
           Icon(Icons.lock, color: colorScheme.primary),
           const SizedBox(width: 12),
-          const Expanded(
-            child: Text('Encrypt Your Data'),
-          ),
+          const Expanded(child: Text('Encrypt Your Data')),
         ],
       ),
       content: SizedBox(
@@ -120,17 +121,11 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
                 _buildDryRunToggle(theme),
               ],
 
-              if (_isRunning) ...[
-                _buildProgressSection(theme),
-              ],
+              if (_isRunning) ...[_buildProgressSection(theme)],
 
-              if (_result != null) ...[
-                _buildResultSection(theme),
-              ],
+              if (_result != null) ...[_buildResultSection(theme)],
 
-              if (_error != null) ...[
-                _buildErrorSection(theme),
-              ],
+              if (_error != null) ...[_buildErrorSection(theme)],
             ],
           ),
         ),
@@ -189,7 +184,8 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
         _buildInfoItem(
           icon: Icons.shield_outlined,
           title: 'What happens:',
-          description: 'All plaintext data will be encrypted using XChaCha20-Poly1305',
+          description:
+              'All plaintext data will be encrypted using XChaCha20-Poly1305',
           color: Colors.blue,
         ),
         const SizedBox(height: 12),
@@ -227,15 +223,9 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w600, color: color),
               ),
-              Text(
-                description,
-                style: const TextStyle(fontSize: 12),
-              ),
+              Text(description, style: const TextStyle(fontSize: 12)),
             ],
           ),
         ),
@@ -267,9 +257,7 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
               children: [
                 Text(
                   _isDryRun ? 'Preview Mode' : 'Production Mode',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
                   _isDryRun
@@ -311,11 +299,7 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
         // Status header
         Row(
           children: [
-            const Icon(
-              Icons.check_circle,
-              color: Colors.green,
-              size: 32,
-            ),
+            const Icon(Icons.check_circle, color: Colors.green, size: 32),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -394,10 +378,7 @@ class _DataMigrationDialogState extends ConsumerState<DataMigrationDialog> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  _error!,
-                  style: theme.textTheme.bodySmall,
-                ),
+                Text(_error!, style: theme.textTheme.bodySmall),
               ],
             ),
           ),

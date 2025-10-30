@@ -10,7 +10,8 @@ import 'package:duru_notes/l10n/app_localizations.dart';
 // infrastructure-level sync queue management (db.enqueue). This is acceptable for
 // one-time migration tooling and will be removed when migration utilities are extracted.
 // SECURITY FIX: Also used for clearing local database on sign-out to prevent cross-user data leakage
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
@@ -24,9 +25,13 @@ import 'package:duru_notes/features/notes/providers/notes_pagination_providers.d
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
     show folderHierarchyProvider;
 import 'package:duru_notes/services/providers/services_providers.dart'
-    show exportServiceProvider, emailAliasServiceProvider, encryptionSyncServiceProvider;
+    show
+        exportServiceProvider,
+        emailAliasServiceProvider,
+        encryptionSyncServiceProvider;
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/core/providers/security_providers.dart' show keyManagerProvider, accountKeyServiceProvider;
+import 'package:duru_notes/core/providers/security_providers.dart'
+    show keyManagerProvider, accountKeyServiceProvider;
 import 'package:duru_notes/core/security/security_initialization.dart';
 import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/ui/components/ios_style_toggle.dart';
@@ -71,9 +76,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       notesAvailable = notes.length;
       if (notes.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No notes to export')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('No notes to export')));
         }
         return;
       }
@@ -94,17 +99,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           final res = await svc.exportToPdf(note);
           if (res.success && res.file != null && mounted) {
             await svc.shareFile(res.file!, format);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Exported as PDF')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Exported as PDF')));
           }
         case ExportFormat.html:
           final res = await svc.exportToHtml(note);
           if (res.success && res.file != null && mounted) {
             await svc.shareFile(res.file!, format);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Exported as HTML')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Exported as HTML')));
           }
         case ExportFormat.docx:
         case ExportFormat.txt:
@@ -158,9 +163,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // Use the provider to get the EmailAliasService
       final aliasService = ref.read(emailAliasServiceProvider);
 
-      _logger.debug('Loading inbound email alias for settings screen', data: {
-        'envDomain': dotenv.env['INBOUND_EMAIL_DOMAIN'],
-      });
+      _logger.debug(
+        'Loading inbound email alias for settings screen',
+        data: {'envDomain': dotenv.env['INBOUND_EMAIL_DOMAIN']},
+      );
 
       final address = await aliasService.getFullEmailAddress();
       _logger.debug(
@@ -193,7 +199,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         setState(() => _isLoadingEmail = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Unable to load email-in address. Please try again.'),
+            content: const Text(
+              'Unable to load email-in address. Please try again.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -434,7 +442,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Container(
                       padding: EdgeInsets.all(DuruSpacing.sm),
                       decoration: BoxDecoration(
-                        color: (iconColor ?? DuruColors.primary).withValues(alpha: 0.1),
+                        color: (iconColor ?? DuruColors.primary).withValues(
+                          alpha: 0.1,
+                        ),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -474,9 +484,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: DuruColors.primary,
-              fontWeight: FontWeight.w600,
-            ),
+          color: DuruColors.primary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -695,10 +705,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       children: [
         // AI Enable Toggle
         SwitchListTile(
-          title: Text(
-            'Enable AI Features',
-            style: theme.textTheme.bodyLarge,
-          ),
+          title: Text('Enable AI Features', style: theme.textTheme.bodyLarge),
           subtitle: Text(
             'Smart suggestions and semantic search',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -716,10 +723,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // Model Selection
         ListTile(
-          title: Text(
-            'AI Model',
-            style: theme.textTheme.bodyLarge,
-          ),
+          title: Text('AI Model', style: theme.textTheme.bodyLarge),
           subtitle: Text(
             selectedModel,
             style: theme.textTheme.bodySmall?.copyWith(
@@ -764,10 +768,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // Feature Toggles
         SwitchListTile(
-          title: Text(
-            'Smart Suggestions',
-            style: theme.textTheme.bodyMedium,
-          ),
+          title: Text('Smart Suggestions', style: theme.textTheme.bodyMedium),
           subtitle: Text(
             'AI-powered writing assistance',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -783,10 +784,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
 
         SwitchListTile(
-          title: Text(
-            'Semantic Search',
-            style: theme.textTheme.bodyMedium,
-          ),
+          title: Text('Semantic Search', style: theme.textTheme.bodyMedium),
           subtitle: Text(
             'Find notes by meaning, not just keywords',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -809,9 +807,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           decoration: BoxDecoration(
             color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Colors.green.withValues(alpha: 0.3),
-            ),
+            border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
@@ -835,7 +831,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Text(
                       'All AI processing happens locally on your device',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                     ),
                   ],
@@ -897,7 +895,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.1),
             ),
             boxShadow: [
               BoxShadow(
@@ -939,8 +939,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     horizontal: 16,
                     vertical: isCompact ? 6 : 10,
                   ),
-                  visualDensity:
-                      isCompact ? const VisualDensity(vertical: -2) : null,
+                  visualDensity: isCompact
+                      ? const VisualDensity(vertical: -2)
+                      : null,
                   minLeadingWidth: 0,
                 ),
                 const Divider(height: 1),
@@ -959,8 +960,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -997,8 +999,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1019,43 +1022,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 // PRODUCTION FIX: Async mode change with visual feedback
                 enabled: !_isChangingSyncMode,
                 // ignore: deprecated_member_use
-                onChanged: _isChangingSyncMode ? null : (mode) async {
-                  if (mode != null) {
-                    setState(() => _isChangingSyncMode = true);
-                    try {
-                      await ref.read(syncModeProvider.notifier).setMode(mode)
-                          .timeout(const Duration(seconds: 10));
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Sync mode updated'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      _logger.error('Failed to change sync mode', error: e);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to update sync mode'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    } finally {
-                      if (mounted) {
-                        setState(() => _isChangingSyncMode = false);
-                      }
-                    }
-                  }
-                },
+                onChanged: _isChangingSyncMode
+                    ? null
+                    : (mode) async {
+                        if (mode != null) {
+                          setState(() => _isChangingSyncMode = true);
+                          try {
+                            await ref
+                                .read(syncModeProvider.notifier)
+                                .setMode(mode)
+                                .timeout(const Duration(seconds: 10));
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Sync mode updated'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            _logger.error(
+                              'Failed to change sync mode',
+                              error: e,
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to update sync mode'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isChangingSyncMode = false);
+                            }
+                          }
+                        }
+                      },
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -3) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               RadioListTile<SyncMode>(
                 title: Text(
@@ -1074,43 +1085,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 // PRODUCTION FIX: Async mode change with visual feedback
                 enabled: !_isChangingSyncMode,
                 // ignore: deprecated_member_use
-                onChanged: _isChangingSyncMode ? null : (mode) async {
-                  if (mode != null) {
-                    setState(() => _isChangingSyncMode = true);
-                    try {
-                      await ref.read(syncModeProvider.notifier).setMode(mode)
-                          .timeout(const Duration(seconds: 10));
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Sync mode updated'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      _logger.error('Failed to change sync mode', error: e);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to update sync mode'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    } finally {
-                      if (mounted) {
-                        setState(() => _isChangingSyncMode = false);
-                      }
-                    }
-                  }
-                },
+                onChanged: _isChangingSyncMode
+                    ? null
+                    : (mode) async {
+                        if (mode != null) {
+                          setState(() => _isChangingSyncMode = true);
+                          try {
+                            await ref
+                                .read(syncModeProvider.notifier)
+                                .setMode(mode)
+                                .timeout(const Duration(seconds: 10));
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Sync mode updated'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            _logger.error(
+                              'Failed to change sync mode',
+                              error: e,
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to update sync mode'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isChangingSyncMode = false);
+                            }
+                          }
+                        }
+                      },
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -3) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               if (syncMode == SyncMode.manual) ...[
                 const Divider(height: 1),
@@ -1178,8 +1197,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -3) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               RadioListTile<ThemeMode>(
                 title: Text(
@@ -1201,8 +1221,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -3) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
               RadioListTile<ThemeMode>(
                 title: Text(
@@ -1224,8 +1245,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 0 : 4,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -3) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -3)
+                    : null,
               ),
             ],
           ),
@@ -1263,8 +1285,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -1304,8 +1327,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -1348,8 +1372,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1371,8 +1396,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -1401,16 +1427,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: const Text('Learn how to use Duru Notes'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute<void>(builder: (_) => const HelpScreen()));
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+                  );
                 },
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1430,8 +1457,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               const Divider(height: 1),
@@ -1448,8 +1476,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
@@ -1465,8 +1494,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
               ListTile(
@@ -1482,8 +1512,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   horizontal: 16,
                   vertical: isCompact ? 6 : 10,
                 ),
-                visualDensity:
-                    isCompact ? const VisualDensity(vertical: -2) : null,
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
                 minLeadingWidth: 0,
               ),
             ],
@@ -1522,11 +1553,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
         // CRITICAL SECURITY FIX: Clear local database BEFORE sign-out
         // This prevents cross-user data leakage when a different user signs in
-        _logger.info('🔒 Clearing local database on sign-out...', data: {'userId': uid});
+        _logger.info(
+          '🔒 Clearing local database on sign-out...',
+          data: {'userId': uid},
+        );
         try {
           final db = ref.read(appDbProvider);
           await db.clearAll();
-          _logger.info('✅ Local database cleared successfully', data: {'userId': uid});
+          _logger.info(
+            '✅ Local database cleared successfully',
+            data: {'userId': uid},
+          );
         } catch (dbError, dbStack) {
           _logger.error(
             '❌ Failed to clear local database on sign-out',
@@ -1898,8 +1935,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -2019,7 +2056,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               try {
-                await ref.read(accountKeyServiceProvider).changePassphrase(
+                await ref
+                    .read(accountKeyServiceProvider)
+                    .changePassphrase(
                       oldPassphrase: oldCtrl.text,
                       newPassphrase: newCtrl.text,
                     );
@@ -2035,12 +2074,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   error: error,
                   stackTrace: stackTrace,
                 );
-                unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+                unawaited(
+                  Sentry.captureException(error, stackTrace: stackTrace),
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content:
-                          const Text('Could not update passphrase. Please try again.'),
+                      content: const Text(
+                        'Could not update passphrase. Please try again.',
+                      ),
                       backgroundColor: Theme.of(context).colorScheme.error,
                     ),
                   );
@@ -2061,7 +2103,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Security services are still initializing. Please try again in a moment.'),
+              content: Text(
+                'Security services are still initializing. Please try again in a moment.',
+              ),
             ),
           );
         }
@@ -2074,10 +2118,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // exposed through domain repository interfaces. Acceptable for one-time tooling.
       queuedItems = await ref
           .read(accountKeyServiceProvider)
-          .migrateLegacyContentAndEnqueue(
-            db: db,
-            repo: repo,
-          );
+          .migrateLegacyContentAndEnqueue(db: db, repo: repo);
       _logger.info(
         'Legacy encryption migration enqueued',
         data: {'queuedItems': queuedItems},
@@ -2131,9 +2172,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Could not open the requested link.'),
             backgroundColor: Theme.of(context).colorScheme.error,

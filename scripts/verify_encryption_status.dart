@@ -49,9 +49,15 @@ void main() async {
     final notesNoVersion = notesResult.read<int>('no_version');
 
     print('  Total active notes: $notesTotal');
-    print('  Unencrypted titles: $notesUnencryptedTitle ${_getStatus(notesUnencryptedTitle)}');
-    print('  Unencrypted bodies: $notesUnencryptedBody ${_getStatus(notesUnencryptedBody)}');
-    print('  Missing encryption version: $notesNoVersion ${_getStatus(notesNoVersion)}');
+    print(
+      '  Unencrypted titles: $notesUnencryptedTitle ${_getStatus(notesUnencryptedTitle)}',
+    );
+    print(
+      '  Unencrypted bodies: $notesUnencryptedBody ${_getStatus(notesUnencryptedBody)}',
+    );
+    print(
+      '  Missing encryption version: $notesNoVersion ${_getStatus(notesNoVersion)}',
+    );
 
     // Check Tasks encryption
     print('\n✅ TASKS ENCRYPTION STATUS:');
@@ -65,12 +71,18 @@ void main() async {
     ''').getSingle();
 
     final tasksTotal = tasksResult.read<int>('total');
-    final tasksUnencryptedContent = tasksResult.read<int>('unencrypted_content');
+    final tasksUnencryptedContent = tasksResult.read<int>(
+      'unencrypted_content',
+    );
     final tasksNoVersion = tasksResult.read<int>('no_version');
 
     print('  Total active tasks: $tasksTotal');
-    print('  Unencrypted content: $tasksUnencryptedContent ${_getStatus(tasksUnencryptedContent)}');
-    print('  Missing encryption version: $tasksNoVersion ${_getStatus(tasksNoVersion)}');
+    print(
+      '  Unencrypted content: $tasksUnencryptedContent ${_getStatus(tasksUnencryptedContent)}',
+    );
+    print(
+      '  Missing encryption version: $tasksNoVersion ${_getStatus(tasksNoVersion)}',
+    );
 
     // Check Templates encryption - CRITICAL VULNERABILITY
     print('\n📋 TEMPLATES ENCRYPTION STATUS:');
@@ -80,8 +92,9 @@ void main() async {
       PRAGMA table_info(local_templates)
     ''').get();
 
-    final hasEncryptedColumns = templateColumns.any((col) =>
-      col.read<String>('name').contains('_encrypted'));
+    final hasEncryptedColumns = templateColumns.any(
+      (col) => col.read<String>('name').contains('_encrypted'),
+    );
 
     if (!hasEncryptedColumns) {
       print('  ❌ CRITICAL: No encrypted columns exist!');
@@ -109,12 +122,20 @@ void main() async {
       ''').getSingle();
 
       final templatesTotal = templatesResult.read<int>('total');
-      final templatesUnencryptedTitle = templatesResult.read<int>('unencrypted_title');
-      final templatesUnencryptedBody = templatesResult.read<int>('unencrypted_body');
+      final templatesUnencryptedTitle = templatesResult.read<int>(
+        'unencrypted_title',
+      );
+      final templatesUnencryptedBody = templatesResult.read<int>(
+        'unencrypted_body',
+      );
 
       print('  Total active templates: $templatesTotal');
-      print('  Unencrypted titles: $templatesUnencryptedTitle ${_getStatus(templatesUnencryptedTitle)}');
-      print('  Unencrypted bodies: $templatesUnencryptedBody ${_getStatus(templatesUnencryptedBody)}');
+      print(
+        '  Unencrypted titles: $templatesUnencryptedTitle ${_getStatus(templatesUnencryptedTitle)}',
+      );
+      print(
+        '  Unencrypted bodies: $templatesUnencryptedBody ${_getStatus(templatesUnencryptedBody)}',
+      );
     }
 
     // Check Folders (local storage is plaintext by design, remote is encrypted)
@@ -125,7 +146,9 @@ void main() async {
 
     final foldersTotal = foldersResult.read<int>('total');
     print('  Total active folders: $foldersTotal');
-    print('  ℹ️  Folders are encrypted during sync, plaintext locally (by design)');
+    print(
+      '  ℹ️  Folders are encrypted during sync, plaintext locally (by design)',
+    );
 
     // Check Reminders encryption
     print('\n⏰ REMINDERS ENCRYPTION STATUS:');
@@ -211,7 +234,6 @@ void main() async {
     if (remindersTotal > 0) {
       print('  4. Consider encrypting reminder content');
     }
-
   } catch (e) {
     print('❌ Error checking encryption status: $e');
     exit(1);

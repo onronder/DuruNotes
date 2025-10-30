@@ -76,10 +76,12 @@ class TaskCompletionChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
           ),
           borderData: FlBorderData(
             show: true,
@@ -114,17 +116,13 @@ class TaskCompletionChart extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.show_chart,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.show_chart, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 8),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -206,15 +204,18 @@ class TimeAccuracyChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
           ),
           borderData: FlBorderData(
             show: true,
-            border:
-                Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
           ),
           lineBarsData: [
             // Ideal accuracy line (100%)
@@ -268,17 +269,13 @@ class TimeAccuracyChart extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.timer,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.timer, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 8),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -386,17 +383,13 @@ class PriorityDistributionChart extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.pie_chart,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.pie_chart, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 8),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -470,8 +463,9 @@ class HourlyProductivityChart extends StatelessWidget {
                 intensity,
               ),
               width: 12,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(2)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(2),
+              ),
             ),
           ],
         ),
@@ -520,15 +514,18 @@ class HourlyProductivityChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
           ),
           borderData: FlBorderData(
             show: true,
-            border:
-                Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
           ),
           maxY: maxCount.toDouble() + 1,
         ),
@@ -543,17 +540,13 @@ class HourlyProductivityChart extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.access_time,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.access_time, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 8),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -667,7 +660,11 @@ class DeadlineAdherenceChart extends StatelessWidget {
   }
 
   Widget _buildLegendItem(
-      String label, int count, Color color, ThemeData theme) {
+    String label,
+    int count,
+    Color color,
+    ThemeData theme,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -675,17 +672,11 @@ class DeadlineAdherenceChart extends StatelessWidget {
           Container(
             width: 12,
             height: 12,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              '$label: $count',
-              style: theme.textTheme.labelMedium,
-            ),
+            child: Text('$label: $count', style: theme.textTheme.labelMedium),
           ),
         ],
       ),
@@ -699,17 +690,13 @@ class DeadlineAdherenceChart extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.schedule,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.schedule, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 8),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -753,8 +740,9 @@ class WeeklyTrendsChart extends StatelessWidget {
               toY: week.tasksCompleted.toDouble(),
               color: colorScheme.primary,
               width: 20,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(4)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(4),
+              ),
             ),
           ],
         ),
@@ -815,15 +803,18 @@ class WeeklyTrendsChart extends StatelessWidget {
                 },
               ),
             ),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
           ),
           borderData: FlBorderData(
             show: true,
-            border:
-                Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
           ),
           maxY: maxTasks.toDouble() + 2,
         ),
@@ -838,17 +829,13 @@ class WeeklyTrendsChart extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.trending_up,
-              size: 48,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.trending_up, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 8),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),

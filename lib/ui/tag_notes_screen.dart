@@ -33,9 +33,7 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
     setState(() => _isLoading = true);
     try {
       final tagRepo = ref.read(tagRepositoryProvider);
-      final notes = await tagRepo.queryNotesByTags(
-        anyTags: [widget.tag],
-      );
+      final notes = await tagRepo.queryNotesByTags(anyTags: [widget.tag]);
       if (mounted) {
         setState(() {
           _notes = notes;
@@ -83,8 +81,8 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _notes.isEmpty
-              ? _buildEmptyState(context)
-              : _buildNotesList(context),
+          ? _buildEmptyState(context)
+          : _buildNotesList(context),
     );
   }
 
@@ -118,7 +116,9 @@ class _TagNotesScreenState extends ConsumerState<TagNotesScreen> {
                   ? 'Emails that you convert to notes will appear here.\n\nTo convert an email:\n1. Check your Inbox for new emails\n2. Open an email\n3. Tap "Convert to Note"'
                   : 'Notes tagged with #${widget.tag} will appear here',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
               ),
               textAlign: TextAlign.center,
             ),

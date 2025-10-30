@@ -23,32 +23,32 @@ class Migration23LocalEncryption {
   static Future<void> _addEncryptionColumns(Migrator m) async {
     // Add encrypted data columns (nullable for gradual migration)
     await m.database.customStatement(
-      'ALTER TABLE local_notes ADD COLUMN title_encrypted TEXT;'
+      'ALTER TABLE local_notes ADD COLUMN title_encrypted TEXT;',
     );
     await m.database.customStatement(
-      'ALTER TABLE local_notes ADD COLUMN body_encrypted TEXT;'
+      'ALTER TABLE local_notes ADD COLUMN body_encrypted TEXT;',
     );
     await m.database.customStatement(
-      'ALTER TABLE local_notes ADD COLUMN metadata_encrypted TEXT;'
+      'ALTER TABLE local_notes ADD COLUMN metadata_encrypted TEXT;',
     );
     await m.database.customStatement(
-      'ALTER TABLE local_notes ADD COLUMN encryption_version INTEGER DEFAULT 0;'
+      'ALTER TABLE local_notes ADD COLUMN encryption_version INTEGER DEFAULT 0;',
     );
   }
 
   static Future<void> _addTaskEncryptionColumns(Migrator m) async {
     // Add encrypted data columns for tasks (nullable for gradual migration)
     await m.database.customStatement(
-      'ALTER TABLE note_tasks ADD COLUMN content_encrypted TEXT;'
+      'ALTER TABLE note_tasks ADD COLUMN content_encrypted TEXT;',
     );
     await m.database.customStatement(
-      'ALTER TABLE note_tasks ADD COLUMN labels_encrypted TEXT;'
+      'ALTER TABLE note_tasks ADD COLUMN labels_encrypted TEXT;',
     );
     await m.database.customStatement(
-      'ALTER TABLE note_tasks ADD COLUMN notes_encrypted TEXT;'
+      'ALTER TABLE note_tasks ADD COLUMN notes_encrypted TEXT;',
     );
     await m.database.customStatement(
-      'ALTER TABLE note_tasks ADD COLUMN encryption_version INTEGER DEFAULT 0;'
+      'ALTER TABLE note_tasks ADD COLUMN encryption_version INTEGER DEFAULT 0;',
     );
   }
 

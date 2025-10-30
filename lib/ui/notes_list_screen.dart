@@ -208,9 +208,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     if (!SecurityInitialization.isInitialized) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -706,12 +704,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                           'currentFolderId': currentFolder?.id,
                         },
                       );
-                      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+                      unawaited(
+                        Sentry.captureException(error, stackTrace: stackTrace),
+                      );
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content:
-                                const Text('Unable to move note. Please try again.'),
+                            content: const Text(
+                              'Unable to move note. Please try again.',
+                            ),
                             backgroundColor: Theme.of(
                               context,
                             ).colorScheme.error,
@@ -1445,18 +1446,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         'Import processing failed',
         error: error,
         stackTrace: stackTrace,
-        data: {
-          'importType': type.name,
-          'fileCount': files.length,
-        },
+        data: {'importType': type.name, 'fileCount': files.length},
       );
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
-        _showErrorDialog(
-          context,
-          'Import failed. Please try again.',
-        );
+        _showErrorDialog(context, 'Import failed. Please try again.');
       }
     }
   }
@@ -1503,10 +1498,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
-        _showErrorDialog(
-          context,
-          'Obsidian import failed. Please try again.',
-        );
+        _showErrorDialog(context, 'Obsidian import failed. Please try again.');
       }
     }
   }
@@ -1987,10 +1979,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (context.mounted) {
         Navigator.pop(context); // Close progress dialog
-        _showErrorDialog(
-          context,
-          'Export failed. Please try again.',
-        );
+        _showErrorDialog(context, 'Export failed. Please try again.');
       }
     }
   }
@@ -2821,9 +2810,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
             ),
             action: SnackBarAction(
               label: 'Retry',
-              onPressed: () => unawaited(
-                _performNoteDrop(note, targetFolder),
-              ),
+              onPressed: () => unawaited(_performNoteDrop(note, targetFolder)),
             ),
           ),
         );
@@ -2972,17 +2959,13 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       );
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Unable to create note from template.'),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
-              onPressed: () => unawaited(
-                _createNoteFromTemplate(templateId),
-              ),
+              onPressed: () => unawaited(_createNoteFromTemplate(templateId)),
             ),
           ),
         );
@@ -3125,12 +3108,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Unable to open move dialog. Please try again.'),
+            content: const Text(
+              'Unable to open move dialog. Please try again.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
               label: 'Dismiss',
-              onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
           ),
         );
@@ -3273,12 +3259,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     stackTrace: stackTrace,
                     data: {'folderId': folder.id, 'newName': newName},
                   );
-                  unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+                  unawaited(
+                    Sentry.captureException(error, stackTrace: stackTrace),
+                  );
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content:
-                            const Text('Unable to rename folder. Please try again.'),
+                        content: const Text(
+                          'Unable to rename folder. Please try again.',
+                        ),
                         backgroundColor: Theme.of(context).colorScheme.error,
                         action: SnackBarAction(
                           label: 'Retry',
@@ -3419,11 +3408,15 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   stackTrace: stackTrace,
                   data: {'folderId': folder.id},
                 );
-                unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+                unawaited(
+                  Sentry.captureException(error, stackTrace: stackTrace),
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('Unable to delete folder. Please try again.'),
+                      content: const Text(
+                        'Unable to delete folder. Please try again.',
+                      ),
                       backgroundColor: Theme.of(context).colorScheme.error,
                       action: SnackBarAction(
                         label: 'Retry',
@@ -3514,8 +3507,9 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         stackTrace: stackTrace,
         data: {
           'format': format.name,
-          'successfulFileCount':
-              results.where((r) => r.success && r.file != null).length,
+          'successfulFileCount': results
+              .where((r) => r.success && r.file != null)
+              .length,
         },
       );
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));

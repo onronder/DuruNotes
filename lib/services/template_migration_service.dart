@@ -22,16 +22,24 @@ class TemplateMigrationService {
   TemplateMigrationService(AppDb db); // Kept for backward compatibility
 
   /// Migrate all templates from local_notes to local_templates
-  @Deprecated('Cannot access plaintext fields - use repositories with encryption')
+  @Deprecated(
+    'Cannot access plaintext fields - use repositories with encryption',
+  )
   Future<void> migrateTemplates() async {
-    _logger.warning('Template migration service is deprecated - plaintext columns no longer exist');
-    _logger.warning('If migration is needed, reimplement using NotesCoreRepository and TemplateCoreRepository');
+    _logger.warning(
+      'Template migration service is deprecated - plaintext columns no longer exist',
+    );
+    _logger.warning(
+      'If migration is needed, reimplement using NotesCoreRepository and TemplateCoreRepository',
+    );
     // No-op: Cannot access templateNote.title or templateNote.body (removed in encryption migration)
     return;
   }
 
   /// Check if templates need migration
-  @Deprecated('Migration service is deprecated - use repositories with encryption')
+  @Deprecated(
+    'Migration service is deprecated - use repositories with encryption',
+  )
   Future<bool> needsMigration() async {
     // Always return false - migration should have already occurred before encryption schema update
     return false;

@@ -59,8 +59,11 @@ class ConflictResolutionDialog extends ConsumerStatefulWidget {
   });
 
   final SyncConflict conflict;
-  final void Function(ResolutionStrategy strategy, Map<String, dynamic>? mergedData)?
-      onResolved;
+  final void Function(
+    ResolutionStrategy strategy,
+    Map<String, dynamic>? mergedData,
+  )?
+  onResolved;
 
   @override
   ConsumerState<ConflictResolutionDialog> createState() =>
@@ -213,13 +216,13 @@ class _ConflictResolutionDialogState
     final l10n = AppLocalizations.of(context);
 
     return SlideTransition(
-      position:
-          Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-        CurvedAnimation(
-          parent: _slideController,
-          curve: Curves.easeOutCubic,
-        ),
-      ),
+      position: Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _slideController,
+              curve: Curves.easeOutCubic,
+            ),
+          ),
       child: FadeTransition(
         opacity: _fadeController,
         child: Dialog(
@@ -424,10 +427,12 @@ class _ConflictResolutionDialogState
     final rawName = (data['name'] as String?)?.trim();
     final description = (data['description'] as String?)?.trim() ?? '';
     final icon = (data['icon'] as String?) ?? Icons.folder.codePoint.toString();
-    final color = (data['color'] as String?) ??
+    final color =
+        (data['color'] as String?) ??
         colorScheme.primary.toARGB32().toRadixString(16);
-    final name =
-        (rawName == null || rawName.isEmpty) ? 'Unnamed Folder' : rawName;
+    final name = (rawName == null || rawName.isEmpty)
+        ? 'Unnamed Folder'
+        : rawName;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -442,7 +447,8 @@ class _ConflictResolutionDialogState
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: FolderIconHelpers.getFolderColor(
+              color:
+                  FolderIconHelpers.getFolderColor(
                     color,
                   )?.withValues(alpha: 0.2) ??
                   colorScheme.primaryContainer,
@@ -450,7 +456,8 @@ class _ConflictResolutionDialogState
             ),
             child: Icon(
               FolderIconHelpers.getFolderIcon(icon),
-              color: FolderIconHelpers.getFolderColor(color) ??
+              color:
+                  FolderIconHelpers.getFolderColor(color) ??
                   colorScheme.primary,
               size: 24,
             ),
@@ -690,8 +697,9 @@ class _ConflictResolutionDialogState
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           TextButton(
-            onPressed:
-                _isResolving ? null : () => Navigator.of(context).pop(false),
+            onPressed: _isResolving
+                ? null
+                : () => Navigator.of(context).pop(false),
             child: Text(l10n.cancel),
           ),
           const SizedBox(width: 8),
@@ -719,8 +727,8 @@ class _ConflictResolutionDialogState
 /// Provider for managing conflict resolution queue
 final conflictQueueProvider =
     StateNotifierProvider<ConflictQueueNotifier, List<SyncConflict>>((ref) {
-  return ConflictQueueNotifier();
-});
+      return ConflictQueueNotifier();
+    });
 
 /// Notifier for managing sync conflicts
 class ConflictQueueNotifier extends StateNotifier<List<SyncConflict>> {

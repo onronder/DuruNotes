@@ -143,7 +143,7 @@ class EnvironmentLoadResult {
 /// compile-time defines.
 class EnvironmentConfigLoader {
   EnvironmentConfigLoader({DotEnv? dotenvInstance})
-      : _dotenv = dotenvInstance ?? dotenv;
+    : _dotenv = dotenvInstance ?? dotenv;
 
   final DotEnv _dotenv;
 
@@ -158,30 +158,37 @@ class EnvironmentConfigLoader {
     }
 
     // Load compile-time defines first so dotenv can override selectively.
-    capture('SUPABASE_URL',
-        const String.fromEnvironment('SUPABASE_URL', defaultValue: ''));
-    capture('SUPABASE_ANON_KEY',
-        const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''));
-    capture('SENTRY_DSN',
-        const String.fromEnvironment('SENTRY_DSN', defaultValue: ''));
+    capture(
+      'SUPABASE_URL',
+      const String.fromEnvironment('SUPABASE_URL', defaultValue: ''),
+    );
+    capture(
+      'SUPABASE_ANON_KEY',
+      const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: ''),
+    );
+    capture(
+      'SENTRY_DSN',
+      const String.fromEnvironment('SENTRY_DSN', defaultValue: ''),
+    );
     capture(
       'CRASH_REPORTING_ENABLED',
       const String.fromEnvironment('CRASH_REPORTING_ENABLED', defaultValue: ''),
     );
-    capture('ANALYTICS_ENABLED',
-        const String.fromEnvironment('ANALYTICS_ENABLED', defaultValue: ''));
     capture(
-        'ANALYTICS_SAMPLING_RATE',
-        const String.fromEnvironment(
-          'ANALYTICS_SAMPLING_RATE',
-          defaultValue: '',
-        ));
+      'ANALYTICS_ENABLED',
+      const String.fromEnvironment('ANALYTICS_ENABLED', defaultValue: ''),
+    );
     capture(
+      'ANALYTICS_SAMPLING_RATE',
+      const String.fromEnvironment('ANALYTICS_SAMPLING_RATE', defaultValue: ''),
+    );
+    capture(
+      'SENTRY_TRACES_SAMPLE_RATE',
+      const String.fromEnvironment(
         'SENTRY_TRACES_SAMPLE_RATE',
-        const String.fromEnvironment(
-          'SENTRY_TRACES_SAMPLE_RATE',
-          defaultValue: '',
-        ));
+        defaultValue: '',
+      ),
+    );
     capture(
       'ENABLE_AUTO_SESSION_TRACKING',
       const String.fromEnvironment(
@@ -189,8 +196,10 @@ class EnvironmentConfigLoader {
         defaultValue: '',
       ),
     );
-    capture('SEND_DEFAULT_PII',
-        const String.fromEnvironment('SEND_DEFAULT_PII', defaultValue: ''));
+    capture(
+      'SEND_DEFAULT_PII',
+      const String.fromEnvironment('SEND_DEFAULT_PII', defaultValue: ''),
+    );
     capture(
       'ADAPTY_PUBLIC_API_KEY',
       const String.fromEnvironment('ADAPTY_PUBLIC_API_KEY', defaultValue: ''),
@@ -219,20 +228,33 @@ class EnvironmentConfigLoader {
       environment: environment,
       supabaseUrl: mutableEnv['SUPABASE_URL'] ?? '',
       supabaseAnonKey: mutableEnv['SUPABASE_ANON_KEY'] ?? '',
-      crashReportingEnabled:
-          _boolFromEnv(mutableEnv, 'CRASH_REPORTING_ENABLED', false),
+      crashReportingEnabled: _boolFromEnv(
+        mutableEnv,
+        'CRASH_REPORTING_ENABLED',
+        false,
+      ),
       analyticsEnabled: _boolFromEnv(mutableEnv, 'ANALYTICS_ENABLED', false),
-      analyticsSamplingRate:
-          _doubleFromEnv(mutableEnv, 'ANALYTICS_SAMPLING_RATE', 1.0),
-      sentryTracesSampleRate:
-          _doubleFromEnv(mutableEnv, 'SENTRY_TRACES_SAMPLE_RATE', 0.1),
-      enableAutoSessionTracking:
-          _boolFromEnv(mutableEnv, 'ENABLE_AUTO_SESSION_TRACKING', true),
+      analyticsSamplingRate: _doubleFromEnv(
+        mutableEnv,
+        'ANALYTICS_SAMPLING_RATE',
+        1.0,
+      ),
+      sentryTracesSampleRate: _doubleFromEnv(
+        mutableEnv,
+        'SENTRY_TRACES_SAMPLE_RATE',
+        0.1,
+      ),
+      enableAutoSessionTracking: _boolFromEnv(
+        mutableEnv,
+        'ENABLE_AUTO_SESSION_TRACKING',
+        true,
+      ),
       sendDefaultPii: _boolFromEnv(mutableEnv, 'SEND_DEFAULT_PII', false),
       debugMode: kDebugMode,
       sentryDsn: _sanitizeOptional(mutableEnv['SENTRY_DSN']),
-      adaptyPublicApiKey:
-          _sanitizeOptional(mutableEnv['ADAPTY_PUBLIC_API_KEY']),
+      adaptyPublicApiKey: _sanitizeOptional(
+        mutableEnv['ADAPTY_PUBLIC_API_KEY'],
+      ),
     );
 
     final usedFallback = !config.isValid;
@@ -241,8 +263,9 @@ class EnvironmentConfigLoader {
         : config;
 
     if (usedFallback) {
-      warnings
-          .add('Supabase credentials missing; falling back to empty config');
+      warnings.add(
+        'Supabase credentials missing; falling back to empty config',
+      );
     }
 
     return EnvironmentLoadResult(

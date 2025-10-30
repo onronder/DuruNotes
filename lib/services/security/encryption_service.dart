@@ -39,9 +39,7 @@ class EncryptionService {
 
   // Secure storage
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
@@ -67,7 +65,8 @@ class EncryptionService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'EncryptionService');
-          scope.setTag('operation', operation);        },
+          scope.setTag('operation', operation);
+        },
       ),
     );
   }
@@ -137,10 +136,7 @@ class EncryptionService {
 
       // Encrypt using AES-256-GCM
       final encrypter = Encrypter(AES(encryptionKey.key, mode: AESMode.gcm));
-      final encrypted = encrypter.encryptBytes(
-        dataBytes.toList(),
-        iv: iv,
-      );
+      final encrypted = encrypter.encryptBytes(dataBytes.toList(), iv: iv);
 
       // Generate MAC for integrity
       final mac = _generateMAC(encrypted.bytes, encryptionKey.key, iv);
@@ -174,7 +170,10 @@ class EncryptionService {
         'Encryption failed',
         error: error,
         stackTrace: stack,
-        data: {'keyId': keyId ?? _currentKeyId, 'dataType': data.runtimeType.toString()},
+        data: {
+          'keyId': keyId ?? _currentKeyId,
+          'dataType': data.runtimeType.toString(),
+        },
       );
       _captureEncryptionException(
         operation: 'encryptData',
@@ -280,9 +279,7 @@ class EncryptionService {
     String? salt,
     int iterations = _pbkdf2Iterations,
   }) async {
-    final saltBytes = salt != null
-        ? base64Decode(salt)
-        : _generateSalt();
+    final saltBytes = salt != null ? base64Decode(salt) : _generateSalt();
 
     final pbkdf2 = _PBKDF2(
       password: password,
@@ -326,11 +323,7 @@ class EncryptionService {
         // Key rotation completed - no sensitive logging
       }
     } catch (error, stack) {
-      _logger.error(
-        'Key rotation failed',
-        error: error,
-        stackTrace: stack,
-      );
+      _logger.error('Key rotation failed', error: error, stackTrace: stack);
       _captureEncryptionException(
         operation: 'rotateKey',
         error: error,
@@ -367,7 +360,9 @@ class EncryptionService {
     for (final field in sensitiveFields) {
       if (result.containsKey(field) && result[field] != null) {
         if (result[field] is Map<String, dynamic>) {
-          final encryptedData = EncryptedData.fromJson(result[field] as Map<String, dynamic>);
+          final encryptedData = EncryptedData.fromJson(
+            result[field] as Map<String, dynamic>,
+          );
           result[field] = await decryptData(encryptedData);
         }
       }
@@ -418,7 +413,9 @@ class EncryptionService {
     // Load from secure storage
     final keyData = await _secureStorage.read(key: 'encryption_key_$keyId');
     if (keyData != null) {
-      final key = EncryptionKey.fromJson(jsonDecode(keyData) as Map<String, dynamic>);
+      final key = EncryptionKey.fromJson(
+        jsonDecode(keyData) as Map<String, dynamic>,
+      );
       _keyCache[keyId] = key;
       return key;
     }
@@ -492,7 +489,9 @@ class EncryptionService {
   bool _shouldRotateKeys() {
     if (_lastKeyRotation == null) return true;
 
-    final daysSinceRotation = DateTime.now().difference(_lastKeyRotation!).inDays;
+    final daysSinceRotation = DateTime.now()
+        .difference(_lastKeyRotation!)
+        .inDays;
     return daysSinceRotation >= _keyRotationDays;
   }
 
@@ -540,8 +539,12 @@ class EncryptionService {
     if (keyEntries.length > _maxKeyVersions) {
       // Sort by version and keep only recent keys
       keyEntries.sort((a, b) {
-        final keyA = EncryptionKey.fromJson(jsonDecode(a.value) as Map<String, dynamic>);
-        final keyB = EncryptionKey.fromJson(jsonDecode(b.value) as Map<String, dynamic>);
+        final keyA = EncryptionKey.fromJson(
+          jsonDecode(a.value) as Map<String, dynamic>,
+        );
+        final keyB = EncryptionKey.fromJson(
+          jsonDecode(b.value) as Map<String, dynamic>,
+        );
         return keyB.version.compareTo(keyA.version);
       });
 
@@ -557,7 +560,10 @@ class EncryptionService {
 
     // Handle null case during first initialization
     if (_lastKeyRotation != null) {
-      await prefs.setString('last_key_rotation', _lastKeyRotation!.toIso8601String());
+      await prefs.setString(
+        'last_key_rotation',
+        _lastKeyRotation!.toIso8601String(),
+      );
     }
 
     if (_currentKeyId != null) {
@@ -570,11 +576,13 @@ class EncryptionService {
     final prefs = await SharedPreferences.getInstance();
     final metadata = prefs.getStringList('encryption_metadata') ?? [];
 
-    metadata.add(jsonEncode({
-      'keyId': data.keyId,
-      'timestamp': data.timestamp.toIso8601String(),
-      'algorithm': data.algorithm,
-    }));
+    metadata.add(
+      jsonEncode({
+        'keyId': data.keyId,
+        'timestamp': data.timestamp.toIso8601String(),
+        'algorithm': data.algorithm,
+      }),
+    );
 
     // Keep only recent metadata
     if (metadata.length > 1000) {
@@ -723,7 +731,9 @@ class EncryptionKey {
     createdAt: DateTime.parse(json['createdAt'] as String),
     version: json['version'] as int,
     archived: json['archived'] as bool? ?? false,
-    archivedAt: json['archivedAt'] != null ? DateTime.parse(json['archivedAt'] as String) : null,
+    archivedAt: json['archivedAt'] != null
+        ? DateTime.parse(json['archivedAt'] as String)
+        : null,
   );
 }
 
@@ -788,5 +798,6 @@ class EncryptionException implements Exception {
   EncryptionException(this.message, {this.code});
 
   @override
-  String toString() => 'EncryptionException: $message${code != null ? ' (Code: $code)' : ''}';
+  String toString() =>
+      'EncryptionException: $message${code != null ? ' (Code: $code)' : ''}';
 }

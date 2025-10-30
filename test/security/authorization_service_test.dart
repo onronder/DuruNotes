@@ -95,11 +95,13 @@ void main() {
 
         expect(
           () => authService.requireAuthenticatedUser(),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.message,
-            'message',
-            'User must be authenticated to perform this operation',
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.message,
+              'message',
+              'User must be authenticated to perform this operation',
+            ),
+          ),
         );
       });
 
@@ -111,9 +113,11 @@ void main() {
           throwsA(isA<AuthorizationException>()),
         );
 
-        verify(mockLogger.warning(
-          'SECURITY: Authorization failed: No authenticated user (deleteNote)',
-        )).called(1);
+        verify(
+          mockLogger.warning(
+            'SECURITY: Authorization failed: No authenticated user (deleteNote)',
+          ),
+        ).called(1);
       });
 
       test('includes context in exception when provided', () {
@@ -121,11 +125,13 @@ void main() {
 
         expect(
           () => authService.requireAuthenticatedUser(context: 'updateTask'),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.resourceType,
-            'resourceType',
-            'updateTask',
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.resourceType,
+              'resourceType',
+              'updateTask',
+            ),
+          ),
         );
       });
     });
@@ -142,7 +148,9 @@ void main() {
           resourceId: 'note-456',
         );
 
-        verify(mockLogger.debug(argThat(contains('Authorization granted')))).called(1);
+        verify(
+          mockLogger.debug(argThat(contains('Authorization granted'))),
+        ).called(1);
       });
 
       test('throws AuthorizationException when user does not own resource', () {
@@ -155,11 +163,13 @@ void main() {
             resourceType: 'Note',
             resourceId: 'note-456',
           ),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.message,
-            'message',
-            contains('You do not have permission to access this Note'),
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.message,
+              'message',
+              contains('You do not have permission to access this Note'),
+            ),
+          ),
         );
       });
 
@@ -189,9 +199,11 @@ void main() {
           throwsA(isA<AuthorizationException>()),
         );
 
-        verify(mockLogger.warning(
-          argThat(contains('SECURITY: Authorization failed')),
-        )).called(1);
+        verify(
+          mockLogger.warning(
+            argThat(contains('SECURITY: Authorization failed')),
+          ),
+        ).called(1);
       });
 
       test('includes resource type in exception', () {
@@ -205,11 +217,13 @@ void main() {
             resourceId: 'task-789',
             operation: 'delete',
           ),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.resourceType,
-            'resourceType',
-            'Task',
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.resourceType,
+              'resourceType',
+              'Task',
+            ),
+          ),
         );
       });
 
@@ -223,11 +237,13 @@ void main() {
             resourceType: 'Note',
             resourceId: 'note-456',
           ),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.message,
-            'message',
-            contains('Resource has no owner'),
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.message,
+              'message',
+              contains('Resource has no owner'),
+            ),
+          ),
         );
       });
 
@@ -242,11 +258,13 @@ void main() {
             resourceId: 'note-456',
             operation: 'delete',
           ),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.message,
-            'message',
-            contains('delete'),
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.message,
+              'message',
+              contains('delete'),
+            ),
+          ),
         );
       });
     });
@@ -307,7 +325,9 @@ void main() {
           resourceType: 'Note',
         );
 
-        verify(mockLogger.debug(argThat(contains('Batch authorization granted')))).called(1);
+        verify(
+          mockLogger.debug(argThat(contains('Batch authorization granted'))),
+        ).called(1);
       });
 
       test('throws on first unauthorized resource', () {
@@ -322,11 +342,13 @@ void main() {
             resources: resources,
             resourceType: 'Note',
           ),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.resourceId,
-            'resourceId',
-            'note-2',
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.resourceId,
+              'resourceId',
+              'note-2',
+            ),
+          ),
         );
       });
 
@@ -353,14 +375,13 @@ void main() {
         );
 
         // Should log debug message
-        verify(mockLogger.debug(argThat(contains('Batch authorization granted')))).called(1);
+        verify(
+          mockLogger.debug(argThat(contains('Batch authorization granted'))),
+        ).called(1);
       });
 
       test('supports custom operation in error messages', () {
-        final resources = [
-          ('user-123', 'note-1'),
-          ('user-999', 'note-2'),
-        ];
+        final resources = [('user-123', 'note-1'), ('user-999', 'note-2')];
 
         expect(
           () => authService.verifyBatchOwnership(
@@ -368,19 +389,18 @@ void main() {
             resourceType: 'Note',
             operation: 'delete',
           ),
-          throwsA(isA<AuthorizationException>().having(
-            (e) => e.message,
-            'message',
-            contains('delete'),
-          )),
+          throwsA(
+            isA<AuthorizationException>().having(
+              (e) => e.message,
+              'message',
+              contains('delete'),
+            ),
+          ),
         );
       });
 
       test('logs security warning for batch failures', () {
-        final resources = [
-          ('user-123', 'note-1'),
-          ('user-999', 'note-2'),
-        ];
+        final resources = [('user-123', 'note-1'), ('user-999', 'note-2')];
 
         expect(
           () => authService.verifyBatchOwnership(
@@ -390,9 +410,9 @@ void main() {
           throwsA(isA<AuthorizationException>()),
         );
 
-        verify(mockLogger.warning(
-          argThat(contains('Batch authorization failed')),
-        )).called(1);
+        verify(
+          mockLogger.warning(argThat(contains('Batch authorization failed'))),
+        ).called(1);
       });
     });
 
@@ -414,7 +434,8 @@ void main() {
 
         // Execution times should be roughly similar (within 10ms for safety)
         expect(
-          (stopwatch1.elapsedMicroseconds - stopwatch2.elapsedMicroseconds).abs(),
+          (stopwatch1.elapsedMicroseconds - stopwatch2.elapsedMicroseconds)
+              .abs(),
           lessThan(10000),
         );
       });
@@ -446,22 +467,25 @@ void main() {
         expect(successes, equals(50));
       });
 
-      test('maintains security under rapid-fire authentication state changes', () {
-        // Simulate user logging out mid-check
-        when(mockAuth.currentUser).thenReturn(mockUser);
-        when(mockUser.id).thenReturn('user-123');
+      test(
+        'maintains security under rapid-fire authentication state changes',
+        () {
+          // Simulate user logging out mid-check
+          when(mockAuth.currentUser).thenReturn(mockUser);
+          when(mockUser.id).thenReturn('user-123');
 
-        expect(authService.isAuthenticated, isTrue);
+          expect(authService.isAuthenticated, isTrue);
 
-        // User logs out
-        when(mockAuth.currentUser).thenReturn(null);
+          // User logs out
+          when(mockAuth.currentUser).thenReturn(null);
 
-        expect(authService.isAuthenticated, isFalse);
-        expect(
-          () => authService.requireAuthenticatedUser(),
-          throwsA(isA<AuthorizationException>()),
-        );
-      });
+          expect(authService.isAuthenticated, isFalse);
+          expect(
+            () => authService.requireAuthenticatedUser(),
+            throwsA(isA<AuthorizationException>()),
+          );
+        },
+      );
     });
   });
 }

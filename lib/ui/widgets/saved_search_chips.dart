@@ -162,8 +162,9 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
 
   @override
   Widget build(BuildContext context) {
-    final visiblePresets =
-        SavedSearchRegistry.presets.where(_shouldShowPreset).toList();
+    final visiblePresets = SavedSearchRegistry.presets
+        .where(_shouldShowPreset)
+        .toList();
 
     // Watch custom saved searches from database
     final customSearchesAsync = ref.watch(savedSearchesStreamProvider);
@@ -201,7 +202,9 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
         visiblePresets.map((preset) {
           final count = _getCountForPreset(preset);
           // Don't show badge for Email Notes preset (user preference)
-          final showBadge = count != null && count > 0 &&
+          final showBadge =
+              count != null &&
+              count > 0 &&
               preset.key != SavedSearchKey.emailNotes;
 
           return _buildPresetChip(preset, count, showBadge);
@@ -211,7 +214,8 @@ class _SavedSearchChipsState extends ConsumerState<SavedSearchChips> {
       // Custom saved searches
       allChips.addAll(
         customSearchesAsync.maybeWhen(
-          data: (searches) => searches.map<Widget>((s) => _buildCustomSearchChip(s)).toList(),
+          data: (searches) =>
+              searches.map<Widget>((s) => _buildCustomSearchChip(s)).toList(),
           orElse: () => <Widget>[],
         ),
       );

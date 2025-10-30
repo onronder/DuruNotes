@@ -55,8 +55,9 @@ class _SavedSearchManagementScreenState
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                const Text('Could not load saved searches. Please try again.'),
+            content: const Text(
+              'Could not load saved searches. Please try again.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -90,9 +91,9 @@ class _SavedSearchManagementScreenState
         await _loadSavedSearches();
         if (mounted) {
           HapticFeedback.mediumImpact();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved search created')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Saved search created')));
         }
         _logger.info(
           'Saved search created',
@@ -109,8 +110,9 @@ class _SavedSearchManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  const Text('Could not create saved search. Please retry.'),
+              content: const Text(
+                'Could not create saved search. Please retry.',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Retry',
@@ -140,14 +142,11 @@ class _SavedSearchManagementScreenState
         await _loadSavedSearches();
         if (mounted) {
           HapticFeedback.mediumImpact();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved search updated')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Saved search updated')));
         }
-        _logger.info(
-          'Saved search updated',
-          data: {'searchId': search.id},
-        );
+        _logger.info('Saved search updated', data: {'searchId': search.id});
       } catch (error, stackTrace) {
         _logger.error(
           'Failed to update saved search',
@@ -159,8 +158,9 @@ class _SavedSearchManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  const Text('Could not update saved search. Please retry.'),
+              content: const Text(
+                'Could not update saved search. Please retry.',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Retry',
@@ -202,14 +202,11 @@ class _SavedSearchManagementScreenState
         await _loadSavedSearches();
         if (mounted) {
           HapticFeedback.mediumImpact();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved search deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Saved search deleted')));
         }
-        _logger.info(
-          'Saved search deleted',
-          data: {'searchId': search.id},
-        );
+        _logger.info('Saved search deleted', data: {'searchId': search.id});
       } catch (error, stackTrace) {
         _logger.error(
           'Failed to delete saved search',
@@ -221,8 +218,9 @@ class _SavedSearchManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  const Text('Could not delete saved search. Please retry.'),
+              content: const Text(
+                'Could not delete saved search. Please retry.',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Retry',
@@ -277,9 +275,9 @@ class _SavedSearchManagementScreenState
       setState(() => _isReordering = false);
       HapticFeedback.mediumImpact();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order saved')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Order saved')));
       }
       _logger.info('Saved searches reordered');
     } catch (error, stackTrace) {
@@ -292,8 +290,7 @@ class _SavedSearchManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                const Text('Could not save order. Please try again.'),
+            content: const Text('Could not save order. Please try again.'),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -328,10 +325,10 @@ class _SavedSearchManagementScreenState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _savedSearches.isEmpty
-              ? _buildEmptyState(context)
-              : _isReordering
-                  ? _buildReorderableList()
-                  : _buildNormalList(),
+          ? _buildEmptyState(context)
+          : _isReordering
+          ? _buildReorderableList()
+          : _buildNormalList(),
       floatingActionButton: FloatingActionButton(
         heroTag: 'saved_search_fab', // PRODUCTION FIX: Unique hero tag
         onPressed: _createSavedSearch,
@@ -403,9 +400,7 @@ class _SavedSearchManagementScreenState
         final search = _savedSearches[index];
         return ListTile(
           key: ValueKey(search.id),
-          leading: Icon(
-            _getIconForSearch(search),
-          ),
+          leading: Icon(_getIconForSearch(search)),
           title: Text(search.name),
           subtitle: Text(_getSubtitleForSearch(search)),
           trailing: const Icon(Icons.drag_handle),
@@ -417,9 +412,7 @@ class _SavedSearchManagementScreenState
   Widget _buildSearchTile(domain.SavedSearch search) {
     final theme = Theme.of(context);
     return ListTile(
-      leading: Icon(
-        _getIconForSearch(search),
-      ),
+      leading: Icon(_getIconForSearch(search)),
       title: Text(search.name),
       subtitle: Text(_getSubtitleForSearch(search)),
       trailing: Row(
@@ -653,7 +646,8 @@ class _CreateSavedSearchDialogState extends State<_CreateSavedSearchDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _nameController.text.isNotEmpty &&
+          onPressed:
+              _nameController.text.isNotEmpty &&
                   _queryController.text.isNotEmpty
               ? () {
                   Navigator.pop(context, {

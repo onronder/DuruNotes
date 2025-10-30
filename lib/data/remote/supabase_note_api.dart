@@ -314,7 +314,11 @@ class SupabaseNoteApi {
     // CRITICAL FIX: When Supabase returns bytea as List<int>, it may be the bytes
     // of a base64 string, not the actual encrypted data. We must decode it.
     if (v is Uint8List || v is List<int> || v is List<dynamic>) {
-      final bytes = v is Uint8List ? v : (v is List<int> ? Uint8List.fromList(v) : Uint8List.fromList((v as List<dynamic>).cast<int>()));
+      final bytes = v is Uint8List
+          ? v
+          : (v is List<int>
+                ? Uint8List.fromList(v)
+                : Uint8List.fromList((v as List<dynamic>).cast<int>()));
 
       // Try to decode as UTF-8 string first
       try {
@@ -364,10 +368,20 @@ class SupabaseNoteApi {
         final macBytes = mac != null ? base64Decode(mac) : Uint8List(0);
 
         // libsodium uses [nonce][mac+ciphertext] format
-        final combined = Uint8List(nonceBytes.length + macBytes.length + ciphertextBytes.length);
+        final combined = Uint8List(
+          nonceBytes.length + macBytes.length + ciphertextBytes.length,
+        );
         combined.setRange(0, nonceBytes.length, nonceBytes);
-        combined.setRange(nonceBytes.length, nonceBytes.length + macBytes.length, macBytes);
-        combined.setRange(nonceBytes.length + macBytes.length, combined.length, ciphertextBytes);
+        combined.setRange(
+          nonceBytes.length,
+          nonceBytes.length + macBytes.length,
+          macBytes,
+        );
+        combined.setRange(
+          nonceBytes.length + macBytes.length,
+          combined.length,
+          ciphertextBytes,
+        );
 
         return combined;
       }
@@ -417,7 +431,9 @@ class SupabaseNoteApi {
     if (value is String) {
       final trimmed = value.trim();
 
-      if (trimmed.startsWith('{') && trimmed.contains('"n"') && trimmed.contains('"c"')) {
+      if (trimmed.startsWith('{') &&
+          trimmed.contains('"n"') &&
+          trimmed.contains('"c"')) {
         return Uint8List.fromList(utf8.encode(trimmed));
       }
 
@@ -450,7 +466,9 @@ class SupabaseNoteApi {
       return Uint8List.fromList(utf8.encode(trimmed));
     }
 
-    throw UnsupportedError('Unsupported secretbox payload type: ${value.runtimeType}');
+    throw UnsupportedError(
+      'Unsupported secretbox payload type: ${value.runtimeType}',
+    );
   }
 
   /// Helper to check if a string looks like base64
@@ -688,7 +706,9 @@ class SupabaseNoteApi {
   /// PRODUCTION: Get all reminders for the current user
   /// Filters by user_id directly (no need to join with notes)
   Future<List<Map<String, dynamic>>> getReminders() async {
-    final dynamic res = await _client.from('reminders').select('''
+    final dynamic res = await _client
+        .from('reminders')
+        .select('''
           id,
           note_id,
           user_id,
@@ -710,7 +730,8 @@ class SupabaseNoteApi {
           last_triggered,
           created_at,
           updated_at
-        ''').eq('user_id', _uid);
+        ''')
+        .eq('user_id', _uid);
 
     return _normalizeListOfMaps(res);
   }

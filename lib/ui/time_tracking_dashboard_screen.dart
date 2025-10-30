@@ -30,9 +30,7 @@ class _TimeTrackingDashboardScreenState
     if (repository == null) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        appBar: AppBar(
-          title: const Text('Tracking Preview'),
-        ),
+        appBar: AppBar(title: const Text('Tracking Preview')),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
@@ -52,9 +50,7 @@ class _TimeTrackingDashboardScreenState
         if (snapshot.connectionState != ConnectionState.done) {
           return Scaffold(
             backgroundColor: Theme.of(context).colorScheme.surface,
-            appBar: AppBar(
-              title: const Text('Tracking Preview'),
-            ),
+            appBar: AppBar(title: const Text('Tracking Preview')),
             body: const Center(child: CircularProgressIndicator()),
           );
         }
@@ -62,9 +58,7 @@ class _TimeTrackingDashboardScreenState
         if (snapshot.hasError) {
           return Scaffold(
             backgroundColor: Theme.of(context).colorScheme.surface,
-            appBar: AppBar(
-              title: const Text('Tracking Preview'),
-            ),
+            appBar: AppBar(title: const Text('Tracking Preview')),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -116,13 +110,15 @@ class _TimeTrackingDashboardScreenState
   }
 
   Future<void> _handleRefresh(
-      ITaskRepository repository, BuildContext context) async {
+    ITaskRepository repository,
+    BuildContext context,
+  ) async {
     await _TrackingOverview.load(repository);
     if (!mounted) return;
     setState(() => _refreshSeed++);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tracking data refreshed')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Tracking data refreshed')));
   }
 }
 
@@ -164,7 +160,9 @@ class _SummaryRow extends StatelessWidget {
           value: _formatMinutes(overview.totalEstimatedMinutes),
           chipLabel: overview.totalTrackedMinutes > 0
               ? _formatVariance(
-                  overview.totalTrackedMinutes, overview.totalEstimatedMinutes)
+                  overview.totalTrackedMinutes,
+                  overview.totalEstimatedMinutes,
+                )
               : 'No estimates',
         ),
         _SummaryCard(
@@ -173,7 +171,8 @@ class _SummaryRow extends StatelessWidget {
           value: overview.trackedTaskCount > 0
               ? _formatMinutes(
                   (overview.totalTrackedMinutes / overview.trackedTaskCount)
-                      .round())
+                      .round(),
+                )
               : '0m',
           chipLabel: 'Per tracked task',
         ),
@@ -333,10 +332,7 @@ class _WeekTrend extends StatelessWidget {
                           gradient: const LinearGradient(
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
-                            colors: [
-                              DuruColors.primary,
-                              DuruColors.accent,
-                            ],
+                            colors: [DuruColors.primary, DuruColors.accent],
                           ),
                         ),
                       ),
@@ -451,8 +447,9 @@ class _TopTrackedTasks extends StatelessWidget {
               ),
               trailing: Text(
                 task.lastUpdatedLabel,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             );
           }),
@@ -493,8 +490,9 @@ class _NoTrackingEmptyState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Once you log time on tasks, this space will curate highlights, overages, and your weekly focus trend.',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -515,12 +513,12 @@ class _TrackingOverview {
   });
 
   const _TrackingOverview.empty()
-      : totalTrackedMinutes = 0,
-        totalEstimatedMinutes = 0,
-        trackedTaskCount = 0,
-        topTrackedTasks = const <_TrackedTask>[],
-        dailySummaries = const <_DailySummary>[],
-        hasData = false;
+    : totalTrackedMinutes = 0,
+      totalEstimatedMinutes = 0,
+      trackedTaskCount = 0,
+      topTrackedTasks = const <_TrackedTask>[],
+      dailySummaries = const <_DailySummary>[],
+      hasData = false;
 
   final int totalTrackedMinutes;
   final int totalEstimatedMinutes;
@@ -545,13 +543,15 @@ class _TrackingOverview {
     }
 
     final totalTracked = trackedTasks.fold<int>(
-        0, (int sum, _TrackedTask task) => sum + task.actualMinutes);
-    final totalEstimated = trackedTasks.fold<int>(
-        0, (int sum, _TrackedTask task) => sum + task.estimatedMinutes);
-
-    trackedTasks.sort(
-      (a, b) => b.actualMinutes.compareTo(a.actualMinutes),
+      0,
+      (int sum, _TrackedTask task) => sum + task.actualMinutes,
     );
+    final totalEstimated = trackedTasks.fold<int>(
+      0,
+      (int sum, _TrackedTask task) => sum + task.estimatedMinutes,
+    );
+
+    trackedTasks.sort((a, b) => b.actualMinutes.compareTo(a.actualMinutes));
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -572,10 +572,7 @@ class _TrackingOverview {
 
     final dailySummaries = lastSevenDays
         .map(
-          (date) => _DailySummary(
-            date: date,
-            minutes: dailyTotals[date] ?? 0,
-          ),
+          (date) => _DailySummary(date: date, minutes: dailyTotals[date] ?? 0),
         )
         .toList();
 

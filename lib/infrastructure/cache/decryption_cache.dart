@@ -86,11 +86,7 @@ class DecryptionCache {
     final title = await _noteHelper.decryptTitle(note);
     final body = await _noteHelper.decryptBody(note);
 
-    return DecryptedContent(
-      title: title,
-      body: body,
-      cachedAt: DateTime.now(),
-    );
+    return DecryptedContent(title: title, body: body, cachedAt: DateTime.now());
   }
 
   /// Get decrypted content for a single note (with cache)

@@ -10,12 +10,11 @@ class KeyManager {
   KeyManager({
     FlutterSecureStorage? storage,
     required AccountKeyService accountKeyService,
-  })  : _storage = storage ?? const FlutterSecureStorage(),
-        _accountKeyService = accountKeyService;
-  KeyManager.inMemory({
-    required AccountKeyService accountKeyService,
-  })  : _storage = null,
-        _accountKeyService = accountKeyService;
+  }) : _storage = storage ?? const FlutterSecureStorage(),
+       _accountKeyService = accountKeyService;
+  KeyManager.inMemory({required AccountKeyService accountKeyService})
+    : _storage = null,
+      _accountKeyService = accountKeyService;
 
   final FlutterSecureStorage? _storage;
   final Map<String, String> _mem = {};

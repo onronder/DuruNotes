@@ -51,7 +51,8 @@ class PermissionManager {
   final Map<PermissionType, PermissionStatus> _permissionCache = {};
 
   // Stream controllers for permission observers
-  final Map<PermissionType, List<void Function(PermissionStatus)>> _observers = {};
+  final Map<PermissionType, List<void Function(PermissionStatus)>> _observers =
+      {};
 
   /// Request a specific permission type
   Future<PermissionStatus> request(PermissionType type) async {
@@ -220,9 +221,10 @@ class PermissionManager {
     try {
       final opened = await ph.openAppSettings();
 
-      _analytics.event('app_settings_opened', properties: {
-        'reason': 'permission_management',
-      });
+      _analytics.event(
+        'app_settings_opened',
+        properties: {'reason': 'permission_management'},
+      );
 
       // Clear cache as permissions may have changed
       clearCache();
@@ -247,7 +249,8 @@ class PermissionManager {
     final plugin = FlutterLocalNotificationsPlugin();
     final result = await plugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
+          IOSFlutterLocalNotificationsPlugin
+        >()
         ?.requestPermissions(alert: true, badge: true, sound: true);
 
     if (result == true) {

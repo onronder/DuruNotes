@@ -384,8 +384,9 @@ class _TodoBlockWidgetState extends ConsumerState<TodoBlockWidget> {
                 child: GestureDetector(
                   key: ValueKey('todo_checkbox_${widget.position}'),
                   onTap: _toggleCompleted,
-                  onLongPress:
-                      widget.noteId != null ? _showTaskMetadataDialog : null,
+                  onLongPress: widget.noteId != null
+                      ? _showTaskMetadataDialog
+                      : null,
                   child: Container(
                     width: 22,
                     height: 22,

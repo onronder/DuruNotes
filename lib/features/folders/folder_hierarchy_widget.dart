@@ -3,7 +3,8 @@ import 'package:duru_notes/features/folders/create_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, visibleFolderNodesProvider, folderProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderHierarchyProvider, visibleFolderNodesProvider, folderProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -59,10 +60,10 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
             child: hierarchyState.isLoading && visibleNodes.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : hierarchyState.error != null
-                    ? _buildErrorState(theme, hierarchyState.error!)
-                    : visibleNodes.isEmpty
-                        ? _buildEmptyState(theme)
-                        : _buildHierarchyList(theme, visibleNodes),
+                ? _buildErrorState(theme, hierarchyState.error!)
+                : visibleNodes.isEmpty
+                ? _buildEmptyState(theme)
+                : _buildHierarchyList(theme, visibleNodes),
           ),
           if (folderOperationState.isLoading) _buildLoadingIndicator(theme),
         ],
@@ -279,7 +280,8 @@ class _FolderHierarchyWidgetState extends ConsumerState<FolderHierarchyWidget> {
               margin: const EdgeInsets.only(right: 12),
               child: Icon(
                 FolderIconHelpers.getFolderIcon(node.folder.icon),
-                color: FolderIconHelpers.getFolderColor(node.folder.color) ??
+                color:
+                    FolderIconHelpers.getFolderColor(node.folder.color) ??
                     (isSelected
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurfaceVariant),
@@ -379,7 +381,8 @@ class FolderContextMenu extends ConsumerWidget {
               children: [
                 Icon(
                   FolderIconHelpers.getFolderIcon(folder.icon),
-                  color: FolderIconHelpers.getFolderColor(folder.color) ??
+                  color:
+                      FolderIconHelpers.getFolderColor(folder.color) ??
                       theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 12),

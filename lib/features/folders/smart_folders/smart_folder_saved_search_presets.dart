@@ -69,8 +69,10 @@ class SmartFolderSavedSearchPresets {
 
   /// Get smart folder by preset key
   static SmartFolderConfig? getSmartFolderByKey(SavedSearchKey key) {
-    final preset = SavedSearchRegistry.presets.firstWhere((p) => p.key == key,
-        orElse: () => throw StateError('Preset not found'));
+    final preset = SavedSearchRegistry.presets.firstWhere(
+      (p) => p.key == key,
+      orElse: () => throw StateError('Preset not found'),
+    );
     if (key == SavedSearchKey.inbox) {
       // Inbox is handled differently as it's folder-based
       return null;
@@ -79,12 +81,15 @@ class SmartFolderSavedSearchPresets {
   }
 
   /// Cached smart folders for performance
-  static final attachmentsSmartFolder =
-      getSmartFolderByKey(SavedSearchKey.attachments)!;
-  static final emailNotesSmartFolder =
-      getSmartFolderByKey(SavedSearchKey.emailNotes)!;
-  static final webClipsSmartFolder =
-      getSmartFolderByKey(SavedSearchKey.webNotes)!;
+  static final attachmentsSmartFolder = getSmartFolderByKey(
+    SavedSearchKey.attachments,
+  )!;
+  static final emailNotesSmartFolder = getSmartFolderByKey(
+    SavedSearchKey.emailNotes,
+  )!;
+  static final webClipsSmartFolder = getSmartFolderByKey(
+    SavedSearchKey.webNotes,
+  )!;
 
   /// Check if a note matches saved search criteria (with metadata support)
   /// This delegates to the centralized detection logic in AppDb

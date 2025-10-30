@@ -9,7 +9,10 @@ import 'package:duru_notes/features/sync/providers/sync_providers.dart'
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
     show folderCoreRepositoryProvider;
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
-    show notesCoreRepositoryProvider, inboxRepositoryProvider, quickCaptureRepositoryProvider;
+    show
+        notesCoreRepositoryProvider,
+        inboxRepositoryProvider,
+        quickCaptureRepositoryProvider;
 import 'package:duru_notes/features/templates/providers/templates_providers.dart'
     show templateCoreRepositoryProvider;
 // Phase 4: Migrated to organized provider imports

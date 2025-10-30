@@ -76,10 +76,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
         // Note not found or error
         _logger.warning(
           'Failed to load linked note for note link block',
-          data: {
-            'linkedNoteId': _linkedNoteId,
-            'error': error.toString(),
-          },
+          data: {'linkedNoteId': _linkedNoteId, 'error': error.toString()},
         );
         unawaited(Sentry.captureException(error, stackTrace: stackTrace));
         if (mounted) {
@@ -271,8 +268,8 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
                 Text(
                   'Select a note to link',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.purple.shade700,
-                      ),
+                    color: Colors.purple.shade700,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -303,9 +300,7 @@ class _NoteLinkBlockWidgetState extends ConsumerState<NoteLinkBlockWidget> {
                     return ListTile(
                       leading: const Icon(Icons.note, size: 16),
                       title: Text(
-                        note.title.isNotEmpty
-                            ? note.title
-                            : 'Untitled',
+                        note.title.isNotEmpty ? note.title : 'Untitled',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

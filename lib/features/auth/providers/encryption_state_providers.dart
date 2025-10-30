@@ -53,7 +53,7 @@ class EncryptionState {
 /// Notifier for managing encryption state
 class EncryptionStateNotifier extends StateNotifier<EncryptionState> {
   EncryptionStateNotifier(this._service)
-      : super(const EncryptionState(status: EncryptionStatus.loading)) {
+    : super(const EncryptionState(status: EncryptionStatus.loading)) {
     _checkEncryptionStatus();
   }
 
@@ -100,7 +100,9 @@ class EncryptionStateNotifier extends StateNotifier<EncryptionState> {
       // Double-check that we're actually unlocked now
       if (state.status != EncryptionStatus.unlocked) {
         if (kDebugMode) {
-          debugPrint('[EncryptionState] Warning: Setup completed but state is not unlocked');
+          debugPrint(
+            '[EncryptionState] Warning: Setup completed but state is not unlocked',
+          );
         }
         // Force unlocked state since setup succeeded
         state = const EncryptionState(status: EncryptionStatus.unlocked);
@@ -134,11 +136,14 @@ class EncryptionStateNotifier extends StateNotifier<EncryptionState> {
       }
 
       final errorMessage = _parseErrorMessage(e);
-      final isWrongPassword = errorMessage.toLowerCase().contains('invalid password') ||
+      final isWrongPassword =
+          errorMessage.toLowerCase().contains('invalid password') ||
           errorMessage.toLowerCase().contains('decryption failed');
 
       state = EncryptionState(
-        status: isWrongPassword ? EncryptionStatus.locked : EncryptionStatus.error,
+        status: isWrongPassword
+            ? EncryptionStatus.locked
+            : EncryptionStatus.error,
         error: errorMessage,
       );
       return false;
@@ -208,11 +213,12 @@ class EncryptionStateNotifier extends StateNotifier<EncryptionState> {
 }
 
 /// Provider for encryption state
-final encryptionStateProvider = StateNotifierProvider<EncryptionStateNotifier, EncryptionState>((ref) {
-  final service = ref.watch(encryptionSyncServiceProvider);
+final encryptionStateProvider =
+    StateNotifierProvider<EncryptionStateNotifier, EncryptionState>((ref) {
+      final service = ref.watch(encryptionSyncServiceProvider);
 
-  return EncryptionStateNotifier(service);
-});
+      return EncryptionStateNotifier(service);
+    });
 
 /// Provider for encryption service
 /// This is a convenience provider for accessing encryption functions

@@ -1,4 +1,3 @@
-
 /// Phase 3 Migration Validation Test Suite
 ///
 /// CRITICAL: This test suite validates Migration 12 and Phase 3 database

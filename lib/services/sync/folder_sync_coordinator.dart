@@ -50,7 +50,8 @@ class FolderSyncCoordinator {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'FolderSyncCoordinator');
-          scope.setTag('operation', operation);        },
+          scope.setTag('operation', operation);
+        },
       ),
     );
   }
@@ -71,7 +72,8 @@ class FolderSyncCoordinator {
 
     try {
       logger.info(
-          '🚀 FolderSyncCoordinator: Starting folder creation - name: $name, parentId: $parentId, operationId: $operationId');
+        '🚀 FolderSyncCoordinator: Starting folder creation - name: $name, parentId: $parentId, operationId: $operationId',
+      );
 
       // Start audit
       audit.startOperation(
@@ -92,7 +94,8 @@ class FolderSyncCoordinator {
       );
 
       logger.info(
-          '✅ FolderSyncCoordinator: Local folder created - folderId: ${localFolder.id}, name: ${localFolder.name}');
+        '✅ FolderSyncCoordinator: Local folder created - folderId: ${localFolder.id}, name: ${localFolder.name}',
+      );
 
       // Queue for sync
       _pendingOperations[localFolder.id] = FolderOperation.create(
@@ -114,15 +117,13 @@ class FolderSyncCoordinator {
         );
       } catch (error, stack) {
         logger.warning(
-            '⚠️ FolderSyncCoordinator: Remote sync failed, but local creation succeeded: $error');
+          '⚠️ FolderSyncCoordinator: Remote sync failed, but local creation succeeded: $error',
+        );
         _captureCoordinatorException(
           operation: 'createFolder.remoteSync',
           error: error,
           stackTrace: stack,
-          data: {
-            'operationId': operationId,
-            'folderId': localFolder.id,
-          },
+          data: {'operationId': operationId, 'folderId': localFolder.id},
           level: SentryLevel.warning,
         );
         // Don't fail the entire operation - folder was created locally

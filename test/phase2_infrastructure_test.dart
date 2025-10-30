@@ -57,7 +57,10 @@ void main() {
       expect(errorManager.hasCriticalErrors, true);
       expect(errorManager.hasFatalErrors, false);
       expect(errorManager.errorsByStage(BootstrapStage.firebase).length, 1);
-      expect(errorManager.errorsBySeverity(BootstrapErrorSeverity.critical).length, 1);
+      expect(
+        errorManager.errorsBySeverity(BootstrapErrorSeverity.critical).length,
+        1,
+      );
 
       final summary = errorManager.getSummary();
       expect(summary['total'], 2);
@@ -205,10 +208,7 @@ void main() {
   group('Phase 2: Cache Manager Tests', () {
     test('Cache manager basic operations work', () {
       final cache = CacheManager<String, String>(
-        config: const CacheConfig(
-          maxSize: 3,
-          defaultTtl: Duration(seconds: 5),
-        ),
+        config: const CacheConfig(maxSize: 3, defaultTtl: Duration(seconds: 5)),
       );
 
       // Put and get
@@ -240,9 +240,7 @@ void main() {
 
     test('Cache TTL expiration works', () async {
       final cache = CacheManager<String, String>(
-        config: const CacheConfig(
-          defaultTtl: Duration(milliseconds: 100),
-        ),
+        config: const CacheConfig(defaultTtl: Duration(milliseconds: 100)),
       );
 
       cache.put('key1', 'value1');
@@ -309,38 +307,28 @@ void main() {
       int computeCount = 0;
 
       // First call computes
-      final result1 = await cache.getOrCompute(
-        'key1',
-        () async {
-          computeCount++;
-          return 'computed_value';
-        },
-      );
+      final result1 = await cache.getOrCompute('key1', () async {
+        computeCount++;
+        return 'computed_value';
+      });
 
       expect(result1, 'computed_value');
       expect(computeCount, 1);
 
       // Second call uses cache
-      final result2 = await cache.getOrCompute(
-        'key1',
-        () async {
-          computeCount++;
-          return 'computed_value_2';
-        },
-      );
+      final result2 = await cache.getOrCompute('key1', () async {
+        computeCount++;
+        return 'computed_value_2';
+      });
 
       expect(result2, 'computed_value'); // Cached value
       expect(computeCount, 1); // Not computed again
 
       // Force refresh
-      final result3 = await cache.getOrCompute(
-        'key1',
-        () async {
-          computeCount++;
-          return 'new_value';
-        },
-        forceRefresh: true,
-      );
+      final result3 = await cache.getOrCompute('key1', () async {
+        computeCount++;
+        return 'new_value';
+      }, forceRefresh: true);
 
       expect(result3, 'new_value');
       expect(computeCount, 2);
@@ -472,8 +460,14 @@ void main() {
       final navKey = container.read(navigatorKeyProvider);
       expect(navKey, isNotNull);
 
-      expect(container.read(degradedModeProvider), true); // True when no bootstrap
-      expect(container.read(offlineModeProvider), true); // True when no bootstrap
+      expect(
+        container.read(degradedModeProvider),
+        true,
+      ); // True when no bootstrap
+      expect(
+        container.read(offlineModeProvider),
+        true,
+      ); // True when no bootstrap
 
       container.dispose();
     });

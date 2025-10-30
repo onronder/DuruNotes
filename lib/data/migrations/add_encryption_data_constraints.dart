@@ -50,7 +50,9 @@ class AddEncryptionDataConstraints {
 
     // Drop old table and rename new one
     await (m as dynamic).database.customStatement('DROP TABLE local_notes');
-    await (m as dynamic).database.customStatement('ALTER TABLE local_notes_new RENAME TO local_notes');
+    await (m as dynamic).database.customStatement(
+      'ALTER TABLE local_notes_new RENAME TO local_notes',
+    );
 
     // Recreate indexes (if any were lost)
     await (m as dynamic).database.customStatement('''
@@ -127,7 +129,6 @@ class AddEncryptionDataConstraints {
       ''');
 
       print('✅ Cleaned up $count corrupted encrypted_metadata records');
-
     } catch (e) {
       print('❌ Error during corrupted data cleanup: $e');
     }
@@ -149,20 +150,24 @@ class AddEncryptionDataConstraints {
   }
 
   /// Get corruption statistics for monitoring
-  static Future<Map<String, dynamic>> getCorruptionStats(DatabaseConnectionUser db) async {
+  static Future<Map<String, dynamic>> getCorruptionStats(
+    DatabaseConnectionUser db,
+  ) async {
     final stats = <String, dynamic>{};
 
     try {
       // Count total notes
-      final totalNotes = await db.customSelect(
-        'SELECT COUNT(*) as count FROM local_notes',
-      ).getSingle();
+      final totalNotes = await db
+          .customSelect('SELECT COUNT(*) as count FROM local_notes')
+          .getSingle();
       stats['total_notes'] = totalNotes.read<int>('count');
 
       // Count notes with encrypted metadata
-      final encryptedNotes = await db.customSelect(
-        'SELECT COUNT(*) as count FROM local_notes WHERE encrypted_metadata IS NOT NULL',
-      ).getSingle();
+      final encryptedNotes = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM local_notes WHERE encrypted_metadata IS NOT NULL',
+          )
+          .getSingle();
       stats['encrypted_notes'] = encryptedNotes.read<int>('count');
 
       // Count potential corrupted records
@@ -191,7 +196,6 @@ class AddEncryptionDataConstraints {
       stats['corruption_rate'] = (corruptedCount > 0 && encryptedCount > 0)
           ? ((corruptedCount / encryptedCount) * 100).toStringAsFixed(2)
           : '0.00';
-
     } catch (e) {
       stats['error'] = e.toString();
     }

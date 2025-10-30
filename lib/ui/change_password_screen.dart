@@ -193,9 +193,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                           children: [
                             Text(
                               'Password Security',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
+                              style: Theme.of(context).textTheme.titleSmall
                                   ?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(
@@ -206,9 +204,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                             const SizedBox(height: 4),
                             Text(
                               'Your new password must meet all security requirements and cannot be one of your last 5 passwords.',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: Theme.of(
                                       context,
@@ -433,8 +429,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
                 // Cancel Button
                 OutlinedButton(
-                  onPressed:
-                      _isLoading ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isLoading
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
                 ),
               ],

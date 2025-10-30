@@ -33,7 +33,9 @@ class SavedSearchMapper {
       name: dbSearch.name,
       query: dbSearch.query,
       filters: dbSearch.parameters != null
-          ? domain.SearchFilters.fromJson(jsonDecode(dbSearch.parameters!) as Map<String, dynamic>)
+          ? domain.SearchFilters.fromJson(
+              jsonDecode(dbSearch.parameters!) as Map<String, dynamic>,
+            )
           : null,
       isPinned: dbSearch.isPinned,
       createdAt: dbSearch.createdAt,
@@ -65,12 +67,16 @@ class SavedSearchMapper {
   }
 
   /// Convert SavedSearch list to domain SavedSearch list
-  static List<domain.SavedSearch> toDomainList(List<db.SavedSearch> dbSearches) {
+  static List<domain.SavedSearch> toDomainList(
+    List<db.SavedSearch> dbSearches,
+  ) {
     return dbSearches.map((search) => toDomain(search)).toList();
   }
 
   /// Convert domain SavedSearch list to infrastructure SavedSearch list
-  static List<db.SavedSearch> toInfrastructureList(List<domain.SavedSearch> searches) {
+  static List<db.SavedSearch> toInfrastructureList(
+    List<domain.SavedSearch> searches,
+  ) {
     return searches.map((search) => toInfrastructure(search)).toList();
   }
 }

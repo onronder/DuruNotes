@@ -7,10 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Dialog for previewing template content and metadata
 class TemplatePreviewDialog extends StatefulWidget {
-  const TemplatePreviewDialog({
-    super.key,
-    required this.template,
-  });
+  const TemplatePreviewDialog({super.key, required this.template});
 
   final LocalTemplate template;
 
@@ -56,10 +53,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
     return Dialog(
       clipBehavior: Clip.hardEdge,
       child: Container(
-        constraints: const BoxConstraints(
-          maxWidth: 600,
-          maxHeight: 700,
-        ),
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -73,7 +67,9 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                   end: Alignment.bottomRight,
                   colors: [
                     _getCategoryColor(widget.template.category),
-                    _getCategoryColor(widget.template.category).withValues(alpha: 0.8),
+                    _getCategoryColor(
+                      widget.template.category,
+                    ).withValues(alpha: 0.8),
                   ],
                 ),
               ),
@@ -105,7 +101,10 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
@@ -132,7 +131,10 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                       if (widget.template.isSystem) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
@@ -175,14 +177,8 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
               child: TabBar(
                 controller: _tabController,
                 tabs: const [
-                  Tab(
-                    icon: Icon(Icons.preview),
-                    text: 'Preview',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.info_outline),
-                    text: 'Details',
-                  ),
+                  Tab(icon: Icon(Icons.preview), text: 'Preview'),
+                  Tab(icon: Icon(Icons.info_outline), text: 'Details'),
                 ],
               ),
             ),
@@ -238,11 +234,9 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                           ),
                           const SizedBox(width: 8),
                           IconButton(
-                            onPressed: () => Navigator.of(context).pop('delete'),
-                            icon: Icon(
-                              Icons.delete,
-                              color: colorScheme.error,
-                            ),
+                            onPressed: () =>
+                                Navigator.of(context).pop('delete'),
+                            icon: Icon(Icons.delete, color: colorScheme.error),
                             tooltip: 'Delete Template',
                           ),
                         ],
@@ -258,7 +252,9 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                     icon: const Icon(Icons.note_add),
                     label: const Text('Use Template'),
                     style: FilledButton.styleFrom(
-                      backgroundColor: _getCategoryColor(widget.template.category),
+                      backgroundColor: _getCategoryColor(
+                        widget.template.category,
+                      ),
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -302,11 +298,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.article,
-                        size: 20,
-                        color: colorScheme.primary,
-                      ),
+                      Icon(Icons.article, size: 20, color: colorScheme.primary),
                       const SizedBox(width: 8),
                       Text(
                         'Template Content',
@@ -317,7 +309,10 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                       ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
@@ -340,7 +335,11 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHighlightedContent(widget.template.body, theme, colorScheme),
+                      _buildHighlightedContent(
+                        widget.template.body,
+                        theme,
+                        colorScheme,
+                      ),
 
                       if (widget.template.body.isEmpty) ...[
                         Center(
@@ -351,7 +350,8 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                                 Icon(
                                   Icons.article_outlined,
                                   size: 48,
-                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                  color: colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.5),
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -392,11 +392,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.code,
-                          size: 20,
-                          color: colorScheme.tertiary,
-                        ),
+                        Icon(Icons.code, size: 20, color: colorScheme.tertiary),
                         const SizedBox(width: 8),
                         Text(
                           'Template Variables',
@@ -421,9 +417,14 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                         child: Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: colorScheme.tertiary.withValues(alpha: 0.2),
+                                color: colorScheme.tertiary.withValues(
+                                  alpha: 0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -468,10 +469,30 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
           _buildDetailSection(
             'Basic Information',
             [
-              _buildDetailRow('Template ID', widget.template.id, theme, colorScheme),
-              _buildDetailRow('Title', widget.template.title, theme, colorScheme),
-              _buildDetailRow('Category', widget.template.category, theme, colorScheme),
-              _buildDetailRow('Type', widget.template.isSystem ? 'System Template' : 'User Template', theme, colorScheme),
+              _buildDetailRow(
+                'Template ID',
+                widget.template.id,
+                theme,
+                colorScheme,
+              ),
+              _buildDetailRow(
+                'Title',
+                widget.template.title,
+                theme,
+                colorScheme,
+              ),
+              _buildDetailRow(
+                'Category',
+                widget.template.category,
+                theme,
+                colorScheme,
+              ),
+              _buildDetailRow(
+                'Type',
+                widget.template.isSystem ? 'System Template' : 'User Template',
+                theme,
+                colorScheme,
+              ),
             ],
             theme,
             colorScheme,
@@ -530,10 +551,30 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
           _buildDetailSection(
             'Content Statistics',
             [
-              _buildDetailRow('Characters', widget.template.body.length.toString(), theme, colorScheme),
-              _buildDetailRow('Words', _getWordCount(widget.template.body).toString(), theme, colorScheme),
-              _buildDetailRow('Lines', widget.template.body.split('\n').length.toString(), theme, colorScheme),
-              _buildDetailRow('Variables', _extractVariables(widget.template.body).length.toString(), theme, colorScheme),
+              _buildDetailRow(
+                'Characters',
+                widget.template.body.length.toString(),
+                theme,
+                colorScheme,
+              ),
+              _buildDetailRow(
+                'Words',
+                _getWordCount(widget.template.body).toString(),
+                theme,
+                colorScheme,
+              ),
+              _buildDetailRow(
+                'Lines',
+                widget.template.body.split('\n').length.toString(),
+                theme,
+                colorScheme,
+              ),
+              _buildDetailRow(
+                'Variables',
+                _extractVariables(widget.template.body).length.toString(),
+                theme,
+                colorScheme,
+              ),
             ],
             theme,
             colorScheme,
@@ -550,21 +591,26 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _parseTags(widget.template.tags).map(
-                    (tag) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        tag,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: colorScheme.onSecondaryContainer,
+                  children: _parseTags(widget.template.tags)
+                      .map(
+                        (tag) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            tag,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onSecondaryContainer,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ).toList(),
+                      )
+                      .toList(),
                 ),
               ],
               theme,
@@ -588,9 +634,7 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,7 +674,12 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
     );
   }
 
-  Widget _buildDetailRow(String label, String value, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -648,17 +697,18 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: SelectableText(
-              value,
-              style: theme.textTheme.bodyMedium,
-            ),
+            child: SelectableText(value, style: theme.textTheme.bodyMedium),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHighlightedContent(String content, ThemeData theme, ColorScheme colorScheme) {
+  Widget _buildHighlightedContent(
+    String content,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
     if (content.isEmpty) return const SizedBox.shrink();
 
     // Split content by variable patterns and highlight them
@@ -669,36 +719,40 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
     for (final match in variablePattern.allMatches(content)) {
       // Add text before the variable
       if (match.start > lastIndex) {
-        spans.add(TextSpan(
-          text: content.substring(lastIndex, match.start),
-          style: theme.textTheme.bodyMedium,
-        ));
+        spans.add(
+          TextSpan(
+            text: content.substring(lastIndex, match.start),
+            style: theme.textTheme.bodyMedium,
+          ),
+        );
       }
 
       // Add the highlighted variable
-      spans.add(TextSpan(
-        text: match.group(0)!,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          backgroundColor: colorScheme.tertiary.withValues(alpha: 0.2),
-          color: colorScheme.tertiary,
-          fontWeight: FontWeight.w600,
+      spans.add(
+        TextSpan(
+          text: match.group(0)!,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            backgroundColor: colorScheme.tertiary.withValues(alpha: 0.2),
+            color: colorScheme.tertiary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ));
+      );
 
       lastIndex = match.end;
     }
 
     // Add remaining text
     if (lastIndex < content.length) {
-      spans.add(TextSpan(
-        text: content.substring(lastIndex),
-        style: theme.textTheme.bodyMedium,
-      ));
+      spans.add(
+        TextSpan(
+          text: content.substring(lastIndex),
+          style: theme.textTheme.bodyMedium,
+        ),
+      );
     }
 
-    return SelectableText.rich(
-      TextSpan(children: spans),
-    );
+    return SelectableText.rich(TextSpan(children: spans));
   }
 
   bool _hasVariables(String content) {
@@ -805,14 +859,13 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
     try {
       Clipboard.setData(ClipboardData(text: widget.template.body));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Template content copied to clipboard'),
-        ),
+        const SnackBar(content: Text('Template content copied to clipboard')),
       );
 
-      _logger.info('Template content copied to clipboard', data: {
-        'template_id': widget.template.id,
-      });
+      _logger.info(
+        'Template content copied to clipboard',
+        data: {'template_id': widget.template.id},
+      );
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to copy template content',
@@ -834,14 +887,13 @@ class _TemplatePreviewDialogState extends State<TemplatePreviewDialog>
       // Here you would implement template sharing
       // For now, just show a message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Template sharing coming soon'),
-        ),
+        const SnackBar(content: Text('Template sharing coming soon')),
       );
 
-      _logger.info('Template share initiated', data: {
-        'template_id': widget.template.id,
-      });
+      _logger.info(
+        'Template share initiated',
+        data: {'template_id': widget.template.id},
+      );
     } catch (e, stackTrace) {
       _logger.error(
         'Failed to share template',

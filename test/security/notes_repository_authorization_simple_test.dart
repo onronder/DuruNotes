@@ -8,8 +8,6 @@
 /// Simplified version that avoids complex mocking of CryptoBox/FtsService
 library;
 
-
-
 void main() {
   /* COMMENTED OUT - 19 errors - old notes auth patterns
    * This test uses old models/APIs that no longer exist after domain migration.

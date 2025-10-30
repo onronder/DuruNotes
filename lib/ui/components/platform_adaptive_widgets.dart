@@ -61,7 +61,9 @@ class DuruButton extends StatelessWidget {
 
     return CupertinoButton(
       onPressed: isEnabled && !isLoading ? onPressed : null,
-      color: variant != DuruButtonVariant.text && variant != DuruButtonVariant.outlined
+      color:
+          variant != DuruButtonVariant.text &&
+              variant != DuruButtonVariant.outlined
           ? backgroundColor
           : null,
       borderRadius: DuruBorderRadius.button(),
@@ -134,23 +136,21 @@ class DuruButton extends StatelessWidget {
       return const SizedBox(
         width: 20,
         height: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2),
       );
     }
 
     return DefaultTextStyle(
-      style: DuruTypography.bodyLarge(context).copyWith(
-        color: textColor,
-        fontWeight: FontWeight.w500,
-      ),
+      style: DuruTypography.bodyLarge(
+        context,
+      ).copyWith(color: textColor, fontWeight: FontWeight.w500),
       child: child,
     );
   }
 }
 
 enum DuruButtonVariant { primary, secondary, outlined, text }
+
 enum DuruButtonSize { small, medium, large }
 
 /// Platform-adaptive card with proper elevation and styling
@@ -192,10 +192,7 @@ class DuruCard extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: DuruBorderRadius.card(),
-            child: Padding(
-              padding: cardPadding,
-              child: child,
-            ),
+            child: Padding(padding: cardPadding, child: child),
           ),
         ),
       );
@@ -204,16 +201,11 @@ class DuruCard extends StatelessWidget {
     return Card(
       margin: margin,
       elevation: cardElevation,
-      shape: RoundedRectangleBorder(
-        borderRadius: DuruBorderRadius.card(),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: DuruBorderRadius.card()),
       child: InkWell(
         onTap: onTap,
         borderRadius: DuruBorderRadius.card(),
-        child: Padding(
-          padding: cardPadding,
-          child: child,
-        ),
+        child: Padding(padding: cardPadding, child: child),
       ),
     );
   }
@@ -268,9 +260,9 @@ class DuruTextField extends StatelessWidget {
         if (labelText != null) ...[
           Text(
             labelText!,
-            style: DuruTypography.bodyLarge(context).copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: DuruTypography.bodyLarge(
+              context,
+            ).copyWith(fontWeight: FontWeight.w500),
           ),
           SizedBox(height: DuruSpacing.xs),
         ],
@@ -289,7 +281,9 @@ class DuruTextField extends StatelessWidget {
             border: Border.all(
               color: errorText != null
                   ? DuruColors.error
-                  : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                  : Theme.of(
+                      context,
+                    ).colorScheme.outline.withValues(alpha: 0.3),
             ),
             borderRadius: DuruBorderRadius.input(),
           ),
@@ -301,10 +295,9 @@ class DuruTextField extends StatelessWidget {
           SizedBox(height: DuruSpacing.xs),
           Text(
             errorText!,
-            style: DuruTypography.bodyLarge(context).copyWith(
-              color: DuruColors.error,
-              fontSize: 12,
-            ),
+            style: DuruTypography.bodyLarge(
+              context,
+            ).copyWith(color: DuruColors.error, fontSize: 12),
           ),
         ],
       ],
@@ -328,9 +321,7 @@ class DuruTextField extends StatelessWidget {
         errorText: errorText,
         suffixIcon: suffixIcon,
         prefixIcon: prefixIcon,
-        border: OutlineInputBorder(
-          borderRadius: DuruBorderRadius.input(),
-        ),
+        border: OutlineInputBorder(borderRadius: DuruBorderRadius.input()),
         contentPadding: EdgeInsets.all(DuruSpacing.md),
       ),
     );
@@ -364,12 +355,9 @@ class DuruIconButton extends StatelessWidget {
     if (DuruPlatform.isIOS) {
       button = CupertinoButton(
         onPressed: onPressed,
-        padding: EdgeInsets.zero, minimumSize: Size(DuruTouchTargets.minSize, DuruTouchTargets.minSize),
-        child: Icon(
-          icon,
-          color: iconColor,
-          size: iconSize,
-        ),
+        padding: EdgeInsets.zero,
+        minimumSize: Size(DuruTouchTargets.minSize, DuruTouchTargets.minSize),
+        child: Icon(icon, color: iconColor, size: iconSize),
       );
     } else {
       button = IconButton(
@@ -389,10 +377,7 @@ class DuruIconButton extends StatelessWidget {
       width: DuruTouchTargets.minSize,
       height: DuruTouchTargets.minSize,
       child: tooltip != null
-          ? Tooltip(
-              message: tooltip!,
-              child: button,
-            )
+          ? Tooltip(message: tooltip!, child: button)
           : button,
     );
   }
@@ -452,7 +437,9 @@ class DuruListTile extends StatelessWidget {
                         const SizedBox(height: 8), // DuruSpacing.xs
                         DefaultTextStyle(
                           style: DuruTypography.bodyLarge(context).copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 14,
                           ),
                           child: subtitle!,
@@ -498,12 +485,10 @@ class DuruAppBar extends StatelessWidget implements PreferredSizeWidget {
         middle: title,
         leading: leading,
         trailing: actions?.isNotEmpty == true
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: actions!,
-              )
+            ? Row(mainAxisSize: MainAxisSize.min, children: actions!)
             : null,
-        backgroundColor: backgroundColor ??
+        backgroundColor:
+            backgroundColor ??
             DuruColors.getNavigationColor(context).withValues(alpha: 0.9),
         border: null,
       );
@@ -526,11 +511,7 @@ class DuruAppBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// Platform-adaptive loading indicator
 class DuruLoadingIndicator extends StatelessWidget {
-  const DuruLoadingIndicator({
-    super.key,
-    this.size = 24.0,
-    this.color,
-  });
+  const DuruLoadingIndicator({super.key, this.size = 24.0, this.color});
 
   final double size;
   final Color? color;
@@ -559,12 +540,7 @@ class DuruLoadingIndicator extends StatelessWidget {
 
 /// Platform-adaptive divider
 class DuruDivider extends StatelessWidget {
-  const DuruDivider({
-    super.key,
-    this.height,
-    this.thickness,
-    this.color,
-  });
+  const DuruDivider({super.key, this.height, this.thickness, this.color});
 
   final double? height;
   final double? thickness;
@@ -575,7 +551,8 @@ class DuruDivider extends StatelessWidget {
     return Divider(
       height: height ?? DuruSpacing.md,
       thickness: thickness ?? 1,
-      color: color ?? Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+      color:
+          color ?? Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
     );
   }
 }

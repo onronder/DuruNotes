@@ -245,13 +245,15 @@ class SmartFoldersWidget extends ConsumerWidget {
   void _showCreateSmartFolder(BuildContext context, WidgetRef ref) {
     Navigator.of(context)
         .push<SmartFolderConfig>(
-      MaterialPageRoute<SmartFolderConfig>(builder: (context) => const SmartFolderCreator()),
-    )
+          MaterialPageRoute<SmartFolderConfig>(
+            builder: (context) => const SmartFolderCreator(),
+          ),
+        )
         .then((config) {
-      if (config != null) {
-        ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
-      }
-    });
+          if (config != null) {
+            ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
+          }
+        });
   }
 
   void _showFolderActions(
@@ -266,15 +268,18 @@ class SmartFoldersWidget extends ConsumerWidget {
         onEdit: () {
           Navigator.of(context)
               .push<SmartFolderConfig>(
-            MaterialPageRoute<SmartFolderConfig>(
-              builder: (context) => SmartFolderCreator(initialConfig: folder),
-            ),
-          )
+                MaterialPageRoute<SmartFolderConfig>(
+                  builder: (context) =>
+                      SmartFolderCreator(initialConfig: folder),
+                ),
+              )
               .then((config) {
-            if (config != null) {
-              ref.read(smartFoldersProvider.notifier).saveSmartFolder(config);
-            }
-          });
+                if (config != null) {
+                  ref
+                      .read(smartFoldersProvider.notifier)
+                      .saveSmartFolder(config);
+                }
+              });
         },
         onDuplicate: () {
           _showDuplicateDialog(context, ref, folder);

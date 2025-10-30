@@ -425,7 +425,6 @@ class StubCryptoBox implements CryptoBox {
     required String noteId,
     required Uint8List data,
   }) async => DecryptResult(value: _decodeString(data), usedLegacyKey: false);
-
 }
 
 class NotesTestSecureApi extends SecureApiWrapper {

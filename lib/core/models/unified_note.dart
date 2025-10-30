@@ -26,7 +26,9 @@ abstract class UnifiedNote {
   factory UnifiedNote.from(dynamic note) {
     if (note is domain.Note) return UnifiedNote.fromDomain(note);
     if (note is UnifiedNote) return note;
-    throw ArgumentError('Unknown note type: ${note.runtimeType}. Only domain.Note is supported post-migration.');
+    throw ArgumentError(
+      'Unknown note type: ${note.runtimeType}. Only domain.Note is supported post-migration.',
+    );
   }
 
   // Convert to domain format

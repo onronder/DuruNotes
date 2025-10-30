@@ -9,8 +9,10 @@ import 'package:duru_notes/features/folders/providers/folders_repository_provide
     show folderCoreRepositoryProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderProvider, folderHierarchyProvider, folderListProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderProvider, folderHierarchyProvider, folderListProvider;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
@@ -59,7 +61,8 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         // Load folders when screen opens
         _loadFolders();
       } catch (e, stackTrace) {
-        _logger.error('Failed to initialize FolderManagementScreen',
+        _logger.error(
+          'Failed to initialize FolderManagementScreen',
           error: e,
           stackTrace: stackTrace,
         );
@@ -75,10 +78,7 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
 
       _logger.debug('Folders loaded successfully');
     } catch (e, stackTrace) {
-      _logger.error('Failed to load folders',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      _logger.error('Failed to load folders', error: e, stackTrace: stackTrace);
       Sentry.captureException(e, stackTrace: stackTrace);
 
       if (mounted) {
@@ -114,61 +114,63 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
     final folders = ref.watch(folderListProvider);
 
     final totalFolders = folders.length;
-    final rootFolders = folders.where((f) => f.parentId?.isEmpty ?? true).length;
+    final rootFolders = folders
+        .where((f) => f.parentId?.isEmpty ?? true)
+        .length;
     // Simplified stats without note counts (since they're not available in FolderOperationState)
     final subfolders = totalFolders - rootFolders;
 
-        return Container(
-          margin: EdgeInsets.all(DuruSpacing.md),
-          padding: EdgeInsets.all(DuruSpacing.lg),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                DuruColors.primary.withValues(alpha: 0.1),
-                DuruColors.accent.withValues(alpha: 0.05),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.1),
-            ),
+    return Container(
+      margin: EdgeInsets.all(DuruSpacing.md),
+      padding: EdgeInsets.all(DuruSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            DuruColors.primary.withValues(alpha: 0.1),
+            DuruColors.accent.withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem(
+            context,
+            icon: CupertinoIcons.folder_fill,
+            value: totalFolders.toString(),
+            label: 'Total',
+            color: DuruColors.primary,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatItem(
-                context,
-                icon: CupertinoIcons.folder_fill,
-                value: totalFolders.toString(),
-                label: 'Total',
-                color: DuruColors.primary,
-              ),
-              _buildStatItem(
-                context,
-                icon: CupertinoIcons.tree,
-                value: rootFolders.toString(),
-                label: 'Root',
-                color: DuruColors.accent,
-              ),
-              _buildStatItem(
-                context,
-                icon: CupertinoIcons.layers_fill,
-                value: subfolders.toString(),
-                label: 'Subfolders',
-                color: DuruColors.warning,
-              ),
-              _buildStatItem(
-                context,
-                icon: CupertinoIcons.time,
-                value: DateTime.now().hour.toString().padLeft(2, '0'),
-                label: 'Current Hour',
-                color: DuruColors.surfaceVariant,
-              ),
-            ],
+          _buildStatItem(
+            context,
+            icon: CupertinoIcons.tree,
+            value: rootFolders.toString(),
+            label: 'Root',
+            color: DuruColors.accent,
           ),
-        );
+          _buildStatItem(
+            context,
+            icon: CupertinoIcons.layers_fill,
+            value: subfolders.toString(),
+            label: 'Subfolders',
+            color: DuruColors.warning,
+          ),
+          _buildStatItem(
+            context,
+            icon: CupertinoIcons.time,
+            value: DateTime.now().hour.toString().padLeft(2, '0'),
+            label: 'Current Hour',
+            color: DuruColors.surfaceVariant,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildStatItem(
@@ -201,7 +203,9 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -240,7 +244,10 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(icon: const Icon(CupertinoIcons.folder_open), text: l10n.allFolders),
+            Tab(
+              icon: const Icon(CupertinoIcons.folder_open),
+              text: l10n.allFolders,
+            ),
             Tab(icon: const Icon(CupertinoIcons.info_circle), text: 'Details'),
           ],
         ),
@@ -276,7 +283,10 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'create_root_folder',
                     child: ListTile(
-                      leading: Icon(CupertinoIcons.folder_badge_plus, color: DuruColors.primary),
+                      leading: Icon(
+                        CupertinoIcons.folder_badge_plus,
+                        color: DuruColors.primary,
+                      ),
                       title: Text(l10n.createNewFolder),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -285,7 +295,10 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'expand_all',
                     child: ListTile(
-                      leading: Icon(CupertinoIcons.arrow_down_to_line, color: DuruColors.primary),
+                      leading: Icon(
+                        CupertinoIcons.arrow_down_to_line,
+                        color: DuruColors.primary,
+                      ),
                       title: Text(l10n.expandAll),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -293,7 +306,10 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'collapse_all',
                     child: ListTile(
-                      leading: Icon(CupertinoIcons.arrow_up_to_line, color: DuruColors.primary),
+                      leading: Icon(
+                        CupertinoIcons.arrow_up_to_line,
+                        color: DuruColors.primary,
+                      ),
                       title: Text(l10n.collapseAll),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -302,7 +318,10 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'health_check',
                     child: ListTile(
-                      leading: Icon(CupertinoIcons.heart_fill, color: DuruColors.accent),
+                      leading: Icon(
+                        CupertinoIcons.heart_fill,
+                        color: DuruColors.accent,
+                      ),
                       title: const Text('Health Check'),
                       subtitle: const Text('Validate folder system integrity'),
                       contentPadding: EdgeInsets.zero,
@@ -311,7 +330,10 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
                   PopupMenuItem(
                     value: 'validate_structure',
                     child: ListTile(
-                      leading: Icon(CupertinoIcons.tree, color: DuruColors.warning),
+                      leading: Icon(
+                        CupertinoIcons.tree,
+                        color: DuruColors.warning,
+                      ),
                       title: const Text('Repair Structure'),
                       subtitle: const Text('Fix orphaned folders and paths'),
                       contentPadding: EdgeInsets.zero,
@@ -429,7 +451,9 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
       // Update selected folder if it was the one being edited
       if (_selectedFolder?.id == folder.id) {
         // Get updated folder from domain repository
-        final updatedFolder = await ref.read(folderCoreRepositoryProvider).getFolder(folder.id);
+        final updatedFolder = await ref
+            .read(folderCoreRepositoryProvider)
+            .getFolder(folder.id);
         if (mounted && updatedFolder != null) {
           setState(() {
             _selectedFolder = updatedFolder;
@@ -483,12 +507,14 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
   Future<void> _confirmDeleteFolder(domain.Folder folder) async {
     // TODO: Migrate confirmAndDeleteFolder mixin to use domain.Folder
     // For now, fetch LocalFolder from database to maintain compatibility
-    final localFolder = await ref.read(folderCoreRepositoryProvider).getFolder(folder.id);
+    final localFolder = await ref
+        .read(folderCoreRepositoryProvider)
+        .getFolder(folder.id);
     if (localFolder == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Folder not found')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Folder not found')));
       }
       return;
     }
@@ -513,7 +539,9 @@ class _FolderManagementScreenState extends ConsumerState<FolderManagementScreen>
         // If folder was restored and was previously selected, reselect it
         if (_selectedFolder?.id == folder.id) {
           // Fetch the restored folder from domain repository
-          final restoredFolder = await ref.read(folderCoreRepositoryProvider).getFolder(folder.id);
+          final restoredFolder = await ref
+              .read(folderCoreRepositoryProvider)
+              .getFolder(folder.id);
           if (mounted && restoredFolder != null) {
             setState(() {
               _selectedFolder = restoredFolder;
@@ -738,7 +766,8 @@ class _FolderActionsSheet extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: FolderIconHelpers.getFolderColor(folder.color) ??
+                  color:
+                      FolderIconHelpers.getFolderColor(folder.color) ??
                       colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -760,14 +789,16 @@ class _FolderActionsSheet extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (folder.description != null && folder.description!.isNotEmpty)
+                    if (folder.description != null &&
+                        folder.description!.isNotEmpty)
                       Text(
                         folder.description!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
                       )
-                    else if (folder.parentId != null && folder.parentId!.isNotEmpty)
+                    else if (folder.parentId != null &&
+                        folder.parentId!.isNotEmpty)
                       Text(
                         'Subfolder',
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -858,16 +889,16 @@ class _FolderDetailsView extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color:
                               FolderIconHelpers.getFolderColor(folder.color) ??
-                                  colorScheme.primaryContainer,
+                              colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
                           FolderIconHelpers.getFolderIcon(folder.icon),
                           color:
                               FolderIconHelpers.getFolderColor(folder.color) !=
-                                      null
-                                  ? Colors.white
-                                  : colorScheme.onPrimaryContainer,
+                                  null
+                              ? Colors.white
+                              : colorScheme.onPrimaryContainer,
                           size: 32,
                         ),
                       ),
@@ -883,7 +914,8 @@ class _FolderDetailsView extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            if (folder.description != null && folder.description!.isNotEmpty)
+                            if (folder.description != null &&
+                                folder.description!.isNotEmpty)
                               Text(
                                 folder.description!,
                                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -892,7 +924,8 @@ class _FolderDetailsView extends ConsumerWidget {
                               )
                             else
                               Text(
-                                folder.parentId != null && folder.parentId!.isNotEmpty
+                                folder.parentId != null &&
+                                        folder.parentId!.isNotEmpty
                                     ? 'Subfolder'
                                     : 'Root folder',
                                 style: theme.textTheme.bodyMedium?.copyWith(
@@ -904,7 +937,8 @@ class _FolderDetailsView extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  if (folder.description != null && folder.description!.isNotEmpty) ...[
+                  if (folder.description != null &&
+                      folder.description!.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
@@ -1098,8 +1132,8 @@ class _FolderDetailsView extends ConsumerWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -1187,8 +1221,9 @@ class _FolderDetailsView extends ConsumerWidget {
     );
 
     if (confirmed ?? false) {
-      final success =
-          await ref.read(folderProvider.notifier).deleteFolder(folder.id);
+      final success = await ref
+          .read(folderProvider.notifier)
+          .deleteFolder(folder.id);
 
       if (success) {
         onFolderDeleted();

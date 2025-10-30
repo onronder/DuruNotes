@@ -118,7 +118,9 @@ class _MockNotesCoreRepository extends Mock implements NotesCoreRepository {
       super.noSuchMethod(
             Invocation.method(#getNoteById, [id]),
             returnValue: Future<note_domain.Note?>.value(notes[id]),
-            returnValueForMissingStub: Future<note_domain.Note?>.value(notes[id]),
+            returnValueForMissingStub: Future<note_domain.Note?>.value(
+              notes[id],
+            ),
           )
           as Future<note_domain.Note?>;
 }

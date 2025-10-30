@@ -6,7 +6,8 @@ import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
-import 'package:duru_notes/features/auth/providers/auth_providers.dart' show supabaseClientProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show supabaseClientProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -134,7 +135,8 @@ abstract class BaseReminderService {
       if (Platform.isIOS) {
         final result = await plugin
             .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>()
+              IOSFlutterLocalNotificationsPlugin
+            >()
             ?.requestPermissions(alert: true, badge: true, sound: true);
 
         logger.info('iOS notification permission result: $result');
@@ -170,10 +172,7 @@ abstract class BaseReminderService {
       );
       analytics.event(
         'permission_request_failed',
-        properties: {
-          'type': 'notification',
-          'error': e.toString(),
-        },
+        properties: {'type': 'notification', 'error': e.toString()},
       );
       return false;
     }
@@ -207,10 +206,7 @@ abstract class BaseReminderService {
 
       final reminderId = await db.createReminder(companion);
 
-      analytics.endTiming(
-        'db_create_reminder',
-        properties: {'success': true},
-      );
+      analytics.endTiming('db_create_reminder', properties: {'success': true});
 
       logger.info('Created reminder in database', data: {'id': reminderId});
       return reminderId;
@@ -244,17 +240,14 @@ abstract class BaseReminderService {
         NoteRemindersCompanion(isActive: Value(isActive)),
       );
 
-      logger.info('Updated reminder status', data: {
-        'id': id,
-        'isActive': isActive,
-      });
+      logger.info(
+        'Updated reminder status',
+        data: {'id': id, 'isActive': isActive},
+      );
 
       analytics.event(
         'reminder_status_updated',
-        properties: {
-          'reminder_id': id,
-          'is_active': isActive,
-        },
+        properties: {'reminder_id': id, 'is_active': isActive},
       );
     } catch (e, stack) {
       logger.error(
@@ -354,10 +347,13 @@ abstract class BaseReminderService {
         properties: {'success': true},
       );
 
-      logger.info('Scheduled notification', data: {
-        'id': data.id,
-        'scheduledTime': data.scheduledTime.toIso8601String(),
-      });
+      logger.info(
+        'Scheduled notification',
+        data: {
+          'id': data.id,
+          'scheduledTime': data.scheduledTime.toIso8601String(),
+        },
+      );
     } catch (e, stack) {
       logger.error(
         'Failed to schedule notification',
@@ -417,10 +413,7 @@ abstract class BaseReminderService {
 
   /// Track feature usage
   void trackFeatureUsage(String feature, {Map<String, dynamic>? properties}) {
-    analytics.featureUsed(
-      feature,
-      properties: properties ?? {},
-    );
+    analytics.featureUsed(feature, properties: properties ?? {});
   }
 
   // Template methods for subclasses
@@ -454,7 +447,8 @@ abstract class BaseReminderService {
 
     await plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     logger.info('$runtimeType initialized');

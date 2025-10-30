@@ -8,16 +8,14 @@ class FolderABTests {
       id: 'folder_onboarding_v2',
       name: 'Enhanced Folder Onboarding',
       description: 'Test new onboarding flow with guided folder creation',
-      hypothesis: 'Guided onboarding will increase first folder creation by 25%',
+      hypothesis:
+          'Guided onboarding will increase first folder creation by 25%',
       variants: [
         TestVariant(
           id: 'control',
           name: 'Current Onboarding',
           allocation: 0.5,
-          config: {
-            'show_onboarding': false,
-            'auto_create_folders': false,
-          },
+          config: {'show_onboarding': false, 'auto_create_folders': false},
         ),
         TestVariant(
           id: 'guided',
@@ -109,9 +107,7 @@ class FolderABTests {
           id: 'no_bulk',
           name: 'Single Operations Only',
           allocation: 0.5,
-          config: {
-            'bulk_enabled': false,
-          },
+          config: {'bulk_enabled': false},
         ),
         TestVariant(
           id: 'basic_bulk',
@@ -150,16 +146,14 @@ class FolderABTests {
       id: 'folder_limits',
       name: 'Folder Limit Strategy',
       description: 'Test different folder limit approaches for free tier',
-      hypothesis: 'Soft limits with upgrade prompts will increase conversion by 40%',
+      hypothesis:
+          'Soft limits with upgrade prompts will increase conversion by 40%',
       variants: [
         TestVariant(
           id: 'no_limit',
           name: 'Unlimited Folders',
           allocation: 0.25,
-          config: {
-            'folder_limit': null,
-            'show_upgrade_prompts': false,
-          },
+          config: {'folder_limit': null, 'show_upgrade_prompts': false},
         ),
         TestVariant(
           id: 'hard_limit',
@@ -209,15 +203,14 @@ class FolderABTests {
       id: 'smart_suggestions',
       name: 'AI-Powered Folder Suggestions',
       description: 'Test ML-based folder organization suggestions',
-      hypothesis: 'Smart suggestions will improve organization efficiency by 35%',
+      hypothesis:
+          'Smart suggestions will improve organization efficiency by 35%',
       variants: [
         TestVariant(
           id: 'no_suggestions',
           name: 'No Suggestions',
           allocation: 0.5,
-          config: {
-            'suggestions_enabled': false,
-          },
+          config: {'suggestions_enabled': false},
         ),
         TestVariant(
           id: 'basic_suggestions',
@@ -254,7 +247,11 @@ class FolderABTests {
   ];
 
   /// Test result analysis methods
-  static ABTestResult analyzeTest(String testId, DateTime startDate, DateTime endDate) {
+  static ABTestResult analyzeTest(
+    String testId,
+    DateTime startDate,
+    DateTime endDate,
+  ) {
     // This would connect to your analytics backend
     return ABTestResult(
       testId: testId,
@@ -274,8 +271,8 @@ class FolderABTests {
   /// Check if test should be concluded
   static bool shouldConcludeTest(ABTestConfig test, ABTestMetrics metrics) {
     return metrics.sampleSize >= test.minimumSampleSize &&
-           metrics.duration >= test.maxDuration &&
-           metrics.statisticalPower >= 0.8;
+        metrics.duration >= test.maxDuration &&
+        metrics.statisticalPower >= 0.8;
   }
 }
 
@@ -418,7 +415,12 @@ class FolderABTestService {
   }
 
   /// Track test conversion
-  void trackConversion(String userId, String testId, String metricName, dynamic value) {
+  void trackConversion(
+    String userId,
+    String testId,
+    String metricName,
+    dynamic value,
+  ) {
     _analyticsService.event(
       'ab_test_conversion',
       properties: {

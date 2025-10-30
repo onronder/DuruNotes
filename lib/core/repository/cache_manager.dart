@@ -77,9 +77,7 @@ class CacheConfig {
 
 /// Generic cache manager
 class CacheManager<K, V> {
-  CacheManager({
-    CacheConfig? config,
-  }) : _config = config ?? const CacheConfig();
+  CacheManager({CacheConfig? config}) : _config = config ?? const CacheConfig();
 
   final CacheConfig _config;
   final Map<K, CacheEntry<V>> _cache = {};
@@ -126,8 +124,8 @@ class CacheManager<K, V> {
     final expiresAt = ttl != null
         ? now.add(ttl)
         : (_config.defaultTtl != Duration.zero
-            ? now.add(_config.defaultTtl)
-            : null);
+              ? now.add(_config.defaultTtl)
+              : null);
 
     _cache[key] = CacheEntry(
       value: value,
@@ -234,11 +232,15 @@ class CacheManager<K, V> {
       'hits': _hits,
       'misses': _misses,
       'hitRate': _hits > 0 ? _hits / (_hits + _misses) : 0.0,
-      'entries': _cache.entries.map((e) => {
-            'key': e.key.toString(),
-            'age': e.value.age.inSeconds,
-            'expired': e.value.isExpired,
-          }).toList(),
+      'entries': _cache.entries
+          .map(
+            (e) => {
+              'key': e.key.toString(),
+              'age': e.value.age.inSeconds,
+              'expired': e.value.isExpired,
+            },
+          )
+          .toList(),
     };
   }
 
@@ -326,23 +328,21 @@ class CacheStatistics {
   double get fillRate => maxSize > 0 ? size / maxSize : 0.0;
 
   Map<String, dynamic> toJson() => {
-        'size': size,
-        'maxSize': maxSize,
-        'hits': hits,
-        'misses': misses,
-        'hitRate': hitRate,
-        'fillRate': fillRate,
-        'evictionPolicy': evictionPolicy,
-      };
+    'size': size,
+    'maxSize': maxSize,
+    'hits': hits,
+    'misses': misses,
+    'hitRate': hitRate,
+    'fillRate': fillRate,
+    'evictionPolicy': evictionPolicy,
+  };
 }
 
 /// Two-level cache with memory and persistent storage
 abstract class TwoLevelCache<K, V> {
-  TwoLevelCache({
-    CacheConfig? memoryConfig,
-    CacheConfig? diskConfig,
-  })  : _memoryCache = CacheManager(config: memoryConfig),
-        _diskConfig = diskConfig ?? const CacheConfig();
+  TwoLevelCache({CacheConfig? memoryConfig, CacheConfig? diskConfig})
+    : _memoryCache = CacheManager(config: memoryConfig),
+      _diskConfig = diskConfig ?? const CacheConfig();
 
   final CacheManager<K, V> _memoryCache;
   // ignore: unused_field

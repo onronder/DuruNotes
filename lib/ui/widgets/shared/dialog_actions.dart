@@ -73,10 +73,7 @@ class DialogActionRow extends StatelessWidget {
     }
     if (confirmButton != null) buttons.add(confirmButton);
 
-    return Row(
-      mainAxisAlignment: alignment,
-      children: buttons,
-    );
+    return Row(mainAxisAlignment: alignment, children: buttons);
   }
 }
 

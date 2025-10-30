@@ -2,12 +2,15 @@ import 'package:intl/intl.dart';
 
 /// Service for handling template variables and replacements
 class TemplateVariableService {
-  static final TemplateVariableService _instance = TemplateVariableService._internal();
+  static final TemplateVariableService _instance =
+      TemplateVariableService._internal();
   factory TemplateVariableService() => _instance;
   TemplateVariableService._internal();
 
   /// Variable pattern: {{variableName}} or {{variableName:default}}
-  static final RegExp _variablePattern = RegExp(r'\{\{([^}:]+)(?::([^}]+))?\}\}');
+  static final RegExp _variablePattern = RegExp(
+    r'\{\{([^}:]+)(?::([^}]+))?\}\}',
+  );
 
   /// System variables that are automatically replaced
   final Map<String, String Function()> _systemVariables = {
@@ -37,11 +40,13 @@ class TemplateVariableService {
 
       // Avoid duplicates
       if (!variables.any((v) => v.name == name)) {
-        variables.add(TemplateVariable(
-          name: name,
-          defaultValue: defaultValue,
-          type: _inferVariableType(name, defaultValue),
-        ));
+        variables.add(
+          TemplateVariable(
+            name: name,
+            defaultValue: defaultValue,
+            type: _inferVariableType(name, defaultValue),
+          ),
+        );
       }
     }
 
@@ -54,7 +59,10 @@ class TemplateVariableService {
 
     // Replace system variables first
     _systemVariables.forEach((name, getValue) {
-      final pattern = RegExp('\\{\\{$name(?::[^}]+)?\\}\\}', caseSensitive: false);
+      final pattern = RegExp(
+        '\\{\\{$name(?::[^}]+)?\\}\\}',
+        caseSensitive: false,
+      );
       result = result.replaceAll(pattern, getValue());
     });
 
@@ -99,8 +107,10 @@ class TemplateVariableService {
     if (lowerName.contains('time')) return VariableType.time;
     if (lowerName.contains('email')) return VariableType.email;
     if (lowerName.contains('phone')) return VariableType.phone;
-    if (lowerName.contains('url') || lowerName.contains('link')) return VariableType.url;
-    if (lowerName.contains('number') || lowerName.contains('count')) return VariableType.number;
+    if (lowerName.contains('url') || lowerName.contains('link'))
+      return VariableType.url;
+    if (lowerName.contains('number') || lowerName.contains('count'))
+      return VariableType.number;
 
     // Check default value
     if (defaultValue != null) {
@@ -132,15 +142,7 @@ class TemplateVariable {
 }
 
 /// Variable types for input validation
-enum VariableType {
-  text,
-  number,
-  date,
-  time,
-  email,
-  phone,
-  url,
-}
+enum VariableType { text, number, date, time, email, phone, url }
 
 /// Extension for variable type helpers
 extension VariableTypeX on VariableType {

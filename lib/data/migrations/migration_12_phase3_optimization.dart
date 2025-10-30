@@ -10,7 +10,8 @@ import 'package:duru_notes/data/local/app_db.dart';
 /// Note: SQLite foreign keys must be enabled with PRAGMA foreign_keys = ON
 class Migration12Phase3Optimization {
   static const int version = 12;
-  static const String description = 'Phase 3: Add foreign key constraints and performance indexes';
+  static const String description =
+      'Phase 3: Add foreign key constraints and performance indexes';
 
   /// Apply migration to database (idempotent - safe to run multiple times)
   static Future<void> apply(AppDb db) async {
@@ -174,16 +175,28 @@ class Migration12Phase3Optimization {
   /// Rollback migration
   static Future<void> rollback(AppDb db) async {
     // Drop all indexes created by this migration
-    await db.customStatement('DROP INDEX IF EXISTS idx_local_notes_pinned_updated');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_local_notes_pinned_updated',
+    );
     await db.customStatement('DROP INDEX IF EXISTS idx_note_tags_note_tag');
     await db.customStatement('DROP INDEX IF EXISTS idx_note_tasks_note_status');
-    await db.customStatement('DROP INDEX IF EXISTS idx_note_reminders_note_active');
-    await db.customStatement('DROP INDEX IF EXISTS idx_local_folders_parent_sort');
-    await db.customStatement('DROP INDEX IF EXISTS idx_note_folders_folder_note');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_note_reminders_note_active',
+    );
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_local_folders_parent_sort',
+    );
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_note_folders_folder_note',
+    );
     await db.customStatement('DROP INDEX IF EXISTS idx_note_tasks_open_due');
-    await db.customStatement('DROP INDEX IF EXISTS idx_note_reminders_active_time');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_note_reminders_active_time',
+    );
     await db.customStatement('DROP INDEX IF EXISTS idx_saved_searches_usage');
-    await db.customStatement('DROP INDEX IF EXISTS idx_local_templates_category_usage');
+    await db.customStatement(
+      'DROP INDEX IF EXISTS idx_local_templates_category_usage',
+    );
 
     // Drop covering indexes
     await db.customStatement('DROP INDEX IF EXISTS idx_note_tags_covering');
@@ -288,7 +301,9 @@ class Migration12Phase3Optimization {
     ''');
 
     await db.customStatement('DROP TABLE IF EXISTS note_reminders');
-    await db.customStatement('ALTER TABLE note_reminders_new RENAME TO note_reminders');
+    await db.customStatement(
+      'ALTER TABLE note_reminders_new RENAME TO note_reminders',
+    );
   }
 
   static Future<void> _addForeignKeyToNoteTasks(AppDb db) async {
@@ -349,7 +364,9 @@ class Migration12Phase3Optimization {
     ''');
 
     await db.customStatement('DROP TABLE IF EXISTS note_folders');
-    await db.customStatement('ALTER TABLE note_folders_new RENAME TO note_folders');
+    await db.customStatement(
+      'ALTER TABLE note_folders_new RENAME TO note_folders',
+    );
   }
 
   static Future<void> _addForeignKeyToLocalFolders(AppDb db) async {
@@ -388,7 +405,9 @@ class Migration12Phase3Optimization {
     ''');
 
     await db.customStatement('DROP TABLE IF EXISTS local_folders');
-    await db.customStatement('ALTER TABLE local_folders_new RENAME TO local_folders');
+    await db.customStatement(
+      'ALTER TABLE local_folders_new RENAME TO local_folders',
+    );
   }
 
   // ============================================

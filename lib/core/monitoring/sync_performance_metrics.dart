@@ -41,14 +41,17 @@ class SyncPerformanceMetrics {
       _maxQueueDepth = _queueDepth[noteId]!;
     }
 
-    _logger.debug('Sync started', data: {
-      'syncId': syncId,
-      'noteId': noteId,
-      'syncType': syncType,
-      'pendingSyncs': _pendingSyncs,
-      'queueDepth': _queueDepth[noteId],
-      ...?metadata,
-    });
+    _logger.debug(
+      'Sync started',
+      data: {
+        'syncId': syncId,
+        'noteId': noteId,
+        'syncType': syncType,
+        'pendingSyncs': _pendingSyncs,
+        'queueDepth': _queueDepth[noteId],
+        ...?metadata,
+      },
+    );
 
     return syncId;
   }
@@ -82,15 +85,18 @@ class SyncPerformanceMetrics {
       _queueDepth[noteId] = (_queueDepth[noteId]! - 1).clamp(0, 999);
     }
 
-    _logger.debug('Sync completed', data: {
-      'syncId': syncId,
-      'duration': duration.inMilliseconds,
-      'success': success,
-      'error': error,
-      'pendingSyncs': _pendingSyncs,
-      'totalCompleted': _completedSyncs,
-      'totalFailed': _failedSyncs,
-    });
+    _logger.debug(
+      'Sync completed',
+      data: {
+        'syncId': syncId,
+        'duration': duration.inMilliseconds,
+        'success': success,
+        'error': error,
+        'pendingSyncs': _pendingSyncs,
+        'totalCompleted': _completedSyncs,
+        'totalFailed': _failedSyncs,
+      },
+    );
   }
 
   /// Record a task toggle event
@@ -106,11 +112,14 @@ class SyncPerformanceMetrics {
 
     // Check for rapid toggling
     if (_toggleHistory[taskId]!.length >= _rapidToggleThreshold) {
-      _logger.warning('Rapid task toggling detected', data: {
-        'taskId': taskId,
-        'toggleCount': _toggleHistory[taskId]!.length,
-        'windowSeconds': _rapidToggleWindow.inSeconds,
-      });
+      _logger.warning(
+        'Rapid task toggling detected',
+        data: {
+          'taskId': taskId,
+          'toggleCount': _toggleHistory[taskId]!.length,
+          'windowSeconds': _rapidToggleWindow.inSeconds,
+        },
+      );
     }
   }
 

@@ -9,9 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'analytics_goals_test.mocks.dart';
 
-@GenerateNiceMocks([
-  MockSpec<TaskAnalyticsService>(),
-])
+@GenerateNiceMocks([MockSpec<TaskAnalyticsService>()])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

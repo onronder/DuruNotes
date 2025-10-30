@@ -137,10 +137,7 @@ class SavedSearchMigrationBanner extends StatelessWidget {
 
 /// Snackbar helper for showing migration success messages
 class SavedSearchMigrationSnackbar {
-  static void show(
-    BuildContext context,
-    SavedSearchMigrationResult result,
-  ) {
+  static void show(BuildContext context, SavedSearchMigrationResult result) {
     if (!result.isSuccess) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -163,10 +160,7 @@ class SavedSearchMigrationSnackbar {
     );
   }
 
-  static void showError(
-    BuildContext context,
-    String message,
-  ) {
+  static void showError(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -174,10 +168,7 @@ class SavedSearchMigrationSnackbar {
             const Icon(Icons.error_outline, color: Colors.white),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white),
-              ),
+              child: Text(message, style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),

@@ -17,7 +17,8 @@ import 'package:duru_notes/services/enhanced_task_service.dart' as enhanced;
 
 class _MockNotesRepository extends Mock implements INotesRepository {}
 
-class _StubEnhancedTaskService extends Mock implements enhanced.EnhancedTaskService {
+class _StubEnhancedTaskService extends Mock
+    implements enhanced.EnhancedTaskService {
   Future<String> Function()? onCreateTask;
   Future<void> Function(String taskId)? onToggle;
   Future<void> Function(String taskId)? onDelete;
@@ -118,7 +119,12 @@ class _StubLogger implements AppLogger {
   @override
   void debug(String message, {Map<String, dynamic>? data}) {}
   @override
-  void error(String message, {Object? error, StackTrace? stackTrace, Map<String, dynamic>? data}) {}
+  void error(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+  }) {}
   @override
   Future<void> flush() async {}
   @override
@@ -131,7 +137,8 @@ class _StubLogger implements AppLogger {
 
 class _InMemoryTaskRepository implements ITaskRepository {
   final Map<String, domain.Task> _tasks = {};
-  final StreamController<List<domain.Task>> _stream = StreamController<List<domain.Task>>.broadcast();
+  final StreamController<List<domain.Task>> _stream =
+      StreamController<List<domain.Task>>.broadcast();
 
   void add(domain.Task task) {
     _tasks[task.id] = task;
@@ -166,8 +173,9 @@ class _InMemoryTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getAllTasks() async => _tasks.values.toList();
 
   @override
-  Future<List<domain.Task>> getPendingTasks() async =>
-      _tasks.values.where((t) => t.status != domain.TaskStatus.completed).toList();
+  Future<List<domain.Task>> getPendingTasks() async => _tasks.values
+      .where((t) => t.status != domain.TaskStatus.completed)
+      .toList();
 
   @override
   Future<domain.Task?> getTaskById(String id) async => _tasks[id];
@@ -202,8 +210,8 @@ class _InMemoryTaskRepository implements ITaskRepository {
   Stream<List<domain.Task>> watchAllTasks() => _stream.stream;
 
   @override
-  Stream<List<domain.Task>> watchTasksForNote(String noteId) =>
-      _stream.stream.map((tasks) => tasks.where((t) => t.noteId == noteId).toList());
+  Stream<List<domain.Task>> watchTasksForNote(String noteId) => _stream.stream
+      .map((tasks) => tasks.where((t) => t.noteId == noteId).toList());
 
   @override
   Future<List<domain.Task>> searchTasks(String query) async =>
@@ -213,7 +221,10 @@ class _InMemoryTaskRepository implements ITaskRepository {
   Future<void> toggleTaskStatus(String id) async => completeTask(id);
 
   @override
-  Future<void> updateTaskPriority(String id, domain.TaskPriority priority) async {
+  Future<void> updateTaskPriority(
+    String id,
+    domain.TaskPriority priority,
+  ) async {
     final task = _tasks[id];
     if (task != null) {
       add(task.copyWith(priority: priority));
@@ -229,8 +240,13 @@ class _InMemoryTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<List<domain.Task>> getCompletedTasks({int? limit, DateTime? since}) async {
-    final completed = _tasks.values.where((t) => t.status == domain.TaskStatus.completed);
+  Future<List<domain.Task>> getCompletedTasks({
+    int? limit,
+    DateTime? since,
+  }) async {
+    final completed = _tasks.values.where(
+      (t) => t.status == domain.TaskStatus.completed,
+    );
     if (limit != null) {
       return completed.take(limit).toList();
     }
@@ -241,15 +257,27 @@ class _InMemoryTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getOverdueTasks() async {
     final now = DateTime.now();
     return _tasks.values
-        .where((t) => t.dueDate != null && t.dueDate!.isBefore(now) && t.status != domain.TaskStatus.completed)
+        .where(
+          (t) =>
+              t.dueDate != null &&
+              t.dueDate!.isBefore(now) &&
+              t.status != domain.TaskStatus.completed,
+        )
         .toList();
   }
 
   @override
-  Future<List<domain.Task>> getTasksByDateRange({required DateTime start, required DateTime end}) async =>
-      _tasks.values
-          .where((t) => t.dueDate != null && !t.dueDate!.isBefore(start) && !t.dueDate!.isAfter(end))
-          .toList();
+  Future<List<domain.Task>> getTasksByDateRange({
+    required DateTime start,
+    required DateTime end,
+  }) async => _tasks.values
+      .where(
+        (t) =>
+            t.dueDate != null &&
+            !t.dueDate!.isBefore(start) &&
+            !t.dueDate!.isAfter(end),
+      )
+      .toList();
 
   @override
   Future<void> deleteTasksForNote(String noteId) async {
@@ -259,13 +287,16 @@ class _InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Future<Map<String, int>> getTaskStatistics() async => {
-        'total': _tasks.length,
-        'completed': _tasks.values.where((t) => t.status == domain.TaskStatus.completed).length,
-      };
+    'total': _tasks.length,
+    'completed': _tasks.values
+        .where((t) => t.status == domain.TaskStatus.completed)
+        .length,
+  };
 
   @override
-  Future<List<domain.Task>> getTasksByPriority(domain.TaskPriority priority) async =>
-      _tasks.values.where((t) => t.priority == priority).toList();
+  Future<List<domain.Task>> getTasksByPriority(
+    domain.TaskPriority priority,
+  ) async => _tasks.values.where((t) => t.priority == priority).toList();
 
   @override
   Future<void> addTagToTask(String taskId, String tag) async {
@@ -284,10 +315,17 @@ class _InMemoryTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) async {}
+  Future<void> syncTasksWithNoteContent(
+    String noteId,
+    String noteContent,
+  ) async {}
 
   @override
-  Future<domain.Task> createSubtask({required String parentTaskId, required String title, String? description}) async {
+  Future<domain.Task> createSubtask({
+    required String parentTaskId,
+    required String title,
+    String? description,
+  }) async {
     final subtaskId = 'sub-$parentTaskId-${_tasks.length + 1}';
     final now = DateTime.now();
     final subtask = domain.Task(
@@ -309,8 +347,12 @@ class _InMemoryTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<List<domain.Task>> getSubtasks(String parentTaskId) async =>
-      _tasks.values.where((t) => t.metadata['parentTaskId'] == true && t.noteId == parentTaskId).toList();
+  Future<List<domain.Task>> getSubtasks(String parentTaskId) async => _tasks
+      .values
+      .where(
+        (t) => t.metadata['parentTaskId'] == true && t.noteId == parentTaskId,
+      )
+      .toList();
 }
 
 domain.Task _makeTask(String id, domain.TaskStatus status) {
@@ -331,7 +373,10 @@ domain.Task _makeTask(String id, domain.TaskStatus status) {
   );
 }
 
-Future<void> _saveTestResults(String testName, Map<String, dynamic> results) async {
+Future<void> _saveTestResults(
+  String testName,
+  Map<String, dynamic> results,
+) async {
   final timestamp = DateTime.now().toIso8601String();
   final reportData = {
     'test_name': testName,
@@ -385,7 +430,9 @@ void main() {
       enhancedService.onToggle = (id) async {
         final existing = await taskRepository.getTaskById(id);
         if (existing != null) {
-          taskRepository.add(existing.copyWith(status: domain.TaskStatus.completed));
+          taskRepository.add(
+            existing.copyWith(status: domain.TaskStatus.completed),
+          );
         }
       };
 
@@ -421,7 +468,9 @@ void main() {
       final pending = _makeTask('pending', domain.TaskStatus.pending);
       final completed = _makeTask('completed', domain.TaskStatus.completed);
 
-      final pendingStream = controller.watchAllTasks(includeCompleted: false).first;
+      final pendingStream = controller
+          .watchAllTasks(includeCompleted: false)
+          .first;
       taskRepository.replaceAll([pending, completed]);
       expect(await pendingStream, [pending]);
 
@@ -456,11 +505,21 @@ void main() {
       final startSuccess = (before['successCount'] as int?) ?? 0;
       final startErrors = (before['errorCount'] as int?) ?? 0;
 
-      final successSync = metrics.startSync(noteId: 'regression-note', syncType: 'success-case');
+      final successSync = metrics.startSync(
+        noteId: 'regression-note',
+        syncType: 'success-case',
+      );
       metrics.endSync(syncId: successSync, success: true, taskCount: 4);
 
-      final failureSync = metrics.startSync(noteId: 'regression-note', syncType: 'failure-case');
-      metrics.endSync(syncId: failureSync, success: false, error: 'regression failure');
+      final failureSync = metrics.startSync(
+        noteId: 'regression-note',
+        syncType: 'failure-case',
+      );
+      metrics.endSync(
+        syncId: failureSync,
+        success: false,
+        error: 'regression failure',
+      );
 
       final after = metrics.getHealthMetrics();
       final endSuccess = (after['successCount'] as int?) ?? 0;
@@ -481,12 +540,10 @@ void main() {
 
     test('Reminder toggles drive enhanced service interactions', () async {
       final dueDate = DateTime.now().add(const Duration(days: 2));
-      final existing = _makeTask('reminder-task', domain.TaskStatus.pending).copyWith(
-        dueDate: dueDate,
-        metadata: const {
-          'reminderId': null,
-        },
-      );
+      final existing = _makeTask(
+        'reminder-task',
+        domain.TaskStatus.pending,
+      ).copyWith(dueDate: dueDate, metadata: const {'reminderId': null});
 
       taskRepository.replaceAll([existing]);
 
@@ -499,9 +556,7 @@ void main() {
       expect(updated.metadata['reminderId'], isNull);
       expect(enhancedService.lastRefreshedReminderTaskId, existing.id);
 
-      final withReminder = updated.copyWith(metadata: const {
-        'reminderId': 99,
-      });
+      final withReminder = updated.copyWith(metadata: const {'reminderId': 99});
       taskRepository.replaceAll([withReminder]);
 
       await controller.updateTask(

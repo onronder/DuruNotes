@@ -56,11 +56,11 @@ class _FakeSupabaseNoteApi extends SupabaseNoteApi {
     List<Map<String, dynamic>>? tasks,
     Set<String>? attachmentIds,
     List<Map<String, dynamic>>? attachments,
-  })  : _taskIds = taskIds ?? const {},
-        _tasks = tasks ?? const [],
-        _attachmentIds = attachmentIds ?? const {},
-        _attachments = attachments ?? const [],
-        super(SupabaseClient('https://stub.supabase.co', 'stub-key'));
+  }) : _taskIds = taskIds ?? const {},
+       _tasks = tasks ?? const [],
+       _attachmentIds = attachmentIds ?? const {},
+       _attachments = attachments ?? const [],
+       super(SupabaseClient('https://stub.supabase.co', 'stub-key'));
 
   final Set<String> _noteIds;
   final Set<String> _folderIds;
@@ -92,8 +92,9 @@ class _FakeSupabaseNoteApi extends SupabaseNoteApi {
   Future<Set<String>> fetchAllActiveAttachmentIds() async => _attachmentIds;
 
   @override
-  Future<List<Map<String, dynamic>>> fetchAttachments({DateTime? since}) async =>
-      _attachments;
+  Future<List<Map<String, dynamic>>> fetchAttachments({
+    DateTime? since,
+  }) async => _attachments;
 }
 
 void main() {
@@ -183,152 +184,135 @@ void main() {
       },
     );
 
-    test(
-      'sync integrity validator detects remote task drift',
-      () async {
-        final remoteNote = {
-          'id': 'note-alpha',
-          'title_encrypted': 'enc::Launch Checklist',
-          'encrypted_metadata': null,
-        };
+    test('sync integrity validator detects remote task drift', () async {
+      final remoteNote = {
+        'id': 'note-alpha',
+        'title_encrypted': 'enc::Launch Checklist',
+        'encrypted_metadata': null,
+      };
 
-        final fakeApi = _FakeSupabaseNoteApi(
-          {'note-alpha'},
-          {'folder-mercury'},
-          [remoteNote],
-          taskIds: const {}, // Missing local task
-        );
+      final fakeApi = _FakeSupabaseNoteApi(
+        {'note-alpha'},
+        {'folder-mercury'},
+        [remoteNote],
+        taskIds: const {}, // Missing local task
+      );
 
-        final container = ProviderContainer(
-          overrides: [
-            appDbProvider.overrideWithValue(db),
-            loggerProvider.overrideWithValue(const _NoOpLogger()),
-            supabaseNoteApiProvider.overrideWithValue(fakeApi),
-          ],
-        );
-        addTearDown(container.dispose);
+      final container = ProviderContainer(
+        overrides: [
+          appDbProvider.overrideWithValue(db),
+          loggerProvider.overrideWithValue(const _NoOpLogger()),
+          supabaseNoteApiProvider.overrideWithValue(fakeApi),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        final validator = container.read(syncIntegrityValidatorProvider);
-        final result = await validator.validateSyncIntegrity();
+      final validator = container.read(syncIntegrityValidatorProvider);
+      final result = await validator.validateSyncIntegrity();
 
-        expect(result.isValid, isFalse);
-        expect(
-          result.issues.any(
-            (issue) =>
-                issue.type == ValidationIssueType.missingRemote &&
-                issue.affectedTable == 'note_tasks',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(result.isValid, isFalse);
+      expect(
+        result.issues.any(
+          (issue) =>
+              issue.type == ValidationIssueType.missingRemote &&
+              issue.affectedTable == 'note_tasks',
+        ),
+        isTrue,
+      );
+    });
 
-    test(
-      'sync integrity validator detects attachment drift',
-      () async {
-        final remoteNote = {
-          'id': 'note-alpha',
-          'title_encrypted': 'enc::Launch Checklist',
-          'encrypted_metadata': null,
-        };
+    test('sync integrity validator detects attachment drift', () async {
+      final remoteNote = {
+        'id': 'note-alpha',
+        'title_encrypted': 'enc::Launch Checklist',
+        'encrypted_metadata': null,
+      };
 
-        final fakeApi = _FakeSupabaseNoteApi(
-          {'note-alpha'},
-          {'folder-mercury'},
-          [remoteNote],
-          taskIds: {'task-alpha'},
-          tasks: const [
-            {
-              'id': 'task-alpha',
-              'note_id': 'note-alpha',
-              'deleted': false,
-            },
-          ],
-          attachmentIds: const {}, // Missing local attachment
-          attachments: const [],
-        );
+      final fakeApi = _FakeSupabaseNoteApi(
+        {'note-alpha'},
+        {'folder-mercury'},
+        [remoteNote],
+        taskIds: {'task-alpha'},
+        tasks: const [
+          {'id': 'task-alpha', 'note_id': 'note-alpha', 'deleted': false},
+        ],
+        attachmentIds: const {}, // Missing local attachment
+        attachments: const [],
+      );
 
-        final container = ProviderContainer(
-          overrides: [
-            appDbProvider.overrideWithValue(db),
-            loggerProvider.overrideWithValue(const _NoOpLogger()),
-            supabaseNoteApiProvider.overrideWithValue(fakeApi),
-          ],
-        );
-        addTearDown(container.dispose);
+      final container = ProviderContainer(
+        overrides: [
+          appDbProvider.overrideWithValue(db),
+          loggerProvider.overrideWithValue(const _NoOpLogger()),
+          supabaseNoteApiProvider.overrideWithValue(fakeApi),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        final validator = container.read(syncIntegrityValidatorProvider);
-        final result = await validator.validateSyncIntegrity();
+      final validator = container.read(syncIntegrityValidatorProvider);
+      final result = await validator.validateSyncIntegrity();
 
-        expect(result.isValid, isFalse);
-        expect(
-          result.issues.any(
-            (issue) =>
-                issue.type == ValidationIssueType.missingRemote &&
-                issue.affectedTable == 'attachments',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(result.isValid, isFalse);
+      expect(
+        result.issues.any(
+          (issue) =>
+              issue.type == ValidationIssueType.missingRemote &&
+              issue.affectedTable == 'attachments',
+        ),
+        isTrue,
+      );
+    });
 
-    test(
-      'sync integrity validator detects folder count drift',
-      () async {
-        final remoteNote = {
-          'id': 'note-alpha',
-          'title_encrypted': 'enc::Launch Checklist',
-          'encrypted_metadata': null,
-        };
+    test('sync integrity validator detects folder count drift', () async {
+      final remoteNote = {
+        'id': 'note-alpha',
+        'title_encrypted': 'enc::Launch Checklist',
+        'encrypted_metadata': null,
+      };
 
-        final fakeApi = _FakeSupabaseNoteApi(
-          {'note-alpha'},
-          const {}, // Remote missing folder
-          [remoteNote],
-          taskIds: {'task-alpha'},
-          tasks: const [
-            {
-              'id': 'task-alpha',
-              'note_id': 'note-alpha',
-              'deleted': false,
-            },
-          ],
-          attachmentIds: {'attachment-alpha'},
-          attachments: const [
-            {
-              'id': 'attachment-alpha',
-              'user_id': 'user-123',
-              'note_id': 'note-alpha',
-              'file_name': 'checklist.pdf',
-              'size': 2048,
-              'deleted': false,
-            },
-          ],
-        );
+      final fakeApi = _FakeSupabaseNoteApi(
+        {'note-alpha'},
+        const {}, // Remote missing folder
+        [remoteNote],
+        taskIds: {'task-alpha'},
+        tasks: const [
+          {'id': 'task-alpha', 'note_id': 'note-alpha', 'deleted': false},
+        ],
+        attachmentIds: {'attachment-alpha'},
+        attachments: const [
+          {
+            'id': 'attachment-alpha',
+            'user_id': 'user-123',
+            'note_id': 'note-alpha',
+            'file_name': 'checklist.pdf',
+            'size': 2048,
+            'deleted': false,
+          },
+        ],
+      );
 
-        final container = ProviderContainer(
-          overrides: [
-            appDbProvider.overrideWithValue(db),
-            loggerProvider.overrideWithValue(const _NoOpLogger()),
-            supabaseNoteApiProvider.overrideWithValue(fakeApi),
-          ],
-        );
-        addTearDown(container.dispose);
+      final container = ProviderContainer(
+        overrides: [
+          appDbProvider.overrideWithValue(db),
+          loggerProvider.overrideWithValue(const _NoOpLogger()),
+          supabaseNoteApiProvider.overrideWithValue(fakeApi),
+        ],
+      );
+      addTearDown(container.dispose);
 
-        final validator = container.read(syncIntegrityValidatorProvider);
-        final result = await validator.validateSyncIntegrity();
+      final validator = container.read(syncIntegrityValidatorProvider);
+      final result = await validator.validateSyncIntegrity();
 
-        expect(result.isValid, isFalse);
-        expect(
-          result.issues.any(
-            (issue) =>
-                issue.type == ValidationIssueType.countMismatch &&
-                issue.affectedTable == 'folders',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(result.isValid, isFalse);
+      expect(
+        result.issues.any(
+          (issue) =>
+              issue.type == ValidationIssueType.countMismatch &&
+              issue.affectedTable == 'folders',
+        ),
+        isTrue,
+      );
+    });
   });
 }
 

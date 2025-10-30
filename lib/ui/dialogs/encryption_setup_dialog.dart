@@ -89,14 +89,16 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
 
     try {
       // Limit evaluation input size to avoid pathological OOM scenarios
-      final sample = password.length > 256 ? password.substring(0, 256) : password;
+      final sample = password.length > 256
+          ? password.substring(0, 256)
+          : password;
       final result = _zxcvbn.evaluate(sample);
       final rawScore = result.score ?? 0;
       final score = rawScore < 0
           ? 0
           : rawScore > 4
-              ? 4
-              : rawScore.round();
+          ? 4
+          : rawScore.round();
 
       const strengthLabels = [
         'Very Weak',
@@ -149,7 +151,9 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
     if (widget.mode == EncryptionSetupMode.setup) {
       final hasUppercase = password.contains(RegExp(r'[A-Z]'));
       final hasLowercase = password.contains(RegExp(r'[a-z]'));
-      final hasSpecialChars = password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+      final hasSpecialChars = password.contains(
+        RegExp(r'[!@#\$%^&*(),.?":{}|<>]'),
+      );
       canSubmit =
           canSubmit &&
           password.length >= 6 &&
@@ -279,9 +283,7 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
     return AlertDialog(
       backgroundColor: colorScheme.surface,
       surfaceTintColor: colorScheme.surfaceTint,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       title: Row(
         children: [
           Container(
@@ -396,7 +398,9 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
                     // Check complexity requirements
                     final hasUppercase = value.contains(RegExp(r'[A-Z]'));
                     final hasLowercase = value.contains(RegExp(r'[a-z]'));
-                    final hasSpecialChars = value.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+                    final hasSpecialChars = value.contains(
+                      RegExp(r'[!@#\$%^&*(),.?":{}|<>]'),
+                    );
 
                     if (!hasUppercase || !hasLowercase || !hasSpecialChars) {
                       return 'Include uppercase, lowercase, and a special character';
@@ -505,7 +509,9 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
       actions: [
         if (widget.allowCancel)
           TextButton(
-            onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
+            onPressed: _isLoading
+                ? null
+                : () => Navigator.of(context).pop(false),
             child: Text(l10n.cancel),
           ),
         FilledButton(
@@ -529,11 +535,11 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
   Widget _buildPasswordStrengthIndicator(ColorScheme colorScheme) {
     // Color based on strength score (0-4)
     final colors = [
-      Colors.red,           // 0: Very Weak
-      Colors.orange,        // 1: Weak
-      Colors.yellow,        // 2: Fair
-      Colors.lightGreen,    // 3: Strong
-      Colors.green,         // 4: Very Strong
+      Colors.red, // 0: Very Weak
+      Colors.orange, // 1: Weak
+      Colors.yellow, // 2: Fair
+      Colors.lightGreen, // 3: Strong
+      Colors.green, // 4: Very Strong
     ];
 
     final strengthColor = colors[_passwordStrength];

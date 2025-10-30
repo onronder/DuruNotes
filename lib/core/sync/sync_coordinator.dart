@@ -14,7 +14,8 @@ class SyncCoordinator {
   static const Duration _minSyncInterval = Duration(seconds: 10);
 
   /// Check if any sync operation is currently running
-  bool get isSyncing => _activeSyncs.values.any((completer) => completer != null);
+  bool get isSyncing =>
+      _activeSyncs.values.any((completer) => completer != null);
 
   /// Check if a specific sync type is running
   bool isSyncingType(String syncType) => _activeSyncs[syncType] != null;
@@ -30,7 +31,9 @@ class SyncCoordinator {
     if (lastSync != null) {
       final timeSinceLastSync = DateTime.now().difference(lastSync);
       if (timeSinceLastSync < _minSyncInterval) {
-        debugPrint('🚫 Sync rate limited: $syncType (${timeSinceLastSync.inMilliseconds}ms since last)');
+        debugPrint(
+          '🚫 Sync rate limited: $syncType (${timeSinceLastSync.inMilliseconds}ms since last)',
+        );
         throw SyncRateLimitedException(syncType, timeSinceLastSync);
       }
     }
@@ -79,7 +82,9 @@ class SyncCoordinator {
         .toList();
 
     if (activeCompleters.isNotEmpty) {
-      debugPrint('⏳ Waiting for ${activeCompleters.length} active syncs to complete');
+      debugPrint(
+        '⏳ Waiting for ${activeCompleters.length} active syncs to complete',
+      );
       await Future.wait(activeCompleters.map((c) => c.future));
     }
   }
@@ -131,7 +136,8 @@ class SyncRateLimitedException implements Exception {
   final Duration timeSinceLastSync;
 
   @override
-  String toString() => 'SyncRateLimitedException: $syncType rate limited '
+  String toString() =>
+      'SyncRateLimitedException: $syncType rate limited '
       '(${timeSinceLastSync.inMilliseconds}ms since last sync)';
 }
 
@@ -142,7 +148,8 @@ class SyncConcurrencyException implements Exception {
   final List<String> activeSyncs;
 
   @override
-  String toString() => 'SyncConcurrencyException: $syncType blocked by active syncs: $activeSyncs';
+  String toString() =>
+      'SyncConcurrencyException: $syncType blocked by active syncs: $activeSyncs';
 }
 
 /// Exception thrown when the same sync type is already running
@@ -151,5 +158,6 @@ class SyncAlreadyRunningException implements Exception {
   final String syncType;
 
   @override
-  String toString() => 'SyncAlreadyRunningException: $syncType is already running';
+  String toString() =>
+      'SyncAlreadyRunningException: $syncType is already running';
 }

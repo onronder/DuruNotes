@@ -23,21 +23,21 @@ class DuruPlatform {
 
   /// Get the appropriate touch target size for the current platform
   static double get touchTargetSize {
-    if (isIOS) return 44.0;        // iOS Human Interface Guidelines
-    if (isAndroid) return 48.0;    // Material Design Guidelines
-    if (isWeb) return 44.0;        // Touch-friendly web standard
-    return 32.0;                   // Desktop mouse precision
+    if (isIOS) return 44.0; // iOS Human Interface Guidelines
+    if (isAndroid) return 48.0; // Material Design Guidelines
+    if (isWeb) return 44.0; // Touch-friendly web standard
+    return 32.0; // Desktop mouse precision
   }
 }
 
 /// Universal spacing tokens that work across all platforms
 class DuruSpacing {
   // Base spacing scale (8dp grid system)
-  static const double xs = 4.0;   // Micro spacing
-  static const double sm = 8.0;   // Small spacing
-  static const double md = 16.0;  // Standard spacing
-  static const double lg = 24.0;  // Large spacing
-  static const double xl = 32.0;  // Extra large spacing
+  static const double xs = 4.0; // Micro spacing
+  static const double sm = 8.0; // Small spacing
+  static const double md = 16.0; // Standard spacing
+  static const double lg = 24.0; // Large spacing
+  static const double xl = 32.0; // Extra large spacing
   static const double xxl = 48.0; // Section spacing
 
   // Semantic spacing tokens
@@ -170,7 +170,8 @@ class DuruTypography {
     final base = Theme.of(context).textTheme.displayLarge!;
     return base.copyWith(
       fontFamily: fontFamily,
-      height: getLineHeight(context, base.fontSize ?? 32) / (base.fontSize ?? 32),
+      height:
+          getLineHeight(context, base.fontSize ?? 32) / (base.fontSize ?? 32),
     );
   }
 
@@ -179,7 +180,8 @@ class DuruTypography {
     final base = Theme.of(context).textTheme.headlineLarge!;
     return base.copyWith(
       fontFamily: fontFamily,
-      height: getLineHeight(context, base.fontSize ?? 24) / (base.fontSize ?? 24),
+      height:
+          getLineHeight(context, base.fontSize ?? 24) / (base.fontSize ?? 24),
     );
   }
 
@@ -188,18 +190,19 @@ class DuruTypography {
     final base = Theme.of(context).textTheme.bodyLarge!;
     return base.copyWith(
       fontFamily: fontFamily,
-      height: getLineHeight(context, base.fontSize ?? 16) / (base.fontSize ?? 16),
+      height:
+          getLineHeight(context, base.fontSize ?? 16) / (base.fontSize ?? 16),
     );
   }
 }
 
 /// Border radius tokens for consistent rounded corners
 class DuruBorderRadius {
-  static const double xs = 4.0;   // Small elements
-  static const double sm = 8.0;   // Cards, buttons
-  static const double md = 12.0;  // Containers
-  static const double lg = 16.0;  // Large cards
-  static const double xl = 20.0;  // Modal sheets
+  static const double xs = 4.0; // Small elements
+  static const double sm = 8.0; // Cards, buttons
+  static const double md = 12.0; // Containers
+  static const double lg = 16.0; // Large cards
+  static const double xl = 20.0; // Modal sheets
   static const double circle = 50.0; // Circular elements
 
   /// Get platform-appropriate border radius
@@ -213,9 +216,9 @@ class DuruBorderRadius {
 class DuruElevation {
   /// Get platform-appropriate card elevation
   static double get card {
-    if (DuruPlatform.isIOS) return 1.0;      // iOS uses subtle shadows
-    if (DuruPlatform.isAndroid) return 2.0;  // Material Design elevation
-    if (DuruPlatform.isWeb) return 1.0;      // Web performance optimization
+    if (DuruPlatform.isIOS) return 1.0; // iOS uses subtle shadows
+    if (DuruPlatform.isAndroid) return 2.0; // Material Design elevation
+    if (DuruPlatform.isWeb) return 1.0; // Web performance optimization
     return 0.0; // Desktop uses borders instead
   }
 
@@ -256,11 +259,16 @@ class DuruAccessibility {
   }
 
   /// Check if color combination meets WCAG AA contrast ratio
-  static bool meetsContrastRatio(Color foreground, Color background, {double ratio = 4.5}) {
+  static bool meetsContrastRatio(
+    Color foreground,
+    Color background, {
+    double ratio = 4.5,
+  }) {
     final fgLuminance = foreground.computeLuminance();
     final bgLuminance = background.computeLuminance();
-    final contrastRatio = (math.max(fgLuminance, bgLuminance) + 0.05) /
-                         (math.min(fgLuminance, bgLuminance) + 0.05);
+    final contrastRatio =
+        (math.max(fgLuminance, bgLuminance) + 0.05) /
+        (math.min(fgLuminance, bgLuminance) + 0.05);
     return contrastRatio >= ratio;
   }
 
@@ -273,4 +281,3 @@ class DuruAccessibility {
     return label;
   }
 }
-

@@ -9,7 +9,8 @@ import 'package:duru_notes/features/templates/providers/templates_providers.dart
     show templateListProvider, templateCoreRepositoryProvider;
 import 'package:duru_notes/models/template_model.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/core/providers/infrastructure_providers.dart' show analyticsProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show analyticsProvider;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/template_sharing_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
@@ -58,10 +59,7 @@ enum TemplateCategory {
 
 /// Comprehensive template gallery screen with CRUD operations
 class TemplateGalleryScreen extends ConsumerStatefulWidget {
-  const TemplateGalleryScreen({
-    super.key,
-    this.selectMode = false,
-  });
+  const TemplateGalleryScreen({super.key, this.selectMode = false});
 
   final bool selectMode; // If true, tapping a template returns it
 
@@ -137,10 +135,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       final prefs = await SharedPreferences.getInstance();
       setState(() {
         _isGridView = prefs.getBool(_kTemplateViewModeKey) ?? true;
-        _sortMode = TemplateSortMode.values[
-            prefs.getInt(_kTemplateSortKey) ?? 0];
-        _categoryFilter = TemplateCategory.values[
-            prefs.getInt(_kTemplateCategoryKey) ?? 0];
+        _sortMode =
+            TemplateSortMode.values[prefs.getInt(_kTemplateSortKey) ?? 0];
+        _categoryFilter =
+            TemplateCategory.values[prefs.getInt(_kTemplateCategoryKey) ?? 0];
       });
     } catch (e, stackTrace) {
       _logger.error(
@@ -195,8 +193,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       _isGridView = !_isGridView;
     });
     _savePreferences();
-    _analytics.event('template_view_mode_changed',
-        properties: {'view_mode': _isGridView ? 'grid' : 'list'});
+    _analytics.event(
+      'template_view_mode_changed',
+      properties: {'view_mode': _isGridView ? 'grid' : 'list'},
+    );
   }
 
   void _changeSortMode(TemplateSortMode sortMode) {
@@ -204,8 +204,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       _sortMode = sortMode;
     });
     _savePreferences();
-    _analytics.event('template_sort_changed',
-        properties: {'sort_mode': sortMode.label});
+    _analytics.event(
+      'template_sort_changed',
+      properties: {'sort_mode': sortMode.label},
+    );
   }
 
   void _changeCategoryFilter(TemplateCategory category) {
@@ -213,8 +215,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       _categoryFilter = category;
     });
     _savePreferences();
-    _analytics.event('template_category_filtered',
-        properties: {'category': category.label});
+    _analytics.event(
+      'template_category_filtered',
+      properties: {'category': category.label},
+    );
   }
 
   void _updateSearchQuery(String query) {
@@ -228,15 +232,19 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
     var filtered = templates.where((template) {
       if (_searchQuery.isEmpty) return true;
       return template.title.toLowerCase().contains(_searchQuery) ||
-             template.description.toLowerCase().contains(_searchQuery) ||
-             template.category.toLowerCase().contains(_searchQuery);
+          template.description.toLowerCase().contains(_searchQuery) ||
+          template.category.toLowerCase().contains(_searchQuery);
     }).toList();
 
     // Apply category filter
     if (_categoryFilter != TemplateCategory.all) {
-      filtered = filtered.where((template) =>
-          template.category.toLowerCase() == _categoryFilter.label.toLowerCase()
-      ).toList();
+      filtered = filtered
+          .where(
+            (template) =>
+                template.category.toLowerCase() ==
+                _categoryFilter.label.toLowerCase(),
+          )
+          .toList();
     }
 
     // Apply sorting
@@ -288,8 +296,12 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
 
     return templatesAsync.when(
       data: (templates) {
-        final workTemplates = templates.where((t) => t.category == 'work').length;
-        final personalTemplates = templates.where((t) => t.category == 'personal').length;
+        final workTemplates = templates
+            .where((t) => t.category == 'work')
+            .length;
+        final personalTemplates = templates
+            .where((t) => t.category == 'personal')
+            .length;
         // Use createdAt for recent templates since lastUsedAt doesn't exist
         final recentTemplates = templates.where((t) {
           final diff = DateTime.now().difference(t.createdAt);
@@ -387,7 +399,9 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -466,8 +480,12 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                           selected: _categoryFilter != TemplateCategory.all,
                           onSelected: (_) => _showCategoryFilter(),
                           avatar: Icon(CupertinoIcons.tag_fill, size: 16),
-                          backgroundColor: DuruColors.primary.withValues(alpha: 0.1),
-                          selectedColor: DuruColors.primary.withValues(alpha: 0.2),
+                          backgroundColor: DuruColors.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                          selectedColor: DuruColors.primary.withValues(
+                            alpha: 0.2,
+                          ),
                         ),
                         SizedBox(width: DuruSpacing.xs),
                         // Sort filter
@@ -476,14 +494,20 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                           selected: true,
                           onSelected: (_) => _showSortOptions(),
                           avatar: Icon(CupertinoIcons.sort_down, size: 16),
-                          backgroundColor: DuruColors.accent.withValues(alpha: 0.1),
-                          selectedColor: DuruColors.accent.withValues(alpha: 0.2),
+                          backgroundColor: DuruColors.accent.withValues(
+                            alpha: 0.1,
+                          ),
+                          selectedColor: DuruColors.accent.withValues(
+                            alpha: 0.2,
+                          ),
                         ),
                         SizedBox(width: DuruSpacing.xs),
                         // View mode toggle
                         IconButton(
                           icon: Icon(
-                            _isGridView ? CupertinoIcons.list_bullet : CupertinoIcons.square_grid_2x2,
+                            _isGridView
+                                ? CupertinoIcons.list_bullet
+                                : CupertinoIcons.square_grid_2x2,
                             color: DuruColors.primary,
                           ),
                           onPressed: _toggleViewMode,
@@ -503,7 +527,9 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
 
                 return templatesAsync.when(
                   data: (templates) {
-                    final filteredTemplates = _filterAndSortTemplates(templates);
+                    final filteredTemplates = _filterAndSortTemplates(
+                      templates,
+                    );
 
                     if (filteredTemplates.isEmpty) {
                       return _buildEmptyState();
@@ -516,9 +542,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                           : _buildListView(filteredTemplates),
                     );
                   },
-                  loading: () => const Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  ),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator.adaptive()),
                   error: (error, stackTrace) => _buildErrorState(error),
                 );
               },
@@ -526,12 +551,17 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           ),
         ],
       ),
-      floatingActionButton: _isSelectionMode ? null : FloatingActionButton.extended(
-        onPressed: _showCreateTemplateDialog,
-        backgroundColor: DuruColors.primary,
-        icon: Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
-        label: const Text('New Template', style: TextStyle(color: Colors.white)),
-      ),
+      floatingActionButton: _isSelectionMode
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _showCreateTemplateDialog,
+              backgroundColor: DuruColors.primary,
+              icon: Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
+              label: const Text(
+                'New Template',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
     );
   }
 
@@ -539,7 +569,9 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
     return [
       IconButton(
         icon: Icon(CupertinoIcons.share, color: Colors.white),
-        onPressed: _selectedTemplates.length == 1 ? _shareSelectedTemplate : null,
+        onPressed: _selectedTemplates.length == 1
+            ? _shareSelectedTemplate
+            : null,
         tooltip: 'Share Template',
       ),
       IconButton(
@@ -549,9 +581,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       ),
       PopupMenuButton<String>(
         icon: Icon(CupertinoIcons.ellipsis_vertical, color: Colors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         onSelected: (value) {
           switch (value) {
             case 'delete':
@@ -564,7 +594,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           PopupMenuItem(
             value: 'export',
             child: ListTile(
-              leading: Icon(CupertinoIcons.arrow_down_doc, color: DuruColors.primary),
+              leading: Icon(
+                CupertinoIcons.arrow_down_doc,
+                color: DuruColors.primary,
+              ),
               title: const Text('Export'),
               contentPadding: EdgeInsets.zero,
             ),
@@ -591,9 +624,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       ),
       PopupMenuButton<String>(
         icon: Icon(CupertinoIcons.ellipsis_vertical, color: Colors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         onSelected: (value) {
           switch (value) {
             case 'import':
@@ -606,7 +637,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           PopupMenuItem(
             value: 'import',
             child: ListTile(
-              leading: Icon(CupertinoIcons.arrow_up_doc, color: DuruColors.primary),
+              leading: Icon(
+                CupertinoIcons.arrow_up_doc,
+                color: DuruColors.primary,
+              ),
               title: const Text('Import Templates'),
               contentPadding: EdgeInsets.zero,
             ),
@@ -614,7 +648,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           PopupMenuItem(
             value: 'statistics',
             child: ListTile(
-              leading: Icon(CupertinoIcons.chart_bar_fill, color: DuruColors.accent),
+              leading: Icon(
+                CupertinoIcons.chart_bar_fill,
+                color: DuruColors.accent,
+              ),
               title: const Text('Usage Statistics'),
               contentPadding: EdgeInsets.zero,
             ),
@@ -635,7 +672,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
           childAspectRatio: 0.8,
         ),
         itemCount: templates.length,
-        itemBuilder: (context, index) => _buildTemplateGridCard(templates[index]),
+        itemBuilder: (context, index) =>
+            _buildTemplateGridCard(templates[index]),
       ),
     );
   }
@@ -659,8 +697,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         onTap: () => _isSelectionMode
             ? _toggleSelection(template.id)
             : widget.selectMode
-                ? _selectTemplate(template)
-                : _showTemplatePreview(template),
+            ? _selectTemplate(template)
+            : _showTemplatePreview(template),
         onLongPress: () => _showTemplateOptions(template),
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -708,7 +746,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                       ),
                     if (template.isSystem)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: colorScheme.tertiaryContainer,
                           borderRadius: BorderRadius.circular(4),
@@ -759,7 +800,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                   children: [
                     Flexible(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
@@ -813,8 +857,8 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         onTap: () => _isSelectionMode
             ? _toggleSelection(template.id)
             : widget.selectMode
-                ? _selectTemplate(template)
-                : _showTemplatePreview(template),
+            ? _selectTemplate(template)
+            : _showTemplatePreview(template),
         onLongPress: () => _showTemplateOptions(template),
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -837,10 +881,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                       color: colorScheme.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.check, color: Colors.white),
                   )
                 else
                   Container(
@@ -880,7 +921,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                           if (template.isSystem)
                             Container(
                               margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: colorScheme.tertiaryContainer,
                                 borderRadius: BorderRadius.circular(4),
@@ -916,7 +960,10 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(12),
@@ -1031,9 +1078,9 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
             const SizedBox(height: 24),
             Text(
               'Failed to load templates',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1105,17 +1152,19 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            ...TemplateCategory.values.map((category) => ListTile(
-              leading: Icon(_getCategoryIcon(category.label)),
-              title: Text(category.label),
-              trailing: _categoryFilter == category
-                  ? const Icon(Icons.check)
-                  : null,
-              onTap: () {
-                _changeCategoryFilter(category);
-                Navigator.pop(context);
-              },
-            )),
+            ...TemplateCategory.values.map(
+              (category) => ListTile(
+                leading: Icon(_getCategoryIcon(category.label)),
+                title: Text(category.label),
+                trailing: _categoryFilter == category
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  _changeCategoryFilter(category);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -1135,16 +1184,18 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
-            ...TemplateSortMode.values.map((sortMode) => ListTile(
-              title: Text(sortMode.label),
-              trailing: _sortMode == sortMode
-                  ? const Icon(Icons.check)
-                  : null,
-              onTap: () {
-                _changeSortMode(sortMode);
-                Navigator.pop(context);
-              },
-            )),
+            ...TemplateSortMode.values.map(
+              (sortMode) => ListTile(
+                title: Text(sortMode.label),
+                trailing: _sortMode == sortMode
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () {
+                  _changeSortMode(sortMode);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
           ],
         ),
       ),
@@ -1172,18 +1223,24 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   Future<void> _useTemplate(LocalTemplate template) async {
     try {
       // Track template usage
-      _analytics.event('template_used', properties: {
-        'template_id': template.id,
-        'template_category': template.category,
-        'is_system': template.isSystem,
-      });
+      _analytics.event(
+        'template_used',
+        properties: {
+          'template_id': template.id,
+          'template_category': template.category,
+          'is_system': template.isSystem,
+        },
+      );
 
       // Apply template to create note
       final repository = ref.read(templateCoreRepositoryProvider);
       final noteId = await repository.applyTemplate(
         templateId: template.id,
         variableValues:
-            <String, dynamic>{}, // Empty variables for now - will be replaced with note creation
+            <
+              String,
+              dynamic
+            >{}, // Empty variables for now - will be replaced with note creation
       );
 
       debugPrint('Created note from template: $noteId');
@@ -1228,9 +1285,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   Future<void> _editTemplate(LocalTemplate template) async {
     if (template.isSystem) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('System templates cannot be edited'),
-        ),
+        const SnackBar(content: Text('System templates cannot be edited')),
       );
       return;
     }
@@ -1248,9 +1303,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
   Future<void> _deleteTemplate(LocalTemplate template) async {
     if (template.isSystem) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('System templates cannot be deleted'),
-        ),
+        const SnackBar(content: Text('System templates cannot be deleted')),
       );
       return;
     }
@@ -1282,16 +1335,17 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         await repository.deleteTemplate(template.id);
 
         await _loadTemplates();
-        _analytics.event('template_deleted', properties: {
-          'template_id': template.id,
-          'template_category': template.category,
-        });
+        _analytics.event(
+          'template_deleted',
+          properties: {
+            'template_id': template.id,
+            'template_category': template.category,
+          },
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Deleted template "${template.title}"'),
-            ),
+            SnackBar(content: Text('Deleted template "${template.title}"')),
           );
         }
       } catch (e, stackTrace) {
@@ -1332,7 +1386,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
     List<String> tagsList = [];
     try {
       tagsList = (jsonDecode(template.tags) as List<dynamic>).cast<String>();
-        } catch (_) {
+    } catch (_) {
       tagsList = [];
     }
 
@@ -1398,9 +1452,16 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
               ),
               if (!template.isSystem)
                 ListTile(
-                  leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
-                  title: Text('Delete Template',
-                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  leading: Icon(
+                    Icons.delete,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  title: Text(
+                    'Delete Template',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _deleteTemplate(template);
@@ -1421,7 +1482,7 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       List<String> tagsList = [];
       try {
         tagsList = (jsonDecode(template.tags) as List<dynamic>).cast<String>();
-            } catch (_) {
+      } catch (_) {
         tagsList = [];
       }
 
@@ -1457,8 +1518,12 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'Template exported successfully' : 'Export failed'),
-            backgroundColor: success ? Colors.green : Theme.of(context).colorScheme.error,
+            content: Text(
+              success ? 'Template exported successfully' : 'Export failed',
+            ),
+            backgroundColor: success
+                ? Colors.green
+                : Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -1587,7 +1652,9 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Template "${template.title}" imported successfully'),
+              content: Text(
+                'Template "${template.title}" imported successfully',
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -1640,7 +1707,9 @@ class _TemplateGalleryScreenState extends ConsumerState<TemplateGalleryScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Successfully imported $successCount of ${templates.length} templates'),
+              content: Text(
+                'Successfully imported $successCount of ${templates.length} templates',
+              ),
               backgroundColor: Colors.green,
             ),
           );

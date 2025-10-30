@@ -36,7 +36,9 @@ Future<void> main() async {
     print('📊 Final schema version: $finalVersion');
 
     // Test that migration tracking works
-    final migrationHistory = await MigrationTablesSetup.getMigrationHistory(database);
+    final migrationHistory = await MigrationTablesSetup.getMigrationHistory(
+      database,
+    );
     print('📚 Migration history entries: ${migrationHistory.length}');
 
     // Verify signature indexes were created
@@ -55,7 +57,6 @@ Future<void> main() async {
     print('✅ All tests passed - Migration 12 is ready for Step 3');
 
     exit(0);
-
   } catch (e, stackTrace) {
     print('\n❌ Migration 12 validation failed:');
     print('Error: $e');

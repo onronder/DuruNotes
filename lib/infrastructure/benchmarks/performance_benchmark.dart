@@ -46,7 +46,9 @@ class BenchmarkResult {
       ..writeln('   📈 Avg: ${averageMs.toStringAsFixed(2)}ms per item');
 
     if (cacheHitRate != null) {
-      buffer.writeln('   💾 Cache Hit Rate: ${(cacheHitRate! * 100).toStringAsFixed(1)}%');
+      buffer.writeln(
+        '   💾 Cache Hit Rate: ${(cacheHitRate! * 100).toStringAsFixed(1)}%',
+      );
     }
 
     return buffer.toString();
@@ -55,19 +57,16 @@ class BenchmarkResult {
 
 /// Benchmark comparison between old and optimized implementations
 class BenchmarkComparison {
-  const BenchmarkComparison({
-    required this.baseline,
-    required this.optimized,
-  });
+  const BenchmarkComparison({required this.baseline, required this.optimized});
 
   final BenchmarkResult baseline;
   final BenchmarkResult optimized;
 
   double get speedupFactor =>
-    baseline.duration.inMilliseconds / optimized.duration.inMilliseconds;
+      baseline.duration.inMilliseconds / optimized.duration.inMilliseconds;
 
   double get queryReduction =>
-    (baseline.queryCount - optimized.queryCount) / baseline.queryCount * 100;
+      (baseline.queryCount - optimized.queryCount) / baseline.queryCount * 100;
 
   Map<String, dynamic> toJson() => {
     'operation': baseline.operation,
@@ -95,12 +94,16 @@ class BenchmarkComparison {
       ..writeln('BASELINE (before optimization):')
       ..writeln('  Duration: ${baseline.duration.inMilliseconds}ms')
       ..writeln('  Queries: ${baseline.queryCount}')
-      ..writeln('  Speed: ${baseline.itemsPerSecond.toStringAsFixed(1)} items/sec')
+      ..writeln(
+        '  Speed: ${baseline.itemsPerSecond.toStringAsFixed(1)} items/sec',
+      )
       ..writeln('')
       ..writeln('OPTIMIZED (after optimization):')
       ..writeln('  Duration: ${optimized.duration.inMilliseconds}ms')
       ..writeln('  Queries: ${optimized.queryCount}')
-      ..writeln('  Speed: ${optimized.itemsPerSecond.toStringAsFixed(1)} items/sec')
+      ..writeln(
+        '  Speed: ${optimized.itemsPerSecond.toStringAsFixed(1)} items/sec',
+      )
       ..writeln('')
       ..writeln('📈 IMPROVEMENTS:')
       ..writeln('  🚀 Speedup: ${speedupFactor.toStringAsFixed(2)}x faster')
@@ -191,10 +194,13 @@ class PerformanceBenchmark {
 
     // Search operation (implementation depends on search service)
     final notes = await repository.list();
-    final results = notes.where((n) =>
-      n.title.toLowerCase().contains(query.toLowerCase()) ||
-      n.body.toLowerCase().contains(query.toLowerCase())
-    ).toList();
+    final results = notes
+        .where(
+          (n) =>
+              n.title.toLowerCase().contains(query.toLowerCase()) ||
+              n.body.toLowerCase().contains(query.toLowerCase()),
+        )
+        .toList();
 
     stopwatch.stop();
 
@@ -234,12 +240,14 @@ class PerformanceBenchmark {
     final stopwatch = Stopwatch()..start();
     final tasks = await taskRepo.getAllTasks();
     stopwatch.stop();
-    results.add(BenchmarkResult(
-      operation: 'Load all tasks',
-      duration: stopwatch.elapsed,
-      itemCount: tasks.length,
-      queryCount: 1,
-    ));
+    results.add(
+      BenchmarkResult(
+        operation: 'Load all tasks',
+        duration: stopwatch.elapsed,
+        itemCount: tasks.length,
+        queryCount: 1,
+      ),
+    );
 
     print('\n✅ Benchmark suite complete!\n');
 
@@ -263,14 +271,11 @@ class PerformanceBenchmark {
 
     // Summary statistics
     final totalDuration = results.fold<int>(
-      0, (sum, r) => sum + r.duration.inMilliseconds
+      0,
+      (sum, r) => sum + r.duration.inMilliseconds,
     );
-    final totalItems = results.fold<int>(
-      0, (sum, r) => sum + r.itemCount
-    );
-    final totalQueries = results.fold<int>(
-      0, (sum, r) => sum + r.queryCount
-    );
+    final totalItems = results.fold<int>(0, (sum, r) => sum + r.itemCount);
+    final totalQueries = results.fold<int>(0, (sum, r) => sum + r.queryCount);
 
     buffer
       ..writeln()
@@ -278,7 +283,9 @@ class PerformanceBenchmark {
       ..writeln('  Total Duration: ${totalDuration}ms')
       ..writeln('  Total Items Processed: $totalItems')
       ..writeln('  Total Queries: $totalQueries')
-      ..writeln('  Average Speed: ${(totalItems / totalDuration * 1000).toStringAsFixed(1)} items/sec')
+      ..writeln(
+        '  Average Speed: ${(totalItems / totalDuration * 1000).toStringAsFixed(1)} items/sec',
+      )
       ..writeln()
       ..writeln('=' * 60);
 
@@ -292,7 +299,8 @@ class PerformanceBenchmark {
   }) {
     // Simulate baseline with N+1 queries
     final baselineQueries = optimized.itemCount * baselineQueryMultiplier + 1;
-    final baselineDurationMs = optimized.duration.inMilliseconds * baselineQueryMultiplier;
+    final baselineDurationMs =
+        optimized.duration.inMilliseconds * baselineQueryMultiplier;
 
     final baseline = BenchmarkResult(
       operation: optimized.operation,
@@ -301,10 +309,7 @@ class PerformanceBenchmark {
       queryCount: baselineQueries,
     );
 
-    return BenchmarkComparison(
-      baseline: baseline,
-      optimized: optimized,
-    );
+    return BenchmarkComparison(baseline: baseline, optimized: optimized);
   }
 }
 

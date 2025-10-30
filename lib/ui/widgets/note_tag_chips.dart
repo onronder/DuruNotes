@@ -1,4 +1,5 @@
-import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show tagRepositoryProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show tagRepositoryProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,9 +51,7 @@ class _NoteTagChipsState extends ConsumerState<NoteTagChips> {
     if (mounted) {
       setState(() {
         // tagCounts is List<TagWithCount>, extract tag names
-        _availableTags = tagCounts
-            .map((tc) => tc.tag)
-            .toList();
+        _availableTags = tagCounts.map((tc) => tc.tag).toList();
       });
     }
   }

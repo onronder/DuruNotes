@@ -208,7 +208,8 @@ class _HierarchicalTodoBlockWidgetState
 
   void _updateTodo() {
     // PRODUCTION-GRADE: Save in format "completed:level:text" with indent level
-    final todoData = '${_isCompleted ? 'completed' : 'incomplete'}:${widget.indentLevel}:$_text';
+    final todoData =
+        '${_isCompleted ? 'completed' : 'incomplete'}:${widget.indentLevel}:$_text';
     final newBlock = widget.block.copyWith(data: todoData);
     widget.onChanged(newBlock);
   }
@@ -388,8 +389,9 @@ class _HierarchicalTodoBlockWidgetState
         // Increase indent level
         widget.onIndentChanged(widget.indentLevel + 1);
       } else if (event.logicalKey == LogicalKeyboardKey.tab &&
-          HardwareKeyboard.instance.logicalKeysPressed
-              .contains(LogicalKeyboardKey.shift)) {
+          HardwareKeyboard.instance.logicalKeysPressed.contains(
+            LogicalKeyboardKey.shift,
+          )) {
         // Decrease indent level
         if (widget.indentLevel > 0) {
           widget.onIndentChanged(widget.indentLevel - 1);
@@ -435,8 +437,9 @@ class _HierarchicalTodoBlockWidgetState
                     'hierarchical_todo_checkbox_${widget.position}_${widget.indentLevel}',
                   ),
                   onTap: _toggleCompleted,
-                  onLongPress:
-                      widget.noteId != null ? _showTaskMetadataDialog : null,
+                  onLongPress: widget.noteId != null
+                      ? _showTaskMetadataDialog
+                      : null,
                   child: Container(
                     width: 22,
                     height: 22,
@@ -603,8 +606,11 @@ class _HierarchicalTodoBlockWidgetState
                           value: 'delete_all',
                           child: Row(
                             children: [
-                              Icon(Icons.delete_sweep,
-                                  size: 16, color: Colors.red),
+                              Icon(
+                                Icons.delete_sweep,
+                                size: 16,
+                                color: Colors.red,
+                              ),
                               SizedBox(width: 8),
                               Text('Delete All'),
                             ],
@@ -668,8 +674,9 @@ class _HierarchicalTodoBlockWidgetState
       if (controller == null) return;
 
       final repository = ref.read(taskCoreRepositoryProvider);
-      final subtasks =
-          repository == null ? <domain.Task>[] : await repository.getSubtasks(_task!.id);
+      final subtasks = repository == null
+          ? <domain.Task>[]
+          : await repository.getSubtasks(_task!.id);
 
       await controller.completeAllSubtasks(_task!.id);
       await _refreshTask();
@@ -701,7 +708,9 @@ class _HierarchicalTodoBlockWidgetState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to complete subtasks. Please try again.'),
+            content: const Text(
+              'Failed to complete subtasks. Please try again.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
             action: SnackBarAction(
               label: 'Retry',
@@ -773,7 +782,9 @@ class _HierarchicalTodoBlockWidgetState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Failed to delete hierarchy. Please try again.'),
+              content: const Text(
+                'Failed to delete hierarchy. Please try again.',
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               action: SnackBarAction(
                 label: 'Retry',
@@ -823,9 +834,9 @@ class _HierarchicalTodoBlockWidgetState
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Task deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Task deleted')));
         }
         _logger.info(
           'Deleted task from todo block',
@@ -845,10 +856,7 @@ class _HierarchicalTodoBlockWidgetState
             SnackBar(
               content: const Text('Failed to delete task. Please try again.'),
               backgroundColor: Theme.of(context).colorScheme.error,
-              action: SnackBarAction(
-                label: 'Retry',
-                onPressed: _deleteTask,
-              ),
+              action: SnackBarAction(label: 'Retry', onPressed: _deleteTask),
             ),
           );
         }
@@ -872,10 +880,7 @@ class _HierarchicalTodoBlockWidgetState
 
 /// Custom painter for hierarchy connector lines
 class HierarchyLinePainter extends CustomPainter {
-  HierarchyLinePainter({
-    required this.color,
-    required this.isLast,
-  });
+  HierarchyLinePainter({required this.color, required this.isLast});
 
   final Color color;
   final bool isLast;

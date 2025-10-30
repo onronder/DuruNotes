@@ -171,8 +171,8 @@ class _BacklinksWidgetState extends ConsumerState<BacklinksWidget> {
                           _isLoading
                               ? 'Loading...'
                               : _error != null
-                                  ? _error!
-                                  : '${_backlinks.length} ${_backlinks.length == 1 ? 'note links' : 'notes link'} here',
+                              ? _error!
+                              : '${_backlinks.length} ${_backlinks.length == 1 ? 'note links' : 'notes link'} here',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: _error != null
                                 ? colorScheme.error
@@ -350,13 +350,17 @@ class _BacklinksWidgetState extends ConsumerState<BacklinksWidget> {
                       Icon(
                         Icons.access_time_rounded,
                         size: 12,
-                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                        color: colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         _formatDate(note.updatedAt),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          color: colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.7,
+                          ),
                           fontSize: 11,
                         ),
                       ),

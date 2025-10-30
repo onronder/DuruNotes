@@ -21,11 +21,11 @@ class ConfigValidationResult {
   bool get hasWarnings => warnings.isNotEmpty;
 
   Map<String, dynamic> toJson() => {
-        'isValid': isValid,
-        'errors': errors,
-        'warnings': warnings,
-        'securityIssues': securityIssues,
-      };
+    'isValid': isValid,
+    'errors': errors,
+    'warnings': warnings,
+    'securityIssues': securityIssues,
+  };
 }
 
 /// Validator for environment configuration
@@ -114,9 +114,7 @@ class ConfigValidator {
 
     // Check for HTTPS
     if (requireHttps && uri.scheme != 'https') {
-      securityIssues.add(
-        'Supabase URL must use HTTPS in production: $url',
-      );
+      securityIssues.add('Supabase URL must use HTTPS in production: $url');
     }
 
     // Check for localhost
@@ -140,9 +138,7 @@ class ConfigValidator {
     // Check if anon key looks like a service role key (security issue)
     if (anonKey.contains('service_role') ||
         anonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')) {
-      securityIssues.add(
-        'Service role key detected - use anon key instead',
-      );
+      securityIssues.add('Service role key detected - use anon key instead');
     }
 
     // Check key length
@@ -190,17 +186,13 @@ class ConfigValidator {
       // Check sampling rate
       if (config.analyticsSamplingRate < 0 ||
           config.analyticsSamplingRate > 1) {
-        errors.add(
-          'Analytics sampling rate must be between 0 and 1',
-        );
+        errors.add('Analytics sampling rate must be between 0 and 1');
       }
 
       // Check Sentry traces sample rate
       if (config.sentryTracesSampleRate < 0 ||
           config.sentryTracesSampleRate > 1) {
-        errors.add(
-          'Sentry traces sample rate must be between 0 and 1',
-        );
+        errors.add('Sentry traces sample rate must be between 0 and 1');
       }
 
       // Warn about high sampling rates in production
@@ -224,7 +216,8 @@ class ConfigValidator {
     List<String> securityIssues,
   ) {
     // Convert config to string representation for checking
-    final configString = '''
+    final configString =
+        '''
       ${config.supabaseUrl}
       ${config.supabaseAnonKey}
       ${config.sentryDsn ?? ''}
@@ -282,7 +275,9 @@ class ConfigValidator {
     // Check for mixed environments
     if (config.supabaseUrl.contains('prod') &&
         config.environment != Environment.production) {
-      warnings.add('Production Supabase URL used in non-production environment');
+      warnings.add(
+        'Production Supabase URL used in non-production environment',
+      );
     }
 
     if (config.supabaseUrl.contains('dev') &&
@@ -299,9 +294,9 @@ class ConfigValidator {
 
   bool _isLocalhost(String host) {
     return host == 'localhost' ||
-           host == '127.0.0.1' ||
-           host == '::1' ||
-           host.endsWith('.local');
+        host == '127.0.0.1' ||
+        host == '::1' ||
+        host.endsWith('.local');
   }
 
   bool _looksLikeRealSecret(String value) {
@@ -401,21 +396,22 @@ class SourceCodeSecurityScanner {
     if (cleanValue.contains(' ') || // Has spaces
         cleanValue.contains('.dart') || // File path
         cleanValue.contains('/') || // Path separator
-        RegExp(r'^[a-z_]+$').hasMatch(cleanValue)) { // All lowercase snake_case
+        RegExp(r'^[a-z_]+$').hasMatch(cleanValue)) {
+      // All lowercase snake_case
       return false;
     }
 
     // Check if it has characteristics of an API key
     return cleanValue.length > 30 &&
-           RegExp(r'[A-Z]').hasMatch(cleanValue) &&
-           RegExp(r'[a-z]').hasMatch(cleanValue) &&
-           RegExp(r'[0-9]').hasMatch(cleanValue);
+        RegExp(r'[A-Z]').hasMatch(cleanValue) &&
+        RegExp(r'[a-z]').hasMatch(cleanValue) &&
+        RegExp(r'[0-9]').hasMatch(cleanValue);
   }
 
   static bool _isTestFile(String filePath) {
     return filePath.contains('test/') ||
-           filePath.contains('test.dart') ||
-           filePath.contains('mock') ||
-           filePath.contains('example');
+        filePath.contains('test.dart') ||
+        filePath.contains('mock') ||
+        filePath.contains('example');
   }
 }

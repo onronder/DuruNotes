@@ -31,10 +31,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       description:
           'Capture thoughts, organize ideas, and boost your productivity with AI-powered features',
       icon: CupertinoIcons.sparkles,
-      gradientColors: [
-        const Color(0xFF048ABF),
-        const Color(0xFF5FD0CB),
-      ],
+      gradientColors: [const Color(0xFF048ABF), const Color(0xFF5FD0CB)],
       features: [
         'Smart note organization',
         'Advanced reminders',
@@ -47,15 +44,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       description:
           'Experience semantic search, smart suggestions, and intelligent task extraction',
       icon: CupertinoIcons.lightbulb,
-      gradientColors: [
-        const Color(0xFF9333EA),
-        const Color(0xFF3B82F6),
-      ],
-      features: [
-        'Semantic search',
-        'Smart suggestions',
-        'Auto-categorization',
-      ],
+      gradientColors: [const Color(0xFF9333EA), const Color(0xFF3B82F6)],
+      features: ['Semantic search', 'Smart suggestions', 'Auto-categorization'],
     ),
     OnboardingPage(
       title: 'Advanced Task Management',
@@ -63,10 +53,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       description:
           'Create tasks from notes, set location-based reminders, and track your productivity',
       icon: CupertinoIcons.checkmark_shield_fill,
-      gradientColors: [
-        const Color(0xFF10B981),
-        const Color(0xFF3B82F6),
-      ],
+      gradientColors: [const Color(0xFF10B981), const Color(0xFF3B82F6)],
       features: [
         'Task extraction from notes',
         'Location reminders',
@@ -79,15 +66,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       description:
           'End-to-end encryption, on-device AI processing, and complete data control',
       icon: CupertinoIcons.lock_shield_fill,
-      gradientColors: [
-        const Color(0xFFEF4444),
-        const Color(0xFFF59E0B),
-      ],
-      features: [
-        'End-to-end encryption',
-        'On-device AI',
-        'Private by design',
-      ],
+      gradientColors: [const Color(0xFFEF4444), const Color(0xFFF59E0B)],
+      features: ['End-to-end encryption', 'On-device AI', 'Private by design'],
     ),
     OnboardingPage(
       title: 'Ready to Begin?',
@@ -95,10 +75,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       description:
           'Personalize your experience and start your productivity journey',
       icon: CupertinoIcons.rocket_fill,
-      gradientColors: [
-        const Color(0xFF048ABF),
-        const Color(0xFF9333EA),
-      ],
+      gradientColors: [const Color(0xFF048ABF), const Color(0xFF9333EA)],
       features: [
         'Personalized setup',
         'Import existing notes',
@@ -122,18 +99,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeIn,
-    ));
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.easeOutBack,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeOutBack),
+    );
 
     _fadeController.forward();
     _scaleController.forward();
@@ -171,9 +141,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Skip Setup?'),
         content: const Text(
           'You can always access these features later in settings.',
@@ -212,7 +180,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 end: Alignment.bottomRight,
                 colors: [
                   _pages[_currentPage].gradientColors[0].withValues(alpha: 0.1),
-                  _pages[_currentPage].gradientColors[1].withValues(alpha: 0.05),
+                  _pages[_currentPage].gradientColors[1].withValues(
+                    alpha: 0.05,
+                  ),
                 ],
               ),
             ),
@@ -296,7 +266,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                   style: TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : Colors.black87,
+                                    color: isDark
+                                        ? Colors.white
+                                        : Colors.black87,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -319,8 +291,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                   page.description,
                                   style: TextStyle(
                                     fontSize: 15,
-                                    color: (isDark ? Colors.white : Colors.black87)
-                                        .withValues(alpha: 0.7),
+                                    color:
+                                        (isDark ? Colors.white : Colors.black87)
+                                            .withValues(alpha: 0.7),
                                     height: 1.5,
                                   ),
                                   textAlign: TextAlign.center,
@@ -341,8 +314,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                       decoration: BoxDecoration(
                                         gradient: LinearGradient(
                                           colors: [
-                                            page.gradientColors[0].withValues(alpha: 0.1),
-                                            page.gradientColors[1].withValues(alpha: 0.05),
+                                            page.gradientColors[0].withValues(
+                                              alpha: 0.1,
+                                            ),
+                                            page.gradientColors[1].withValues(
+                                              alpha: 0.05,
+                                            ),
                                           ],
                                         ),
                                         borderRadius: BorderRadius.circular(20),
@@ -355,7 +332,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(
-                                            CupertinoIcons.checkmark_circle_fill,
+                                            CupertinoIcons
+                                                .checkmark_circle_fill,
                                             size: 16,
                                             color: page.gradientColors[0],
                                           ),
@@ -429,7 +407,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   side: BorderSide(
-                                    color: _pages[_currentPage].gradientColors[0]
+                                    color: _pages[_currentPage]
+                                        .gradientColors[0]
                                         .withValues(alpha: 0.3),
                                   ),
                                 ),
@@ -449,7 +428,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: _pages[_currentPage].gradientColors[0]
+                                    color: _pages[_currentPage]
+                                        .gradientColors[0]
                                         .withValues(alpha: 0.3),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),

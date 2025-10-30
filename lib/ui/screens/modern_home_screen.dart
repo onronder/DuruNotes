@@ -117,10 +117,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
               padding: EdgeInsets.all(DuruSpacing.md),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    DuruColors.primary,
-                    DuruColors.accent,
-                  ],
+                  colors: [DuruColors.primary, DuruColors.accent],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
@@ -142,36 +139,31 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
             ),
           ),
 
-          SliverToBoxAdapter(
-            child: SizedBox(height: DuruSpacing.md),
-          ),
+          SliverToBoxAdapter(child: SizedBox(height: DuruSpacing.md)),
 
           // Note list
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                // Placeholder for note cards
-                return Container(
-                  margin: EdgeInsets.symmetric(
-                    horizontal: DuruSpacing.md,
-                    vertical: DuruSpacing.sm,
-                  ),
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              childCount: 10,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              // Placeholder for note cards
+              return Container(
+                margin: EdgeInsets.symmetric(
+                  horizontal: DuruSpacing.md,
+                  vertical: DuruSpacing.sm,
+                ),
+                height: 120,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+              );
+            }, childCount: 10),
           ),
         ],
       ),
@@ -234,7 +226,9 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
               side: BorderSide(
                 color: isSelected
                     ? DuruColors.primary
-                    : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                    : Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.3),
               ),
               labelStyle: TextStyle(
                 color: isSelected
@@ -255,11 +249,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
   Widget _buildStatItem(String count, String label, IconData icon) {
     return Column(
       children: [
-        Icon(
-          icon,
-          color: Colors.white.withValues(alpha: 0.9),
-          size: 20,
-        ),
+        Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 20),
         SizedBox(height: DuruSpacing.xs),
         Text(
           count,
@@ -331,9 +321,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
             turns: _isFabExpanded ? 0.125 : 0,
             child: Icon(
               CupertinoIcons.add,
-              color: _isFabExpanded
-                  ? DuruColors.primary
-                  : Colors.white,
+              color: _isFabExpanded ? DuruColors.primary : Colors.white,
             ),
           ),
         ),
@@ -393,11 +381,7 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
             child: InkWell(
               onTap: onTap,
               customBorder: const CircleBorder(),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
-              ),
+              child: Icon(icon, color: Colors.white, size: 20),
             ),
           ),
         ),

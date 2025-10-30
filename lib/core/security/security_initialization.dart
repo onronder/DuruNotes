@@ -106,10 +106,7 @@ class SecurityInitialization {
         await prefs.setString('csrf_secret', csrfSecret);
       }
 
-      await _authGuard.initialize(
-        jwtSecret: jwtSecret,
-        csrfSecret: csrfSecret,
-      );
+      await _authGuard.initialize(jwtSecret: jwtSecret, csrfSecret: csrfSecret);
 
       // 6. Initialize Provider Error Recovery
       _providerErrorRecovery = ProviderErrorRecovery();
@@ -143,8 +140,10 @@ class SecurityInitialization {
 
   /// Generate a secure random secret
   static String _generateSecureSecret() {
-    final random = List.generate(32, (i) =>
-      DateTime.now().microsecondsSinceEpoch * i % 256);
+    final random = List.generate(
+      32,
+      (i) => DateTime.now().microsecondsSinceEpoch * i % 256,
+    );
     return base64Encode(random);
   }
 
@@ -192,5 +191,6 @@ extension SecurityContext on BuildContext {
   ErrorLoggingService get errorLogging => SecurityInitialization.errorLogging;
   RateLimitingMiddleware get rateLimiter => SecurityInitialization.rateLimiter;
   AuthenticationGuard get authGuard => SecurityInitialization.authGuard;
-  ProviderErrorRecovery get providerRecovery => SecurityInitialization.providerRecovery;
+  ProviderErrorRecovery get providerRecovery =>
+      SecurityInitialization.providerRecovery;
 }

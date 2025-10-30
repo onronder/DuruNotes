@@ -1,5 +1,4 @@
 #!/usr/bin/env dart
-
 // Test runner script for encryption and indexing verification tests
 //
 // This script runs comprehensive tests to verify that:

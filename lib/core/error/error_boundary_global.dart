@@ -29,7 +29,8 @@ class GlobalErrorBoundary extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<GlobalErrorBoundary> createState() => _GlobalErrorBoundaryState();
+  ConsumerState<GlobalErrorBoundary> createState() =>
+      _GlobalErrorBoundaryState();
 }
 
 class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
@@ -187,10 +188,7 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
     }
 
     // Use ErrorWidget.builder to catch widget build errors
-    return ErrorWidgetBuilder(
-      onError: _handleError,
-      child: widget.child,
-    );
+    return ErrorWidgetBuilder(onError: _handleError, child: widget.child);
   }
 
   Widget _buildErrorUI(BuildContext context) {
@@ -218,7 +216,9 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
-                            color: _getErrorColor(errorType).withValues(alpha: 0.1),
+                            color: _getErrorColor(
+                              errorType,
+                            ).withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -359,10 +359,7 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
               const SizedBox(height: 24),
               const Text(
                 'Recovering...',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Color(0xFF44474E),
-                ),
+                style: TextStyle(fontSize: 18, color: Color(0xFF44474E)),
               ),
             ],
           ),
@@ -392,10 +389,7 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
                 children: [
                   const Text(
                     'Error Details',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -422,8 +416,8 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
                       _buildDetailSection(
                         'Additional Info',
                         'Time: ${_lastErrorTime?.toLocal()}\n'
-                        'Error Count: $_errorCount\n'
-                        'App Version: ${_getAppVersion()}',
+                            'Error Count: $_errorCount\n'
+                            'App Version: ${_getAppVersion()}',
                       ),
                     ],
                   ),
@@ -463,7 +457,11 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
     );
   }
 
-  Widget _buildDetailSection(String title, String content, {bool isMonospace = false}) {
+  Widget _buildDetailSection(
+    String title,
+    String content, {
+    bool isMonospace = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -505,7 +503,8 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
     if (error is FormatException || error is TypeError) {
       return ErrorType.data;
     }
-    if (error.toString().contains('Permission') || error.toString().contains('denied')) {
+    if (error.toString().contains('Permission') ||
+        error.toString().contains('denied')) {
       return ErrorType.permission;
     }
     if (error is OutOfMemoryError || error.toString().contains('Memory')) {
@@ -575,7 +574,8 @@ class _GlobalErrorBoundaryState extends ConsumerState<GlobalErrorBoundary> {
   }
 
   void _copyErrorToClipboard() {
-    final errorText = '''
+    final errorText =
+        '''
 Error Report
 ============
 Time: ${_lastErrorTime?.toLocal()}
@@ -623,20 +623,13 @@ class _ErrorWidgetBuilderState extends State<ErrorWidgetBuilder> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                color: Colors.red,
-                size: 60,
-              ),
+              const Icon(Icons.error_outline, color: Colors.red, size: 60),
               const SizedBox(height: 16),
               Text(
                 kDebugMode
                     ? details.exception.toString()
                     : 'An error occurred while building this widget',
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Colors.black87, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -650,13 +643,7 @@ class _ErrorWidgetBuilderState extends State<ErrorWidgetBuilder> {
 }
 
 /// Error types for categorization
-enum ErrorType {
-  network,
-  data,
-  permission,
-  memory,
-  unknown,
-}
+enum ErrorType { network, data, permission, memory, unknown }
 
 /// Error reporting service interface
 abstract class ErrorReportingService {

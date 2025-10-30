@@ -8,8 +8,10 @@ import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/folders/note_folder_integration_service.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart' show noteFolderIntegrationServiceProvider, rootFoldersProvider;
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, visibleFolderNodesProvider;
+import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart'
+    show noteFolderIntegrationServiceProvider, rootFoldersProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderHierarchyProvider, visibleFolderNodesProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,11 +100,13 @@ class _EnhancedMoveToFolderDialogState
         });
       }
 
-      _logger.debug('Loaded recent folders for move dialog', data: {
-        'count': recentFolders.length,
-      });
+      _logger.debug(
+        'Loaded recent folders for move dialog',
+        data: {'count': recentFolders.length},
+      );
     } catch (e, stackTrace) {
-      _logger.error('Failed to load recent folders for move dialog',
+      _logger.error(
+        'Failed to load recent folders for move dialog',
         error: e,
         stackTrace: stackTrace,
       );
@@ -122,10 +126,7 @@ class _EnhancedMoveToFolderDialogState
       child: AlertDialog(
         title: Row(
           children: [
-            Icon(
-              Icons.folder_copy_rounded,
-              color: theme.colorScheme.primary,
-            ),
+            Icon(Icons.folder_copy_rounded, color: theme.colorScheme.primary),
             const SizedBox(width: 8),
             Text(
               'Move ${widget.noteIds.length} note${widget.noteIds.length == 1 ? '' : 's'}',
@@ -135,7 +136,9 @@ class _EnhancedMoveToFolderDialogState
             ),
           ],
         ),
-        content: _isMoving ? _buildProgressContent(theme) : _buildSelectionContent(theme, hierarchyState, visibleNodes),
+        content: _isMoving
+            ? _buildProgressContent(theme)
+            : _buildSelectionContent(theme, hierarchyState, visibleNodes),
         actions: _isMoving ? null : _buildActions(theme),
         contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
         actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -296,8 +299,8 @@ class _EnhancedMoveToFolderDialogState
             child: hierarchyState.isLoading
                 ? _buildLoadingState(theme)
                 : hierarchyState.error != null
-                    ? _buildErrorState(theme, hierarchyState.error!)
-                    : _buildFoldersList(theme, visibleNodes),
+                ? _buildErrorState(theme, hierarchyState.error!)
+                : _buildFoldersList(theme, visibleNodes),
           ),
         ],
       ),
@@ -329,7 +332,8 @@ class _EnhancedMoveToFolderDialogState
               final isSelected = _selectedFolderId == folder.id;
 
               return Semantics(
-                label: 'Recent folder ${folder.name}, ${isSelected ? 'selected' : 'not selected'}',
+                label:
+                    'Recent folder ${folder.name}, ${isSelected ? 'selected' : 'not selected'}',
                 selected: isSelected,
                 button: true,
                 child: FilterChip(
@@ -413,9 +417,7 @@ class _EnhancedMoveToFolderDialogState
   }
 
   Widget _buildLoadingState(ThemeData theme) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 
   Widget _buildErrorState(ThemeData theme, String error) {
@@ -423,11 +425,7 @@ class _EnhancedMoveToFolderDialogState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 48,
-            color: theme.colorScheme.error,
-          ),
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
           const SizedBox(height: 16),
           Text(
             'Error loading folders',
@@ -508,7 +506,8 @@ class _EnhancedMoveToFolderDialogState
     final isSelected = _selectedFolderId == null;
 
     return Semantics(
-      label: 'Unfiled option, ${isSelected ? 'selected' : 'not selected'}. Remove notes from any folder.',
+      label:
+          'Unfiled option, ${isSelected ? 'selected' : 'not selected'}. Remove notes from any folder.',
       selected: isSelected,
       button: true,
       child: Card(
@@ -540,9 +539,7 @@ class _EnhancedMoveToFolderDialogState
               _selectedFolderId = null;
             });
           },
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );
@@ -554,7 +551,8 @@ class _EnhancedMoveToFolderDialogState
     final indentWidth = node.level * 24.0;
 
     return Semantics(
-      label: 'Folder ${node.folder.name}${isCurrent ? ', current folder' : ''}${isSelected ? ', selected' : ''}${node.noteCount > 0 ? ', ${node.noteCount} notes' : ''}',
+      label:
+          'Folder ${node.folder.name}${isCurrent ? ', current folder' : ''}${isSelected ? ', selected' : ''}${node.noteCount > 0 ? ', ${node.noteCount} notes' : ''}',
       selected: isSelected,
       button: !isCurrent,
       excludeSemantics: true,
@@ -571,7 +569,8 @@ class _EnhancedMoveToFolderDialogState
             children: [
               if (node.hasChildren)
                 Semantics(
-                  label: '${node.isExpanded ? 'Collapse' : 'Expand'} ${node.folder.name} folder',
+                  label:
+                      '${node.isExpanded ? 'Collapse' : 'Expand'} ${node.folder.name} folder',
                   button: true,
                   child: IconButton(
                     onPressed: () {
@@ -596,9 +595,9 @@ class _EnhancedMoveToFolderDialogState
                 color: isCurrent
                     ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
                     : FolderIconHelpers.getFolderColor(node.folder.color) ??
-                        (isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant),
+                          (isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant),
                 size: 20,
               ),
             ],
@@ -609,8 +608,8 @@ class _EnhancedMoveToFolderDialogState
               color: isCurrent
                   ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
                   : isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface,
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface,
               fontWeight: isSelected ? FontWeight.w600 : null,
             ),
           ),
@@ -631,9 +630,7 @@ class _EnhancedMoveToFolderDialogState
                     _selectedFolderId = node.folder.id;
                   });
                 },
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );
@@ -641,7 +638,9 @@ class _EnhancedMoveToFolderDialogState
 
   List<Widget> _buildActions(ThemeData theme) {
     final isDisabled = _selectedFolderId == widget.currentFolderId;
-    final actionText = _selectedFolderId == null ? 'Remove from folder' : 'Move to folder';
+    final actionText = _selectedFolderId == null
+        ? 'Remove from folder'
+        : 'Move to folder';
 
     return [
       Semantics(
@@ -653,7 +652,9 @@ class _EnhancedMoveToFolderDialogState
         ),
       ),
       Semantics(
-        label: isDisabled ? 'Cannot move to current folder' : '$actionText for ${widget.noteIds.length} note${widget.noteIds.length == 1 ? '' : 's'}',
+        label: isDisabled
+            ? 'Cannot move to current folder'
+            : '$actionText for ${widget.noteIds.length} note${widget.noteIds.length == 1 ? '' : 's'}',
         button: !isDisabled,
         excludeSemantics: true,
         child: FilledButton(
@@ -681,13 +682,14 @@ class _EnhancedMoveToFolderDialogState
         ref.read(folderHierarchyProvider.notifier).refresh();
         ref.invalidate(rootFoldersProvider);
 
-        _logger.info('Created new folder in move dialog', data: {
-          'folderId': result.id,
-          'folderName': result.name,
-        });
+        _logger.info(
+          'Created new folder in move dialog',
+          data: {'folderId': result.id, 'folderName': result.name},
+        );
       }
     } catch (e, stackTrace) {
-      _logger.error('Failed to create folder in move dialog',
+      _logger.error(
+        'Failed to create folder in move dialog',
         error: e,
         stackTrace: stackTrace,
       );
@@ -722,20 +724,21 @@ class _EnhancedMoveToFolderDialogState
         Navigator.of(context).pop();
       }
 
-      _logger.info('Completed move operation in dialog', data: {
-        'noteCount': widget.noteIds.length,
-        'targetFolderId': _selectedFolderId,
-        'successCount': result.successCount,
-        'errorCount': result.errorCount,
-      });
+      _logger.info(
+        'Completed move operation in dialog',
+        data: {
+          'noteCount': widget.noteIds.length,
+          'targetFolderId': _selectedFolderId,
+          'successCount': result.successCount,
+          'errorCount': result.errorCount,
+        },
+      );
     } catch (e, stackTrace) {
-      _logger.error('Failed to move notes in dialog',
+      _logger.error(
+        'Failed to move notes in dialog',
         error: e,
         stackTrace: stackTrace,
-        data: {
-          'noteIds': widget.noteIds,
-          'targetFolderId': _selectedFolderId,
-        },
+        data: {'noteIds': widget.noteIds, 'targetFolderId': _selectedFolderId},
       );
 
       await Sentry.captureException(e, stackTrace: stackTrace);

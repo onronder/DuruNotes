@@ -100,7 +100,9 @@ class MigrationConfig {
   /// Gets the percentage of features that are enabled
   double get migrationProgress {
     if (enabledFeatures.isEmpty) return 0.0;
-    final enabledCount = enabledFeatures.values.where((enabled) => enabled).length;
+    final enabledCount = enabledFeatures.values
+        .where((enabled) => enabled)
+        .length;
     return enabledCount / enabledFeatures.length;
   }
 
@@ -131,7 +133,9 @@ class MigrationConfig {
       'search',
     ];
 
-    return requiredFeatures.every((feature) => enabledFeatures.containsKey(feature));
+    return requiredFeatures.every(
+      (feature) => enabledFeatures.containsKey(feature),
+    );
   }
 
   /// Checks if the configuration is ready for full migration
@@ -155,9 +159,7 @@ class MigrationConfig {
 
   @override
   int get hashCode =>
-      useDomainModels.hashCode ^
-      enabledFeatures.hashCode ^
-      version.hashCode;
+      useDomainModels.hashCode ^ enabledFeatures.hashCode ^ version.hashCode;
 
   /// Helper method for map equality comparison
   bool _mapEquals(Map<String, bool> map1, Map<String, bool> map2) {
@@ -192,9 +194,12 @@ class MigrationConfig {
   factory MigrationConfig.fromJson(Map<String, dynamic> json) {
     return MigrationConfig(
       useDomainModels: json['useDomainModels'] as bool? ?? false,
-      enabledFeatures: Map<String, bool>.from(json['enabledFeatures'] as Map? ?? {}),
+      enabledFeatures: Map<String, bool>.from(
+        json['enabledFeatures'] as Map? ?? {},
+      ),
       version: json['version'] as int? ?? 1,
-      configurationDate: DateTime.tryParse(json['configurationDate'] as String? ?? '') ??
+      configurationDate:
+          DateTime.tryParse(json['configurationDate'] as String? ?? '') ??
           DateTime.now(),
     );
   }
@@ -224,7 +229,7 @@ class MigrationConfigFactory {
   static MigrationConfig phase2Infrastructure() {
     return MigrationConfig.productionRollout(
       features: {
-        'notes': false,  // Still disabled for safety
+        'notes': false, // Still disabled for safety
         'folders': false,
         'templates': false,
         'tasks': false,
@@ -240,7 +245,7 @@ class MigrationConfigFactory {
   static MigrationConfig phase3Repository() {
     return MigrationConfig.productionRollout(
       features: {
-        'notes': false,  // UI still uses legacy
+        'notes': false, // UI still uses legacy
         'folders': false,
         'templates': false,
         'tasks': false,

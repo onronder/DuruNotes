@@ -106,7 +106,8 @@ class AttachmentMapper {
       'mimeType': blockData.mimeType,
       if (blockData.url != null) 'url': blockData.url,
       if (blockData.localPath != null) 'localPath': blockData.localPath,
-      if (blockData.thumbnailUrl != null) 'thumbnailUrl': blockData.thumbnailUrl,
+      if (blockData.thumbnailUrl != null)
+        'thumbnailUrl': blockData.thumbnailUrl,
       if (blockData.description != null) 'description': blockData.description,
     };
   }
@@ -194,7 +195,9 @@ class AttachmentMapper {
   }
 
   /// Convert list of database attachments to domain entities
-  static List<domain.Attachment> fromDatabaseList(List<LocalAttachment> attachments) {
+  static List<domain.Attachment> fromDatabaseList(
+    List<LocalAttachment> attachments,
+  ) {
     return attachments.map(fromDatabase).toList();
   }
 }

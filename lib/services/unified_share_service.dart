@@ -13,13 +13,7 @@ import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 
 /// Share formats supported by the app
-enum ShareFormat {
-  plainText,
-  markdown,
-  html,
-  json,
-  pdf,
-}
+enum ShareFormat { plainText, markdown, html, json, pdf }
 
 /// Share options for customizing the sharing experience
 class ShareOptions {
@@ -98,8 +92,9 @@ class UnifiedShareService {
       );
 
       // Determine the subject
-      final subject = options.customSubject ??
-                      (noteTitle.isNotEmpty ? noteTitle : 'Shared Note');
+      final subject =
+          options.customSubject ??
+          (noteTitle.isNotEmpty ? noteTitle : 'Shared Note');
 
       // Handle different share formats
       ShareResult result;
@@ -116,14 +111,16 @@ class UnifiedShareService {
 
       // Track analytics
       _analytics.endTiming('share_note');
-      _analytics.event('note_shared', properties: {
-        'format': options.format.name,
-        'include_metadata': options.includeMetadata,
-        'include_tasks': options.includeTasks,
-      });
+      _analytics.event(
+        'note_shared',
+        properties: {
+          'format': options.format.name,
+          'include_metadata': options.includeMetadata,
+          'include_tasks': options.includeTasks,
+        },
+      );
 
       return result;
-
     } catch (e, stack) {
       _logger.error('Failed to share note', error: e, stackTrace: stack);
       _analytics.endTiming('share_note');
@@ -142,7 +139,9 @@ class UnifiedShareService {
     try {
       _analytics.startTiming('share_multiple_notes');
 
-      _logger.debug('Sharing ${notes.length} notes with format: ${options.format}');
+      _logger.debug(
+        'Sharing ${notes.length} notes with format: ${options.format}',
+      );
 
       // Combine all notes content
       final combinedContent = await _combineNotesContent(notes, options);
@@ -164,15 +163,18 @@ class UnifiedShareService {
       }
 
       _analytics.endTiming('share_multiple_notes');
-      _analytics.event('multiple_notes_shared', properties: {
-        'count': notes.length,
-        'format': options.format.name,
-      });
+      _analytics.event(
+        'multiple_notes_shared',
+        properties: {'count': notes.length, 'format': options.format.name},
+      );
 
       return result;
-
     } catch (e, stack) {
-      _logger.error('Failed to share multiple notes', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to share multiple notes',
+        error: e,
+        stackTrace: stack,
+      );
       _analytics.endTiming('share_multiple_notes');
       return ShareResult(
         success: false,
@@ -194,9 +196,10 @@ class UnifiedShareService {
 
       await Clipboard.setData(ClipboardData(text: formattedContent));
 
-      _analytics.event('note_copied_to_clipboard', properties: {
-        'format': format.name,
-      });
+      _analytics.event(
+        'note_copied_to_clipboard',
+        properties: {'format': format.name},
+      );
 
       return true;
     } catch (e, stack) {
@@ -237,7 +240,8 @@ class UnifiedShareService {
 
       // Generate file path
       final tempDir = await resolveTemporaryDirectory();
-      final fileName = '${noteTitle.replaceAll(RegExp(r'[^\w\s-]'), '')}_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final fileName =
+          '${noteTitle.replaceAll(RegExp(r'[^\w\s-]'), '')}_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final filePath = outputPath ?? path.join(tempDir.path, fileName);
       final file = File(filePath);
 
@@ -256,13 +260,12 @@ class UnifiedShareService {
         await file.writeAsString(formattedContent);
       }
 
-      _analytics.event('note_exported', properties: {
-        'format': format.name,
-        'file_size': file.lengthSync(),
-      });
+      _analytics.event(
+        'note_exported',
+        properties: {'format': format.name, 'file_size': file.lengthSync()},
+      );
 
       return file;
-
     } catch (e, stack) {
       _logger.error('Failed to export as file', error: e, stackTrace: stack);
       return null;
@@ -315,8 +318,12 @@ class UnifiedShareService {
         buffer.writeln('<meta charset="UTF-8">');
         buffer.writeln('<title>${_escapeHtml(noteTitle)}</title>');
         buffer.writeln('<style>');
-        buffer.writeln('body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }');
-        buffer.writeln('pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }');
+        buffer.writeln(
+          'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }',
+        );
+        buffer.writeln(
+          'pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }',
+        );
         buffer.writeln('</style>');
         buffer.writeln('</head><body>');
 
@@ -326,8 +333,12 @@ class UnifiedShareService {
 
         if (options.includeMetadata) {
           buffer.writeln('<div class="metadata">');
-          buffer.writeln('<p><small>Created: ${noteCreatedAt.toLocal()}</small></p>');
-          buffer.writeln('<p><small>Updated: ${noteUpdatedAt.toLocal()}</small></p>');
+          buffer.writeln(
+            '<p><small>Created: ${noteCreatedAt.toLocal()}</small></p>',
+          );
+          buffer.writeln(
+            '<p><small>Updated: ${noteUpdatedAt.toLocal()}</small></p>',
+          );
           buffer.writeln('</div><hr>');
         }
 
@@ -349,11 +360,15 @@ class UnifiedShareService {
 
         if (options.includeTasks) {
           final tasks = await _getNoteTasks(note);
-          jsonData['tasks'] = tasks.map((task) => {
-            'id': _getTaskId(task),
-            'title': _getTaskTitle(task),
-            'completed': _isTaskCompleted(task),
-          }).toList();
+          jsonData['tasks'] = tasks
+              .map(
+                (task) => {
+                  'id': _getTaskId(task),
+                  'title': _getTaskTitle(task),
+                  'completed': _isTaskCompleted(task),
+                },
+              )
+              .toList();
         }
 
         buffer.write(const JsonEncoder.withIndent('  ').convert(jsonData));
@@ -390,10 +405,7 @@ class UnifiedShareService {
         buffer.writeln('\n---\n');
       }
 
-      final content = await _formatContent(
-        note: notes[i],
-        options: options,
-      );
+      final content = await _formatContent(note: notes[i], options: options);
       buffer.write(content);
     }
 
@@ -403,34 +415,34 @@ class UnifiedShareService {
   Future<ShareResult> _shareText(String content, String subject) async {
     try {
       await SharePlus.instance.share(
-        ShareParams(
-          text: content,
-          subject: subject,
-        ),
+        ShareParams(text: content, subject: subject),
       );
       return const ShareResult(success: true);
     } catch (e) {
       _logger.error('Failed to share text', error: e);
-      return ShareResult(
-        success: false,
-        message: e.toString(),
-      );
+      return ShareResult(success: false, message: e.toString());
     }
   }
 
-  Future<ShareResult> _shareHtml(dynamic note, String htmlContent, String subject) async {
+  Future<ShareResult> _shareHtml(
+    dynamic note,
+    String htmlContent,
+    String subject,
+  ) async {
     try {
       // Save HTML to temporary file
       final tempDir = await resolveTemporaryDirectory();
-      final htmlFile = File(path.join(tempDir.path, 'share_${DateTime.now().millisecondsSinceEpoch}.html'));
+      final htmlFile = File(
+        path.join(
+          tempDir.path,
+          'share_${DateTime.now().millisecondsSinceEpoch}.html',
+        ),
+      );
       await htmlFile.writeAsString(htmlContent);
 
       // Share the file
       final result = await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(htmlFile.path)],
-          subject: subject,
-        ),
+        ShareParams(files: [XFile(htmlFile.path)], subject: subject),
       );
 
       return ShareResult(
@@ -439,14 +451,15 @@ class UnifiedShareService {
       );
     } catch (e) {
       _logger.error('Failed to share HTML', error: e);
-      return ShareResult(
-        success: false,
-        message: e.toString(),
-      );
+      return ShareResult(success: false, message: e.toString());
     }
   }
 
-  Future<ShareResult> _sharePdf(dynamic note, String content, String subject) async {
+  Future<ShareResult> _sharePdf(
+    dynamic note,
+    String content,
+    String subject,
+  ) async {
     // PDF generation would require additional implementation
     _logger.warning('PDF sharing not yet implemented');
     return const ShareResult(
@@ -455,7 +468,11 @@ class UnifiedShareService {
     );
   }
 
-  Future<ShareResult> _shareMultiplePdf(List<dynamic> notes, String content, String subject) async {
+  Future<ShareResult> _shareMultiplePdf(
+    List<dynamic> notes,
+    String content,
+    String subject,
+  ) async {
     // PDF generation would require additional implementation
     _logger.warning('Multi-PDF sharing not yet implemented');
     return const ShareResult(
@@ -467,21 +484,27 @@ class UnifiedShareService {
   Future<ShareResult> _shareJson(List<dynamic> notes, String subject) async {
     try {
       final jsonData = {
-        'notes': await Future.wait(notes.map((note) async {
-          final tasks = await _getNoteTasks(note);
-          return {
-            'id': _getNoteId(note),
-            'title': _getNoteTitle(note),
-            'content': _getNoteContent(note),
-            'created_at': _getNoteCreatedAt(note).toIso8601String(),
-            'updated_at': _getNoteUpdatedAt(note).toIso8601String(),
-            'tasks': tasks.map((task) => {
-              'id': _getTaskId(task),
-              'title': _getTaskTitle(task),
-              'completed': _isTaskCompleted(task),
-            }).toList(),
-          };
-        })),
+        'notes': await Future.wait(
+          notes.map((note) async {
+            final tasks = await _getNoteTasks(note);
+            return {
+              'id': _getNoteId(note),
+              'title': _getNoteTitle(note),
+              'content': _getNoteContent(note),
+              'created_at': _getNoteCreatedAt(note).toIso8601String(),
+              'updated_at': _getNoteUpdatedAt(note).toIso8601String(),
+              'tasks': tasks
+                  .map(
+                    (task) => {
+                      'id': _getTaskId(task),
+                      'title': _getTaskTitle(task),
+                      'completed': _isTaskCompleted(task),
+                    },
+                  )
+                  .toList(),
+            };
+          }),
+        ),
         'exported_at': DateTime.now().toIso8601String(),
         'count': notes.length,
       };
@@ -490,14 +513,16 @@ class UnifiedShareService {
 
       // Save to file and share
       final tempDir = await resolveTemporaryDirectory();
-      final jsonFile = File(path.join(tempDir.path, 'notes_export_${DateTime.now().millisecondsSinceEpoch}.json'));
+      final jsonFile = File(
+        path.join(
+          tempDir.path,
+          'notes_export_${DateTime.now().millisecondsSinceEpoch}.json',
+        ),
+      );
       await jsonFile.writeAsString(jsonContent);
 
       final result = await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(jsonFile.path)],
-          subject: subject,
-        ),
+        ShareParams(files: [XFile(jsonFile.path)], subject: subject),
       );
 
       return ShareResult(
@@ -506,10 +531,7 @@ class UnifiedShareService {
       );
     } catch (e) {
       _logger.error('Failed to share JSON', error: e);
-      return ShareResult(
-        success: false,
-        message: e.toString(),
-      );
+      return ShareResult(success: false, message: e.toString());
     }
   }
 
@@ -523,13 +545,17 @@ class UnifiedShareService {
   String _getNoteTitle(dynamic note) {
     if (note is domain.Note) return note.title;
     // LocalNote.title doesn't exist post-encryption
-    throw UnsupportedError('LocalNote title access deprecated. Use domain.Note from repository instead.');
+    throw UnsupportedError(
+      'LocalNote title access deprecated. Use domain.Note from repository instead.',
+    );
   }
 
   String _getNoteContent(dynamic note) {
     if (note is domain.Note) return note.body;
     // LocalNote.body doesn't exist post-encryption
-    throw UnsupportedError('LocalNote content access deprecated. Use domain.Note from repository instead.');
+    throw UnsupportedError(
+      'LocalNote content access deprecated. Use domain.Note from repository instead.',
+    );
   }
 
   DateTime _getNoteCreatedAt(dynamic note) {
@@ -552,9 +578,9 @@ class UnifiedShareService {
       return [];
     } else {
       // Use legacy tasks
-      final localNote = await (_db.select(_db.localNotes)
-            ..where((n) => n.id.equals(noteId)))
-          .getSingleOrNull();
+      final localNote = await (_db.select(
+        _db.localNotes,
+      )..where((n) => n.id.equals(noteId))).getSingleOrNull();
       final userId = localNote?.userId;
       if (userId == null || userId.isEmpty) {
         return [];
@@ -572,7 +598,9 @@ class UnifiedShareService {
   String _getTaskTitle(dynamic task) {
     if (task is domain.Task) return task.title;
     // NoteTask.content doesn't exist post-encryption
-    throw UnsupportedError('NoteTask title access deprecated. Use domain.Task from repository instead.');
+    throw UnsupportedError(
+      'NoteTask title access deprecated. Use domain.Task from repository instead.',
+    );
   }
 
   bool _isTaskCompleted(dynamic task) {

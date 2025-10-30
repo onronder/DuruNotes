@@ -16,7 +16,8 @@ import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/domain/repositories/i_template_repository.dart';
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
     show ftsIndexingServiceProvider, notesCoreRepositoryProvider;
-import 'package:duru_notes/core/providers/search_providers.dart' show noteIndexerProvider;
+import 'package:duru_notes/core/providers/search_providers.dart'
+    show noteIndexerProvider;
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart'
     show taskCoreRepositoryProvider;
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
@@ -47,14 +48,7 @@ class SearchResultItem {
   final List<String> highlights;
 }
 
-enum SearchResultType {
-  note,
-  task,
-  folder,
-  template,
-  tag,
-  attachment,
-}
+enum SearchResultType { note, task, folder, template, tag, attachment }
 
 /// Search options
 class SearchOptions {
@@ -97,12 +91,7 @@ class SearchOptions {
   final bool searchInTags;
 }
 
-enum SearchSortBy {
-  relevance,
-  date,
-  title,
-  type,
-}
+enum SearchSortBy { relevance, date, title, type }
 
 class DateTimeRange {
   const DateTimeRange({required this.start, required this.end});
@@ -142,14 +131,14 @@ class UnifiedSearchService {
     required ITemplateRepository templateRepository,
     required NoteIndexer noteIndexer,
     FTSIndexingService? ftsService,
-  })  : _notesRepository = notesRepository,
-        _taskRepository = taskRepository,
-        _folderRepository = folderRepository,
-        _templateRepository = templateRepository,
-        _noteIndexer = noteIndexer,
-        _ftsService = ftsService,
-        _logger = LoggerFactory.instance,
-        _uuid = const Uuid();
+  }) : _notesRepository = notesRepository,
+       _taskRepository = taskRepository,
+       _folderRepository = folderRepository,
+       _templateRepository = templateRepository,
+       _noteIndexer = noteIndexer,
+       _ftsService = ftsService,
+       _logger = LoggerFactory.instance,
+       _uuid = const Uuid();
 
   final Ref ref;
   final MigrationConfig migrationConfig;
@@ -186,11 +175,16 @@ class UnifiedSearchService {
         // Index all notes in background
         _indexAllNotesInBackground();
       } else {
-        _logger.info('[UnifiedSearch] FTS service not available, using in-memory search');
+        _logger.info(
+          '[UnifiedSearch] FTS service not available, using in-memory search',
+        );
       }
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] FTS initialization failed, falling back to in-memory search',
-          error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] FTS initialization failed, falling back to in-memory search',
+        error: e,
+        stackTrace: stack,
+      );
       _ftsInitialized = false;
     }
   }
@@ -211,15 +205,26 @@ class UnifiedSearchService {
           );
         }
 
-        _logger.info('[UnifiedSearch] Background indexing complete: ${notes.length} notes');
+        _logger.info(
+          '[UnifiedSearch] Background indexing complete: ${notes.length} notes',
+        );
       } catch (e, stack) {
-        _logger.error('[UnifiedSearch] Background indexing failed', error: e, stackTrace: stack);
+        _logger.error(
+          '[UnifiedSearch] Background indexing failed',
+          error: e,
+          stackTrace: stack,
+        );
       }
     });
   }
 
   /// Index a single note (call after create/update)
-  Future<void> indexNote(String noteId, String title, String body, List<String> tags) async {
+  Future<void> indexNote(
+    String noteId,
+    String title,
+    String body,
+    List<String> tags,
+  ) async {
     if (_ftsService == null || !_ftsInitialized) return;
 
     try {
@@ -231,7 +236,11 @@ class UnifiedSearchService {
       );
       _logger.debug('[UnifiedSearch] Indexed note: $noteId');
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to index note $noteId', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to index note $noteId',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -243,7 +252,11 @@ class UnifiedSearchService {
       await _ftsService.removeNote(noteId);
       _logger.debug('[UnifiedSearch] Removed note from index: $noteId');
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to remove note from index', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to remove note from index',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -263,10 +276,12 @@ class UnifiedSearchService {
       _logger.info('[UnifiedSearch] Searching for: $query');
 
       // Check cache
-      final cacheKey = '$query:${json.encode(options.types.map((t) => t.name).toList())}';
+      final cacheKey =
+          '$query:${json.encode(options.types.map((t) => t.name).toList())}';
       if (_searchCache.containsKey(cacheKey)) {
         final timestamp = _cacheTimestamps[cacheKey];
-        if (timestamp != null && DateTime.now().difference(timestamp) < _cacheExpiration) {
+        if (timestamp != null &&
+            DateTime.now().difference(timestamp) < _cacheExpiration) {
           _logger.info('[UnifiedSearch] Returning cached results');
           return _searchCache[cacheKey]!;
         }
@@ -333,13 +348,20 @@ class UnifiedSearchService {
 
       return paginatedResults;
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Search failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Search failed',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   /// Search for notes
-  Future<List<SearchResultItem>> _searchNotes(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _searchNotes(
+    String query,
+    SearchOptions options,
+  ) async {
     try {
       // Use FTS if available, otherwise fall back to in-memory search
       if (isFTSEnabled) {
@@ -348,13 +370,20 @@ class UnifiedSearchService {
         return await _searchNotesInMemory(query, options);
       }
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Note search failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Note search failed',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   /// Search notes using FTS (production-grade encrypted search)
-  Future<List<SearchResultItem>> _searchNotesWithFTS(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _searchNotesWithFTS(
+    String query,
+    SearchOptions options,
+  ) async {
     try {
       _logger.debug('[UnifiedSearch] Using FTS for note search');
 
@@ -371,27 +400,38 @@ class UnifiedSearchService {
         final note = noteMap[ftsResult.noteId];
         if (note == null) continue;
 
-        results.add(SearchResultItem(
-          type: SearchResultType.note,
-          data: note,
-          title: note.title,
-          subtitle: _truncateText(note.body, 100),
-          score: ftsResult.score, // Use TF-IDF score from FTS
-          snippet: ftsResult.snippet,
-          highlights: ftsResult.highlightedTerms,
-        ));
+        results.add(
+          SearchResultItem(
+            type: SearchResultType.note,
+            data: note,
+            title: note.title,
+            subtitle: _truncateText(note.body, 100),
+            score: ftsResult.score, // Use TF-IDF score from FTS
+            snippet: ftsResult.snippet,
+            highlights: ftsResult.highlightedTerms,
+          ),
+        );
       }
 
-      _logger.debug('[UnifiedSearch] FTS returned ${results.length} note results');
+      _logger.debug(
+        '[UnifiedSearch] FTS returned ${results.length} note results',
+      );
       return results;
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] FTS search failed, falling back to in-memory', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] FTS search failed, falling back to in-memory',
+        error: e,
+        stackTrace: stack,
+      );
       return await _searchNotesInMemory(query, options);
     }
   }
 
   /// Search notes using in-memory filtering (fallback)
-  Future<List<SearchResultItem>> _searchNotesInMemory(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _searchNotesInMemory(
+    String query,
+    SearchOptions options,
+  ) async {
     try {
       _logger.debug('[UnifiedSearch] Using NoteIndexer for note search');
 
@@ -448,22 +488,33 @@ class UnifiedSearchService {
         return _legacyInMemorySearch(query, options);
       }
 
-      return matchedNotes.map((note) => SearchResultItem(
-        type: SearchResultType.note,
-        data: note,
-        title: note.title,
-        subtitle: _truncateText(note.body, 100),
-        score: _calculateRelevanceScore(query, note.title, note.body),
-        snippet: _extractSnippet(note.body, query),
-        highlights: _findHighlights(note.body, query),
-      )).toList();
+      return matchedNotes
+          .map(
+            (note) => SearchResultItem(
+              type: SearchResultType.note,
+              data: note,
+              title: note.title,
+              subtitle: _truncateText(note.body, 100),
+              score: _calculateRelevanceScore(query, note.title, note.body),
+              snippet: _extractSnippet(note.body, query),
+              highlights: _findHighlights(note.body, query),
+            ),
+          )
+          .toList();
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] In-memory note search failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] In-memory note search failed',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
-  Future<List<SearchResultItem>> _legacyInMemorySearch(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _legacyInMemorySearch(
+    String query,
+    SearchOptions options,
+  ) async {
     final allNotes = await _notesRepository.localNotes();
     final queryLower = query.toLowerCase();
     return allNotes
@@ -471,7 +522,8 @@ class UnifiedSearchService {
           final titleLower = note.title.toLowerCase();
           final bodyLower = note.body.toLowerCase();
 
-          final matchesQuery = queryLower.isEmpty ||
+          final matchesQuery =
+              queryLower.isEmpty ||
               titleLower.contains(queryLower) ||
               bodyLower.contains(queryLower);
           if (!matchesQuery) return false;
@@ -489,40 +541,60 @@ class UnifiedSearchService {
           }
           return true;
         })
-        .map((note) => SearchResultItem(
-              type: SearchResultType.note,
-              data: note,
-              title: note.title,
-              subtitle: _truncateText(note.body, 100),
-              score: _calculateRelevanceScore(query, note.title, note.body),
-              snippet: _extractSnippet(note.body, query),
-              highlights: _findHighlights(note.body, query),
-            ))
+        .map(
+          (note) => SearchResultItem(
+            type: SearchResultType.note,
+            data: note,
+            title: note.title,
+            subtitle: _truncateText(note.body, 100),
+            score: _calculateRelevanceScore(query, note.title, note.body),
+            snippet: _extractSnippet(note.body, query),
+            highlights: _findHighlights(note.body, query),
+          ),
+        )
         .toList();
   }
 
   /// Search for tasks
-  Future<List<SearchResultItem>> _searchTasks(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _searchTasks(
+    String query,
+    SearchOptions options,
+  ) async {
     try {
       // Search tasks (repository handles decryption and filtering)
       final tasks = await _taskRepository.searchTasks(query);
 
-      return tasks.map((task) => SearchResultItem(
-        type: SearchResultType.task,
-        data: task,
-        title: task.title,
-        subtitle: task.description ?? _getTaskStatusText(task.status),
-        score: _calculateRelevanceScore(query, task.title, task.description ?? ''),
-        snippet: _extractSnippet(task.description ?? '', query),
-      )).toList();
+      return tasks
+          .map(
+            (task) => SearchResultItem(
+              type: SearchResultType.task,
+              data: task,
+              title: task.title,
+              subtitle: task.description ?? _getTaskStatusText(task.status),
+              score: _calculateRelevanceScore(
+                query,
+                task.title,
+                task.description ?? '',
+              ),
+              snippet: _extractSnippet(task.description ?? '', query),
+            ),
+          )
+          .toList();
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Task search failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Task search failed',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   /// Search for folders
-  Future<List<SearchResultItem>> _searchFolders(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _searchFolders(
+    String query,
+    SearchOptions options,
+  ) async {
     try {
       // Get all folders
       final folders = await _folderRepository.listFolders();
@@ -534,21 +606,36 @@ class UnifiedSearchService {
         return name.contains(queryLower);
       }).toList();
 
-      return filtered.map((folder) => SearchResultItem(
-        type: SearchResultType.folder,
-        data: folder,
-        title: folder.name,
-        subtitle: folder.description ?? '',
-        score: _calculateRelevanceScore(query, folder.name, folder.description ?? ''),
-      )).toList();
+      return filtered
+          .map(
+            (folder) => SearchResultItem(
+              type: SearchResultType.folder,
+              data: folder,
+              title: folder.name,
+              subtitle: folder.description ?? '',
+              score: _calculateRelevanceScore(
+                query,
+                folder.name,
+                folder.description ?? '',
+              ),
+            ),
+          )
+          .toList();
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Folder search failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Folder search failed',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   /// Search for templates
-  Future<List<SearchResultItem>> _searchTemplates(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _searchTemplates(
+    String query,
+    SearchOptions options,
+  ) async {
     try {
       // Get all templates
       final templates = await _templateRepository.getAllTemplates();
@@ -561,22 +648,37 @@ class UnifiedSearchService {
         return name.contains(queryLower) || content.contains(queryLower);
       }).toList();
 
-      return filtered.map((template) => SearchResultItem(
-        type: SearchResultType.template,
-        data: template,
-        title: template.name,
-        subtitle: _truncateText(template.content, 100),
-        score: _calculateRelevanceScore(query, template.name, template.content),
-        snippet: _extractSnippet(template.content, query),
-      )).toList();
+      return filtered
+          .map(
+            (template) => SearchResultItem(
+              type: SearchResultType.template,
+              data: template,
+              title: template.name,
+              subtitle: _truncateText(template.content, 100),
+              score: _calculateRelevanceScore(
+                query,
+                template.name,
+                template.content,
+              ),
+              snippet: _extractSnippet(template.content, query),
+            ),
+          )
+          .toList();
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Template search failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Template search failed',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   /// Search for tags
-  Future<List<SearchResultItem>> _searchTags(String query, SearchOptions options) async {
+  Future<List<SearchResultItem>> _searchTags(
+    String query,
+    SearchOptions options,
+  ) async {
     try {
       // TODO: Add tag repository when available
       // For now, search tags by getting all notes and extracting tags
@@ -588,7 +690,7 @@ class UnifiedSearchService {
         for (final tag in tags) {
           tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
         }
-            }
+      }
 
       // Filter by query
       final queryLower = query.toLowerCase();
@@ -596,15 +698,23 @@ class UnifiedSearchService {
         return entry.key.toLowerCase().contains(queryLower);
       }).toList();
 
-      return filtered.map((entry) => SearchResultItem(
-        type: SearchResultType.tag,
-        data: entry.key,
-        title: entry.key,
-        subtitle: '${entry.value} notes',
-        score: _calculateRelevanceScore(query, entry.key, ''),
-      )).toList();
+      return filtered
+          .map(
+            (entry) => SearchResultItem(
+              type: SearchResultType.tag,
+              data: entry.key,
+              title: entry.key,
+              subtitle: '${entry.value} notes',
+              score: _calculateRelevanceScore(query, entry.key, ''),
+            ),
+          )
+          .toList();
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Tag search failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Tag search failed',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -632,14 +742,20 @@ class UnifiedSearchService {
       );
 
       // TODO: Implement saved search repository
-      _logger.info('[UnifiedSearch] Saved search functionality pending repository implementation');
+      _logger.info(
+        '[UnifiedSearch] Saved search functionality pending repository implementation',
+      );
 
       // Track analytics
       await _trackSavedSearch(name);
 
       return savedSearch;
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to save search', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to save search',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -648,22 +764,36 @@ class UnifiedSearchService {
   Future<List<saved_search.SavedSearch>> getSavedSearches() async {
     try {
       // TODO: Implement saved search repository
-      _logger.info('[UnifiedSearch] Saved search functionality pending repository implementation');
+      _logger.info(
+        '[UnifiedSearch] Saved search functionality pending repository implementation',
+      );
       return [];
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to get saved searches', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to get saved searches',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
 
   /// Execute a saved search
-  Future<List<SearchResultItem>> executeSavedSearch(String savedSearchId) async {
+  Future<List<SearchResultItem>> executeSavedSearch(
+    String savedSearchId,
+  ) async {
     try {
       // TODO: Implement saved search repository
-      _logger.info('[UnifiedSearch] Saved search functionality pending repository implementation');
+      _logger.info(
+        '[UnifiedSearch] Saved search functionality pending repository implementation',
+      );
       return [];
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to execute saved search', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to execute saved search',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -672,10 +802,16 @@ class UnifiedSearchService {
   Future<bool> deleteSavedSearch(String savedSearchId) async {
     try {
       // TODO: Implement saved search repository
-      _logger.info('[UnifiedSearch] Saved search functionality pending repository implementation');
+      _logger.info(
+        '[UnifiedSearch] Saved search functionality pending repository implementation',
+      );
       return true;
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to delete saved search', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to delete saved search',
+        error: e,
+        stackTrace: stack,
+      );
       return false;
     }
   }
@@ -687,7 +823,10 @@ class UnifiedSearchService {
 
       // Add from history
       final historyMatches = _searchHistory
-          .where((item) => item.query.toLowerCase().startsWith(partial.toLowerCase()))
+          .where(
+            (item) =>
+                item.query.toLowerCase().startsWith(partial.toLowerCase()),
+          )
           .map((item) => item.query)
           .take(5);
       suggestions.addAll(historyMatches);
@@ -698,7 +837,7 @@ class UnifiedSearchService {
       for (final note in notes) {
         final tags = note.tags;
         allTags.addAll(tags);
-            }
+      }
       final tagMatches = allTags
           .where((tag) => tag.toLowerCase().contains(partial.toLowerCase()))
           .map((tag) => '#$tag')
@@ -708,7 +847,11 @@ class UnifiedSearchService {
       // Remove duplicates and limit
       return suggestions.toSet().take(10).toList();
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to get suggestions', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to get suggestions',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -744,10 +887,16 @@ class UnifiedSearchService {
   Future<List<String>> getPopularSearches({int limit = 10}) async {
     try {
       // TODO: Implement saved search repository
-      _logger.info('[UnifiedSearch] Saved search functionality pending repository implementation');
+      _logger.info(
+        '[UnifiedSearch] Saved search functionality pending repository implementation',
+      );
       return [];
     } catch (e, stack) {
-      _logger.error('[UnifiedSearch] Failed to get popular searches', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedSearch] Failed to get popular searches',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -856,12 +1005,14 @@ class UnifiedSearchService {
 
   /// Add search to history
   void _addToHistory(String query, int resultCount, SearchOptions options) {
-    _searchHistory.add(SearchHistoryItem(
-      query: query,
-      timestamp: DateTime.now(),
-      resultCount: resultCount,
-      options: options,
-    ));
+    _searchHistory.add(
+      SearchHistoryItem(
+        query: query,
+        timestamp: DateTime.now(),
+        resultCount: resultCount,
+        options: options,
+      ),
+    );
 
     // Limit history size
     if (_searchHistory.length > _maxHistoryItems) {
@@ -873,11 +1024,14 @@ class UnifiedSearchService {
   Future<void> _trackSearch(String query, int resultCount) async {
     try {
       final analytics = ref.read(analyticsProvider);
-      analytics.event('search_performed', properties: {
-        'query_length': query.length,
-        'result_count': resultCount,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      analytics.event(
+        'search_performed',
+        properties: {
+          'query_length': query.length,
+          'result_count': resultCount,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
     } catch (e) {
       _logger.warning('[UnifiedSearch] Failed to track search');
     }
@@ -887,10 +1041,13 @@ class UnifiedSearchService {
   Future<void> _trackSavedSearch(String name) async {
     try {
       final analytics = ref.read(analyticsProvider);
-      analytics.event('search_saved', properties: {
-        'name': name,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
+      analytics.event(
+        'search_saved',
+        properties: {
+          'name': name,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
     } catch (e) {
       _logger.warning('[UnifiedSearch] Failed to track saved search');
     }

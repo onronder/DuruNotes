@@ -73,25 +73,33 @@ void main() {
       activeUser = mockUserA;
       when(mockAuth.currentUser).thenAnswer((_) => activeUser);
 
-      when(mockNoteApi.fetchEncryptedNotes(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchEncryptedFolders(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchNoteTasks(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchTemplates(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchNoteFolderRelations(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchNoteFolderRelations())
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.upsertEncryptedNote(
-        id: anyNamed('id'),
-        titleEnc: anyNamed('titleEnc'),
-        propsEnc: anyNamed('propsEnc'),
-        deleted: anyNamed('deleted'),
-        createdAt: anyNamed('createdAt'),
-      )).thenAnswer((_) async {});
+      when(
+        mockNoteApi.fetchEncryptedNotes(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchEncryptedFolders(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchNoteTasks(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchTemplates(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchNoteFolderRelations(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchNoteFolderRelations(),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.upsertEncryptedNote(
+          id: anyNamed('id'),
+          titleEnc: anyNamed('titleEnc'),
+          propsEnc: anyNamed('propsEnc'),
+          deleted: anyNamed('deleted'),
+          createdAt: anyNamed('createdAt'),
+        ),
+      ).thenAnswer((_) async {});
 
       final secureApi = SecureApiWrapper.testing(
         api: mockNoteApi,
@@ -120,25 +128,25 @@ void main() {
 
     Future<domain.Note?> createNoteFor(MockUser? user, String title) async {
       activeUser = user;
-      return notesRepository.createOrUpdate(
-        title: title,
-        body: '$title body',
-      );
+      return notesRepository.createOrUpdate(title: title, body: '$title body');
     }
 
     Future<List<String>> dbTagsFor(String noteId) async {
-      final rows = await (db.select(db.noteTags)
-            ..where((t) => t.noteId.equals(noteId)))
-          .get();
+      final rows = await (db.select(
+        db.noteTags,
+      )..where((t) => t.noteId.equals(noteId))).get();
       return rows.map((row) => row.tag).toList();
     }
 
-    test('listTagsWithCounts returns empty when user not authenticated', () async {
-      activeUser = null;
+    test(
+      'listTagsWithCounts returns empty when user not authenticated',
+      () async {
+        activeUser = null;
 
-      final tags = await tagRepository.listTagsWithCounts();
-      expect(tags, isEmpty);
-    });
+        final tags = await tagRepository.listTagsWithCounts();
+        expect(tags, isEmpty);
+      },
+    );
 
     test('addTag only persists for owning user', () async {
       final note = await createNoteFor(mockUserA, 'User A');
@@ -157,9 +165,9 @@ void main() {
       expect(afterForeignAdd, contains('alpha'));
       expect(afterForeignAdd, isNot(contains('beta')));
 
-      final pendingOps =
-          await (db.select(db.pendingOps)..where((op) => op.userId.equals('user-a')))
-              .get();
+      final pendingOps = await (db.select(
+        db.pendingOps,
+      )..where((op) => op.userId.equals('user-a'))).get();
       expect(pendingOps, isNotEmpty);
       expect(pendingOps.every((op) => op.userId == 'user-a'), isTrue);
     });

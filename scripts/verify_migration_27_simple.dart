@@ -15,7 +15,8 @@ void main() async {
   print('\n=== Migration 27 Integration Verification ===\n');
 
   final appDbPath = 'lib/data/local/app_db.dart';
-  final migration27Path = 'lib/data/migrations/migration_27_performance_indexes.dart';
+  final migration27Path =
+      'lib/data/migrations/migration_27_performance_indexes.dart';
 
   // Check files exist
   if (!File(appDbPath).existsSync()) {
@@ -46,7 +47,9 @@ void main() async {
 
   // Test 2: Check import statement
   print('Test 2: Migration 27 import exists');
-  if (appDbContent.contains("import 'package:duru_notes/data/migrations/migration_27_performance_indexes.dart'")) {
+  if (appDbContent.contains(
+    "import 'package:duru_notes/data/migrations/migration_27_performance_indexes.dart'",
+  )) {
     print('  ✅ PASS: Migration 27 import found\n');
     passed++;
   } else {
@@ -77,7 +80,9 @@ void main() async {
 
   // Test 5: Check migration has verify method
   print('Test 5: Migration file has verify method');
-  if (migration27Content.contains('static Future<bool> verify(DatabaseConnectionUser db)')) {
+  if (migration27Content.contains(
+    'static Future<bool> verify(DatabaseConnectionUser db)',
+  )) {
     print('  ✅ PASS: Migration verify method exists\n');
     passed++;
   } else {
@@ -148,7 +153,9 @@ void main() async {
     print('\n✅ SUCCESS: Migration 27 is properly integrated!\n');
     print('Next steps:');
     print('  1. Run the app and verify indexes are created');
-    print('  2. Check database with: SELECT name FROM sqlite_master WHERE type=\'index\' AND name LIKE \'idx_%\'');
+    print(
+      '  2. Check database with: SELECT name FROM sqlite_master WHERE type=\'index\' AND name LIKE \'idx_%\'',
+    );
     print('  3. Monitor query performance improvements\n');
     exit(0);
   } else {

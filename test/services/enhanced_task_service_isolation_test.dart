@@ -71,18 +71,20 @@ void main() {
       required String noteId,
       required String userId,
     }) async {
-      await database.into(database.localNotes).insert(
-        db.LocalNotesCompanion.insert(
-          id: noteId,
-          userId: Value(userId),
-          titleEncrypted: const Value('seed-title'),
-          bodyEncrypted: const Value('seed-body'),
-          encryptionVersion: const Value(1),
-          deleted: const Value(false),
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      );
+      await database
+          .into(database.localNotes)
+          .insert(
+            db.LocalNotesCompanion.insert(
+              id: noteId,
+              userId: Value(userId),
+              titleEncrypted: const Value('seed-title'),
+              bodyEncrypted: const Value('seed-body'),
+              encryptionVersion: const Value(1),
+              deleted: const Value(false),
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ),
+          );
     }
 
     setUp(() {
@@ -94,8 +96,9 @@ void main() {
       mockReminderBridge = MockTaskReminderBridge();
 
       when(mockSupabase.auth).thenReturn(mockAuth);
-      when(mockAuth.currentUser)
-          .thenAnswer((_) => currentUserId == null ? null : mockUser);
+      when(
+        mockAuth.currentUser,
+      ).thenAnswer((_) => currentUserId == null ? null : mockUser);
       when(mockUser.id).thenAnswer((_) => currentUserId ?? '');
 
       repository = TaskCoreRepository(
@@ -147,8 +150,10 @@ void main() {
 
     test('updateTask requires authenticated user', () async {
       await seedNote(noteId: 'note-a', userId: 'user-a');
-      final taskId =
-          await createTaskForCurrentUser(noteId: 'note-a', title: 'Alpha');
+      final taskId = await createTaskForCurrentUser(
+        noteId: 'note-a',
+        title: 'Alpha',
+      );
 
       signOut();
 
@@ -160,16 +165,20 @@ void main() {
 
     test('deleteTask cannot remove tasks owned by another user', () async {
       await seedNote(noteId: 'note-a', userId: 'user-a');
-      final taskId =
-          await createTaskForCurrentUser(noteId: 'note-a', title: 'Alpha');
+      final taskId = await createTaskForCurrentUser(
+        noteId: 'note-a',
+        title: 'Alpha',
+      );
 
       signIn('user-b');
       await service.deleteTask(taskId);
 
-      final userATask =
-          await database.getTaskById(taskId, userId: 'user-a');
-      expect(userATask, isNotNull,
-          reason: 'User B should not be able to delete User A task');
+      final userATask = await database.getTaskById(taskId, userId: 'user-a');
+      expect(
+        userATask,
+        isNotNull,
+        reason: 'User B should not be able to delete User A task',
+      );
       verifyZeroInteractions(mockReminderBridge);
     });
   });

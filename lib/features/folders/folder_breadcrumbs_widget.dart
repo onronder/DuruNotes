@@ -135,7 +135,8 @@ class FolderBreadcrumbsWidget extends ConsumerWidget {
           Icon(
             icon,
             size: 16,
-            color: color ??
+            color:
+                color ??
                 (isLast
                     ? Theme.of(context).colorScheme.onPrimaryContainer
                     : Theme.of(context).colorScheme.onSurfaceVariant),

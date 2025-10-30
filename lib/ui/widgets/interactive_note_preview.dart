@@ -17,8 +17,7 @@ class InteractiveNotePreview extends StatefulWidget {
   final ColorScheme colorScheme;
 
   @override
-  State<InteractiveNotePreview> createState() =>
-      _InteractiveNotePreviewState();
+  State<InteractiveNotePreview> createState() => _InteractiveNotePreviewState();
 }
 
 class _InteractiveNotePreviewState extends State<InteractiveNotePreview> {
@@ -52,27 +51,25 @@ class _InteractiveNotePreviewState extends State<InteractiveNotePreview> {
         final text = trimmed.substring(5).trim();
         final indentLevel = (line.length - trimmed.length) ~/ 2;
 
-        blocks.add(_ContentBlock(
-          type: _BlockType.todo,
-          content: text,
-          lineIndex: i,
-          isCompleted: isCompleted,
-          indentLevel: indentLevel,
-        ));
+        blocks.add(
+          _ContentBlock(
+            type: _BlockType.todo,
+            content: text,
+            lineIndex: i,
+            isCompleted: isCompleted,
+            indentLevel: indentLevel,
+          ),
+        );
       } else if (line.trim().isNotEmpty) {
         // Regular text
-        blocks.add(_ContentBlock(
-          type: _BlockType.text,
-          content: line,
-          lineIndex: i,
-        ));
+        blocks.add(
+          _ContentBlock(type: _BlockType.text, content: line, lineIndex: i),
+        );
       } else {
         // Empty line for spacing
-        blocks.add(_ContentBlock(
-          type: _BlockType.empty,
-          content: '',
-          lineIndex: i,
-        ));
+        blocks.add(
+          _ContentBlock(type: _BlockType.empty, content: '', lineIndex: i),
+        );
       }
     }
 
@@ -147,8 +144,9 @@ class _InteractiveNotePreviewState extends State<InteractiveNotePreview> {
                           decoration: block.isCompleted
                               ? TextDecoration.lineThrough
                               : null,
-                          decorationColor:
-                              isDark ? Colors.white54 : Colors.black54,
+                          decorationColor: isDark
+                              ? Colors.white54
+                              : Colors.black54,
                         ),
                       ),
                     ),
@@ -194,18 +192,11 @@ class _InteractiveNotePreviewState extends State<InteractiveNotePreview> {
     }
 
     // Regular text
-    return Text(
-      text,
-      style: baseStyle,
-    );
+    return Text(text, style: baseStyle);
   }
 }
 
-enum _BlockType {
-  todo,
-  text,
-  empty,
-}
+enum _BlockType { todo, text, empty }
 
 class _ContentBlock {
   final _BlockType type;

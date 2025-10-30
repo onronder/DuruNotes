@@ -131,8 +131,9 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
     _focusedBlockIndex = widget.focusedBlockIndex;
     _initializeControllers();
 
-    _logger
-        .info('UnifiedBlockEditor initialized with ${_blocks.length} blocks');
+    _logger.info(
+      'UnifiedBlockEditor initialized with ${_blocks.length} blocks',
+    );
   }
 
   @override
@@ -166,8 +167,9 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
     for (int i = 0; i < _blocks.length; i++) {
       newKeys.add(i);
       if (!_controllers.containsKey(i)) {
-        _controllers[i] =
-            TextEditingController(text: _blocks[i].data.toString());
+        _controllers[i] = TextEditingController(
+          text: _blocks[i].data.toString(),
+        );
         _focusNodes[i] = FocusNode();
       } else {
         // Update existing controller if text changed
@@ -207,8 +209,9 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
             Expanded(
               child: ReorderableListView.builder(
                 buildDefaultDragHandles: widget.config.allowReordering,
-                onReorder:
-                    widget.config.allowReordering ? _onReorder : (_, _) {},
+                onReorder: widget.config.allowReordering
+                    ? _onReorder
+                    : (_, _) {},
                 padding: widget.config.padding ?? const EdgeInsets.all(16),
                 itemCount: _blocks.length,
                 itemBuilder: (context, index) {
@@ -240,10 +243,7 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
+          bottom: BorderSide(color: Theme.of(context).dividerColor, width: 1),
         ),
       ),
       child: Row(
@@ -291,16 +291,13 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       child: Container(
-        margin: EdgeInsets.only(
-          bottom: widget.config.blockSpacing ?? 8,
-        ),
+        margin: EdgeInsets.only(bottom: widget.config.blockSpacing ?? 8),
         decoration: isFocused
             ? BoxDecoration(
                 border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.3),
                   width: 2,
                 ),
                 borderRadius: BorderRadius.circular(8),
@@ -316,16 +313,13 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
                   padding: const EdgeInsets.all(8.0),
                   child: Icon(
                     Icons.drag_indicator,
-                    color: Theme.of(context)
-                        .iconTheme
-                        .color
-                        ?.withValues(alpha: 0.3),
+                    color: Theme.of(
+                      context,
+                    ).iconTheme.color?.withValues(alpha: 0.3),
                   ),
                 ),
               ),
-            Expanded(
-              child: _buildBlockContent(block, index, isFocused),
-            ),
+            Expanded(child: _buildBlockContent(block, index, isFocused)),
             _buildBlockActions(index),
           ],
         ),
@@ -361,7 +355,9 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
       case NoteBlockType.todo:
         // PRODUCTION-GRADE: Extract indent level from block data and route intelligently
         final parts = block.data.split(':');
-        final indentLevel = parts.length >= 3 ? (int.tryParse(parts[1]) ?? 0) : 0;
+        final indentLevel = parts.length >= 3
+            ? (int.tryParse(parts[1]) ?? 0)
+            : 0;
 
         // Route to hierarchical widget if indented, otherwise flat widget
         // The HierarchicalTodoBlockWidget will handle parent-child relationships
@@ -377,7 +373,8 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
             onFocusChanged: (focused) => _handleFocusChange(index, focused),
             onNewLine: () => _insertBlock(index + 1, createTodoBlock('')),
             onIndentChanged: (newLevel) => _handleIndentChange(index, newLevel),
-            parentTaskId: null, // Widget will determine parent from task hierarchy
+            parentTaskId:
+                null, // Widget will determine parent from task hierarchy
           );
         } else {
           return TodoBlockWidget(
@@ -421,7 +418,8 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme?.quoteBackgroundColor ??
+            color:
+                theme?.quoteBackgroundColor ??
                 Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(8),
             border: Border(
@@ -674,7 +672,9 @@ class _UnifiedBlockEditorState extends ConsumerState<UnifiedBlockEditor> {
     // Parse current todo data
     final parts = block.data.split(':');
     if (parts.length < 3) {
-      _logger.warning('Invalid todo data format at index $index: ${block.data}');
+      _logger.warning(
+        'Invalid todo data format at index $index: ${block.data}',
+      );
       return;
     }
 

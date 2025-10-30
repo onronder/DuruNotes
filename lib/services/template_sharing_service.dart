@@ -8,7 +8,8 @@ import 'package:uuid/uuid.dart';
 
 /// Service for exporting and importing templates
 class TemplateSharingService {
-  static final TemplateSharingService _instance = TemplateSharingService._internal();
+  static final TemplateSharingService _instance =
+      TemplateSharingService._internal();
   factory TemplateSharingService() => _instance;
   TemplateSharingService._internal();
 
@@ -24,7 +25,8 @@ class TemplateSharingService {
 
       // Create temporary file
       final tempDir = await resolveTemporaryDirectory();
-      final fileName = '${template.title.replaceAll(RegExp(r'[^\w\s-]'), '')}_template.$templateFileExtension';
+      final fileName =
+          '${template.title.replaceAll(RegExp(r'[^\w\s-]'), '')}_template.$templateFileExtension';
       final file = File('${tempDir.path}/$fileName');
       await file.writeAsString(jsonString);
 
@@ -47,7 +49,10 @@ class TemplateSharingService {
   }
 
   /// Export multiple templates as a template pack
-  Future<bool> exportTemplatePack(List<Template> templates, String packName) async {
+  Future<bool> exportTemplatePack(
+    List<Template> templates,
+    String packName,
+  ) async {
     try {
       final exportData = {
         'version': currentVersion,
@@ -62,7 +67,8 @@ class TemplateSharingService {
 
       // Create temporary file
       final tempDir = await resolveTemporaryDirectory();
-      final fileName = '${packName.replaceAll(RegExp(r'[^\w\s-]'), '')}_pack.$templatePackExtension';
+      final fileName =
+          '${packName.replaceAll(RegExp(r'[^\w\s-]'), '')}_pack.$templatePackExtension';
       final file = File('${tempDir.path}/$fileName');
       await file.writeAsString(jsonString);
 
@@ -71,7 +77,8 @@ class TemplateSharingService {
         ShareParams(
           files: [XFile(file.path)],
           subject: 'Duru Notes Template Pack: $packName',
-          text: 'Template pack with ${templates.length} templates exported from Duru Notes',
+          text:
+              'Template pack with ${templates.length} templates exported from Duru Notes',
         ),
       );
 
@@ -180,9 +187,9 @@ class TemplateSharingService {
         : data;
 
     return templateData.containsKey('title') &&
-           templateData.containsKey('body') &&
-           templateData['title'] != null &&
-           templateData['body'] != null;
+        templateData.containsKey('body') &&
+        templateData['title'] != null &&
+        templateData['body'] != null;
   }
 
   /// Convert imported data to Template model
@@ -200,7 +207,8 @@ class TemplateSharingService {
       tags: (templateData['tags'] as List<dynamic>?)?.cast<String>() ?? [],
       isSystem: false, // Imported templates are user templates
       category: templateData['category'] as String? ?? 'imported',
-      description: templateData['description'] as String? ?? 'Imported template',
+      description:
+          templateData['description'] as String? ?? 'Imported template',
       icon: templateData['icon'] as String? ?? 'note',
       sortOrder: 999, // Put at end
       createdAt: now,
@@ -221,14 +229,19 @@ class TemplateSharingService {
       }
 
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-      final backupDir = Directory('${exportDir.path}/templates_backup_$timestamp');
+      final backupDir = Directory(
+        '${exportDir.path}/templates_backup_$timestamp',
+      );
       await backupDir.create();
 
       for (final template in templates) {
         final exportData = _prepareTemplateExport(template);
-        final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+        final jsonString = const JsonEncoder.withIndent(
+          '  ',
+        ).convert(exportData);
 
-        final fileName = '${template.title.replaceAll(RegExp(r'[^\w\s-]'), '')}.json';
+        final fileName =
+            '${template.title.replaceAll(RegExp(r'[^\w\s-]'), '')}.json';
         final file = File('${backupDir.path}/$fileName');
         await file.writeAsString(jsonString);
       }
@@ -240,7 +253,9 @@ class TemplateSharingService {
   }
 
   /// Import templates from a directory
-  Future<List<Template>> importTemplatesFromDirectory(String directoryPath) async {
+  Future<List<Template>> importTemplatesFromDirectory(
+    String directoryPath,
+  ) async {
     try {
       final dir = Directory(directoryPath);
       if (!await dir.exists()) {

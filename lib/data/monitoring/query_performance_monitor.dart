@@ -17,10 +17,9 @@ class QueryPerformanceMonitor {
   final List<QueryMetric> _slowQueries = [];
   final Map<String, QueryStats> _queryStats = {};
 
-  QueryPerformanceMonitor({
-    required AppDb db,
-  }) : _db = db,
-       _logger = LoggerFactory.instance;
+  QueryPerformanceMonitor({required AppDb db})
+    : _db = db,
+      _logger = LoggerFactory.instance;
 
   /// Monitor a query execution
   Future<T> monitorQuery<T>(
@@ -43,7 +42,11 @@ class QueryPerformanceMonitor {
       final executionTime = stopwatch.elapsedMilliseconds;
 
       await _recordQueryMetric(queryName, executionTime, false, parameters);
-      _logger.error('Query failed: $queryName', error: error, stackTrace: stackTrace);
+      _logger.error(
+        'Query failed: $queryName',
+        error: error,
+        stackTrace: stackTrace,
+      );
 
       rethrow;
     }
@@ -131,9 +134,19 @@ class QueryPerformanceMonitor {
 
   /// Get performance report
   Map<String, dynamic> getPerformanceReport() {
-    final totalQueries = _queryStats.values.fold<int>(0, (sum, stats) => sum + stats.totalExecutions);
-    final slowQueries = _queryStats.values.fold<int>(0, (sum, stats) => sum + stats.slowExecutions);
-    final failedQueries = _queryStats.values.fold<int>(0, (sum, stats) => sum + (stats.totalExecutions - stats.successfulExecutions));
+    final totalQueries = _queryStats.values.fold<int>(
+      0,
+      (sum, stats) => sum + stats.totalExecutions,
+    );
+    final slowQueries = _queryStats.values.fold<int>(
+      0,
+      (sum, stats) => sum + stats.slowExecutions,
+    );
+    final failedQueries = _queryStats.values.fold<int>(
+      0,
+      (sum, stats) =>
+          sum + (stats.totalExecutions - stats.successfulExecutions),
+    );
 
     final slowestQueries = _queryStats.values.toList()
       ..sort((a, b) => b.maxExecutionTime.compareTo(a.maxExecutionTime));
@@ -146,29 +159,46 @@ class QueryPerformanceMonitor {
         'total_queries': totalQueries,
         'slow_queries': slowQueries,
         'failed_queries': failedQueries,
-        'success_rate': totalQueries > 0 ? (totalQueries - failedQueries) / totalQueries : 0.0,
+        'success_rate': totalQueries > 0
+            ? (totalQueries - failedQueries) / totalQueries
+            : 0.0,
         'slow_query_rate': totalQueries > 0 ? slowQueries / totalQueries : 0.0,
         'target_response_time_ms': _targetResponseTimeMs,
       },
-      'slowest_queries': slowestQueries.take(10).map((stats) => {
-        'query': stats.queryName,
-        'max_time_ms': stats.maxExecutionTime,
-        'avg_time_ms': stats.averageExecutionTime,
-        'total_executions': stats.totalExecutions,
-        'slow_executions': stats.slowExecutions,
-      }).toList(),
-      'most_frequent_queries': mostFrequentQueries.take(10).map((stats) => {
-        'query': stats.queryName,
-        'total_executions': stats.totalExecutions,
-        'avg_time_ms': stats.averageExecutionTime,
-        'success_rate': stats.successRate,
-      }).toList(),
-      'recent_slow_queries': _slowQueries.reversed.take(20).map((metric) => {
-        'query': metric.queryName,
-        'execution_time_ms': metric.executionTime,
-        'timestamp': metric.timestamp.toIso8601String(),
-        'parameters': metric.parameters,
-      }).toList(),
+      'slowest_queries': slowestQueries
+          .take(10)
+          .map(
+            (stats) => {
+              'query': stats.queryName,
+              'max_time_ms': stats.maxExecutionTime,
+              'avg_time_ms': stats.averageExecutionTime,
+              'total_executions': stats.totalExecutions,
+              'slow_executions': stats.slowExecutions,
+            },
+          )
+          .toList(),
+      'most_frequent_queries': mostFrequentQueries
+          .take(10)
+          .map(
+            (stats) => {
+              'query': stats.queryName,
+              'total_executions': stats.totalExecutions,
+              'avg_time_ms': stats.averageExecutionTime,
+              'success_rate': stats.successRate,
+            },
+          )
+          .toList(),
+      'recent_slow_queries': _slowQueries.reversed
+          .take(20)
+          .map(
+            (metric) => {
+              'query': metric.queryName,
+              'execution_time_ms': metric.executionTime,
+              'timestamp': metric.timestamp.toIso8601String(),
+              'parameters': metric.parameters,
+            },
+          )
+          .toList(),
     };
   }
 
@@ -186,8 +216,14 @@ class QueryPerformanceMonitor {
   bool isPerformingWithinTargets() {
     if (_queryStats.isEmpty) return true;
 
-    final totalQueries = _queryStats.values.fold<int>(0, (sum, stats) => sum + stats.totalExecutions);
-    final slowQueries = _queryStats.values.fold<int>(0, (sum, stats) => sum + stats.slowExecutions);
+    final totalQueries = _queryStats.values.fold<int>(
+      0,
+      (sum, stats) => sum + stats.totalExecutions,
+    );
+    final slowQueries = _queryStats.values.fold<int>(
+      0,
+      (sum, stats) => sum + stats.slowExecutions,
+    );
 
     final slowQueryRate = totalQueries > 0 ? slowQueries / totalQueries : 0.0;
 
@@ -201,13 +237,22 @@ class QueryPerformanceMonitor {
 
     try {
       // Test basic note query
-      final noteQueryTime = await _measureQueryTime('basic_note_query', () async {
-        // Ignore the result, just measure the query time
-        await (_db.select(_db.localNotes)
-          ..where((n) => n.deleted.equals(false))
-          ..orderBy([($LocalNotesTable n) => OrderingTerm(expression: n.updatedAt, mode: OrderingMode.desc)])
-          ..limit(20)).get();
-      });
+      final noteQueryTime = await _measureQueryTime(
+        'basic_note_query',
+        () async {
+          // Ignore the result, just measure the query time
+          await (_db.select(_db.localNotes)
+                ..where((n) => n.deleted.equals(false))
+                ..orderBy([
+                  ($LocalNotesTable n) => OrderingTerm(
+                    expression: n.updatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+                ])
+                ..limit(20))
+              .get();
+        },
+      );
       results['basic_note_query_ms'] = noteQueryTime;
 
       // Test tag aggregation query
@@ -223,8 +268,10 @@ class QueryPerformanceMonitor {
       results['tag_aggregation_ms'] = tagQueryTime;
 
       // Test task query with joins
-      final taskQueryTime = await _measureQueryTime('task_with_notes', () async {
-        await _db.customSelect('''
+      final taskQueryTime = await _measureQueryTime(
+        'task_with_notes',
+        () async {
+          await _db.customSelect('''
           SELECT t.*, n.title as note_title
           FROM note_tasks t
           JOIN local_notes n ON t.note_id = n.id
@@ -232,12 +279,15 @@ class QueryPerformanceMonitor {
           ORDER BY t.due_date ASC
           LIMIT 50
         ''').get();
-      });
+        },
+      );
       results['task_with_notes_ms'] = taskQueryTime;
 
       // Test folder hierarchy query
-      final folderQueryTime = await _measureQueryTime('folder_hierarchy', () async {
-        await _db.customSelect('''
+      final folderQueryTime = await _measureQueryTime(
+        'folder_hierarchy',
+        () async {
+          await _db.customSelect('''
           SELECT f.*, COUNT(nf.note_id) as note_count
           FROM local_folders f
           LEFT JOIN note_folders nf ON f.id = nf.folder_id
@@ -245,28 +295,39 @@ class QueryPerformanceMonitor {
           GROUP BY f.id, f.name, f.parent_id, f.path
           ORDER BY f.path
         ''').get();
-      });
+        },
+      );
       results['folder_hierarchy_ms'] = folderQueryTime;
 
       // Check if all queries meet target
-      final allQueriesFast = [noteQueryTime, tagQueryTime, taskQueryTime, folderQueryTime]
-          .every((time) => time <= _targetResponseTimeMs);
+      final allQueriesFast = [
+        noteQueryTime,
+        tagQueryTime,
+        taskQueryTime,
+        folderQueryTime,
+      ].every((time) => time <= _targetResponseTimeMs);
 
       results['all_queries_within_target'] = allQueriesFast;
       results['target_ms'] = _targetResponseTimeMs;
       results['validation_passed'] = allQueriesFast;
-
     } catch (e, stackTrace) {
       results['error'] = e.toString();
       results['validation_passed'] = false;
-      _logger.error('Performance validation failed', error: e, stackTrace: stackTrace);
+      _logger.error(
+        'Performance validation failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
 
     return results;
   }
 
   /// Measure query execution time
-  Future<int> _measureQueryTime(String queryName, Future<void> Function() query) async {
+  Future<int> _measureQueryTime(
+    String queryName,
+    Future<void> Function() query,
+  ) async {
     final stopwatch = Stopwatch()..start();
     await query();
     stopwatch.stop();
@@ -282,7 +343,9 @@ class QueryPerformanceMonitor {
   /// Export performance data for analysis
   Map<String, dynamic> exportData() {
     return {
-      'query_stats': _queryStats.map((key, value) => MapEntry(key, value.toMap())),
+      'query_stats': _queryStats.map(
+        (key, value) => MapEntry(key, value.toMap()),
+      ),
       'slow_queries': _slowQueries.map((metric) => metric.toMap()).toList(),
       'exported_at': DateTime.now().toIso8601String(),
     };

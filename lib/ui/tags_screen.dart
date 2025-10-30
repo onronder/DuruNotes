@@ -54,7 +54,10 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     try {
       final repo = ref.read(tagRepositoryProvider);
       final tags = await repo.listTagsWithCounts();
-      _logger.info('Loaded tags with usage counts', data: {'count': tags.length});
+      _logger.info(
+        'Loaded tags with usage counts',
+        data: {'count': tags.length},
+      );
       if (mounted) {
         setState(() {
           _tags = tags;
@@ -92,8 +95,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       if (query.isEmpty) {
         _filteredTags = _tags;
       } else {
-        _filteredTags =
-            _tags.where((tc) => tc.tag.toLowerCase().contains(query)).toList();
+        _filteredTags = _tags
+            .where((tc) => tc.tag.toLowerCase().contains(query))
+            .toList();
       }
     });
   }
@@ -130,16 +134,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
         'Failed to rename tag',
         error: error,
         stackTrace: stackTrace,
-        data: {
-          'previousTag': oldTag,
-          'attemptedTag': newTag.trim(),
-        },
+        data: {'previousTag': oldTag, 'attemptedTag': newTag.trim()},
       );
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Failed to rename tag. Please try again.'),
             backgroundColor: DuruColors.error,
@@ -266,7 +265,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -316,7 +317,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(28),
                   borderSide: BorderSide.none,
@@ -328,10 +331,10 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
           // Tags list
           Expanded(
             child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _filteredTags.isEmpty
-              ? _buildEmptyState(context)
-              : _buildTagsList(context),
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredTags.isEmpty
+                ? _buildEmptyState(context)
+                : _buildTagsList(context),
           ),
         ],
       ),
@@ -375,7 +378,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             Text(
               'Tags will appear here when you add them to notes',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: 0.7,
+                ),
               ),
               textAlign: TextAlign.center,
             ),
@@ -404,13 +409,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
               onTap: isEditing
                   ? null
                   : () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (context) => TagNotesScreen(
-                            tag: tagCount.tag,
-                          ),
-                        ),
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (context) => TagNotesScreen(tag: tagCount.tag),
                       ),
+                    ),
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
@@ -418,13 +421,19 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      _getTagColor(tagCount.tag, colorScheme).withValues(alpha: 0.05),
+                      _getTagColor(
+                        tagCount.tag,
+                        colorScheme,
+                      ).withValues(alpha: 0.05),
                       theme.colorScheme.surface,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: _getTagColor(tagCount.tag, colorScheme).withValues(alpha: 0.2),
+                    color: _getTagColor(
+                      tagCount.tag,
+                      colorScheme,
+                    ).withValues(alpha: 0.2),
                     width: 1,
                   ),
                   boxShadow: [
@@ -443,7 +452,10 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: _getTagColor(tagCount.tag, colorScheme).withValues(alpha: 0.1),
+                        color: _getTagColor(
+                          tagCount.tag,
+                          colorScheme,
+                        ).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -466,7 +478,9 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                   autofocus: true,
                                   decoration: const InputDecoration(
                                     isDense: true,
-                                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
                                   ),
                                   onSubmitted: (_) => _saveEdit(tagCount.tag),
                                   onTapOutside: (_) => _cancelEdit(),
@@ -484,7 +498,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                             '${tagCount.noteCount} ${tagCount.noteCount == 1 ? 'note' : 'notes'}',
                             style: TextStyle(
                               fontSize: 14,
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -496,13 +511,17 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: Icon(CupertinoIcons.checkmark_circle_fill,
-                                    color: DuruColors.accent),
+                                icon: Icon(
+                                  CupertinoIcons.checkmark_circle_fill,
+                                  color: DuruColors.accent,
+                                ),
                                 onPressed: () => _saveEdit(tagCount.tag),
                               ),
                               IconButton(
-                                icon: Icon(CupertinoIcons.xmark_circle_fill,
-                                    color: DuruColors.error),
+                                icon: Icon(
+                                  CupertinoIcons.xmark_circle_fill,
+                                  color: DuruColors.error,
+                                ),
                                 onPressed: _cancelEdit,
                               ),
                             ],
@@ -511,7 +530,8 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                             icon: Icon(
                               CupertinoIcons.ellipsis_vertical,
                               size: 20,
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.7),
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -520,26 +540,29 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                               switch (value) {
                                 case 'rename':
                                   _startEdit(tagCount.tag);
-                        break;
-                      case 'merge':
-                        _showMergeDialog(tagCount.tag);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'rename', child: Text('Rename')),
-                    const PopupMenuItem(
-                      value: 'merge',
-                      child: Text('Merge with...'),
-                    ),
+                                  break;
+                                case 'merge':
+                                  _showMergeDialog(tagCount.tag);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'rename',
+                                child: Text('Rename'),
+                              ),
+                              const PopupMenuItem(
+                                value: 'merge',
+                                child: Text('Merge with...'),
+                              ),
+                            ],
+                          ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
+        );
       },
     );
   }
@@ -561,8 +584,10 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
   }
 
   Future<void> _showMergeDialog(String sourceTag) async {
-    final targetTags =
-        _tags.where((tc) => tc.tag != sourceTag).map((tc) => tc.tag).toList();
+    final targetTags = _tags
+        .where((tc) => tc.tag != sourceTag)
+        .map((tc) => tc.tag)
+        .toList();
 
     if (targetTags.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

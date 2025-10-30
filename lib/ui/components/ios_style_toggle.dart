@@ -90,11 +90,11 @@ class _IOSStyleToggleState extends State<IOSStyleToggle>
     // Calculate colors based on current state
     final backgroundColor = widget.value
         ? (widget.activeColor ??
-            (isDark ? const Color(0xFF667eea) : theme.colorScheme.primary))
+              (isDark ? const Color(0xFF667eea) : theme.colorScheme.primary))
         : (widget.inactiveColor ??
-            (isDark
-                ? Colors.white.withValues(alpha: 0.1)
-                : Colors.grey.shade300));
+              (isDark
+                  ? Colors.white.withValues(alpha: 0.1)
+                  : Colors.grey.shade300));
 
     return Semantics(
       label: widget.value ? 'Enabled' : 'Disabled',
@@ -196,8 +196,9 @@ class SettingsToggleTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
-        color:
-            isDark ? Colors.white.withValues(alpha: 0.02) : Colors.transparent,
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.02)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
       ),
       child: ListTile(

@@ -8,7 +8,9 @@ import 'package:duru_notes/domain/entities/folder.dart' as domain;
 /// Post-encryption migration, all UI should work exclusively with domain entities.
 /// LocalNote and NoteTask no longer have plaintext fields (title, body, content).
 /// Use repositories to get decrypted domain entities instead.
-@Deprecated('UI should work with domain entities only. Use repositories to get decrypted data.')
+@Deprecated(
+  'UI should work with domain entities only. Use repositories to get decrypted data.',
+)
 class UiMigrationUtility {
   UiMigrationUtility._();
 

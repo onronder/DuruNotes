@@ -8,7 +8,8 @@ import 'package:duru_notes/core/providers/database_providers.dart'
     show appDbProvider;
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider, analyticsProvider;
-import 'package:duru_notes/features/auth/providers/auth_providers.dart' show supabaseClientProvider;
+import 'package:duru_notes/features/auth/providers/auth_providers.dart'
+    show supabaseClientProvider;
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
@@ -427,7 +428,10 @@ class AdvancedReminderService {
     );
 
     // Schedule the next notification
-    final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
+    final reminder = await _db.getReminderById(
+      reminderId,
+      userId,
+    ); // P0.5 SECURITY
     if (reminder != null) {
       await _scheduleNotification(
         reminderId,
@@ -669,7 +673,10 @@ class AdvancedReminderService {
         return;
       }
 
-      final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
+      final reminder = await _db.getReminderById(
+        reminderId,
+        userId,
+      ); // P0.5 SECURITY
       if (reminder == null) {
         _audit('snoozeReminder', granted: false, reason: 'not_found');
         return;
@@ -678,7 +685,11 @@ class AdvancedReminderService {
       final snoozeUntil = _calculateSnoozeTime(duration);
 
       // Update database
-      await _db.snoozeReminder(reminderId, userId, snoozeUntil); // P0.5 SECURITY
+      await _db.snoozeReminder(
+        reminderId,
+        userId,
+        snoozeUntil,
+      ); // P0.5 SECURITY
 
       // Cancel current notification
       await _cancelNotification(reminderId);
@@ -705,7 +716,11 @@ class AdvancedReminderService {
       _audit('snoozeReminder', granted: true, reason: 'reminderId=$reminderId');
     } catch (e, stack) {
       logger.error('Failed to snooze reminder', error: e, stackTrace: stack);
-      _audit('snoozeReminder', granted: false, reason: 'error=${e.runtimeType}');
+      _audit(
+        'snoozeReminder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
     }
   }
 
@@ -782,7 +797,10 @@ class AdvancedReminderService {
       await _cancelNotification(reminderId);
 
       // Remove geofence if location reminder
-      final reminder = await _db.getReminderById(reminderId, userId); // P0.5 SECURITY
+      final reminder = await _db.getReminderById(
+        reminderId,
+        userId,
+      ); // P0.5 SECURITY
       if (reminder == null) {
         _audit('deleteReminder', granted: false, reason: 'not_found');
         return;
@@ -802,7 +820,11 @@ class AdvancedReminderService {
       _audit('deleteReminder', granted: true, reason: 'reminderId=$reminderId');
     } catch (e, stack) {
       logger.error('Failed to delete reminder', error: e, stackTrace: stack);
-      _audit('deleteReminder', granted: false, reason: 'error=${e.runtimeType}');
+      _audit(
+        'deleteReminder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
     }
   }
 
@@ -836,7 +858,9 @@ class AdvancedReminderService {
       // P0.5 SECURITY: Get current userId
       final userId = _currentUserId;
       if (userId == null) {
-        logger.warn('Cannot handle notification action - no authenticated user');
+        logger.warn(
+          'Cannot handle notification action - no authenticated user',
+        );
         _audit('handleAction', granted: false, reason: 'missing_user');
         return;
       }
@@ -909,7 +933,10 @@ class AdvancedReminderService {
   Future<void> _triggerTimeReminder(NoteReminder reminder) async {
     try {
       // P0.5 SECURITY: Mark as triggered with userId
-      await _db.markReminderTriggered(reminder.id, reminder.userId); // P0.5 SECURITY
+      await _db.markReminderTriggered(
+        reminder.id,
+        reminder.userId,
+      ); // P0.5 SECURITY
 
       // If recurring, schedule next occurrence
       if (reminder.recurrencePattern != RecurrencePattern.none &&
@@ -922,7 +949,10 @@ class AdvancedReminderService {
         );
       } else {
         // Deactivate non-recurring reminder
-        await _db.deactivateReminder(reminder.id, reminder.userId); // P0.5 SECURITY
+        await _db.deactivateReminder(
+          reminder.id,
+          reminder.userId,
+        ); // P0.5 SECURITY
       }
 
       analytics.event(

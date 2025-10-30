@@ -49,10 +49,7 @@ class Template {
 
   @override
   int get hashCode {
-    return id.hashCode ^
-        name.hashCode ^
-        content.hashCode ^
-        isSystem.hashCode;
+    return id.hashCode ^ name.hashCode ^ content.hashCode ^ isSystem.hashCode;
   }
 
   @override

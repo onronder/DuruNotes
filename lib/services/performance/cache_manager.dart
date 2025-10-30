@@ -171,8 +171,9 @@ class CacheManager {
     final regex = RegExp(pattern);
 
     // Clear from memory cache
-    final keysToRemove =
-        _memoryCache.keys.where((key) => regex.hasMatch(key)).toList();
+    final keysToRemove = _memoryCache.keys
+        .where((key) => regex.hasMatch(key))
+        .toList();
     for (final key in keysToRemove) {
       _memoryCache.remove(key);
     }
@@ -340,12 +341,12 @@ class CacheEntry {
   }
 
   Map<String, dynamic> toJson() => {
-        'key': key,
-        'value': value,
-        'timestamp': timestamp.toIso8601String(),
-        'ttl_seconds': ttlSeconds,
-        'size_bytes': sizeBytes,
-      };
+    'key': key,
+    'value': value,
+    'timestamp': timestamp.toIso8601String(),
+    'ttl_seconds': ttlSeconds,
+    'size_bytes': sizeBytes,
+  };
 
   factory CacheEntry.fromJson(Map<String, dynamic> json) {
     return CacheEntry(
@@ -442,17 +443,17 @@ class CacheStatistics {
   }
 
   Map<String, dynamic> toJson() => {
-        'total_requests': totalRequests,
-        'l1_hits': l1Hits,
-        'l2_hits': l2Hits,
-        'misses': misses,
-        'writes': writes,
-        'evictions': evictions,
-        'invalidations': invalidations,
-        'l1_hit_rate': (l1HitRate * 100).toStringAsFixed(2),
-        'l2_hit_rate': (l2HitRate * 100).toStringAsFixed(2),
-        'overall_hit_rate': (overallHitRate * 100).toStringAsFixed(2),
-      };
+    'total_requests': totalRequests,
+    'l1_hits': l1Hits,
+    'l2_hits': l2Hits,
+    'misses': misses,
+    'writes': writes,
+    'evictions': evictions,
+    'invalidations': invalidations,
+    'l1_hit_rate': (l1HitRate * 100).toStringAsFixed(2),
+    'l2_hit_rate': (l2HitRate * 100).toStringAsFixed(2),
+    'overall_hit_rate': (overallHitRate * 100).toStringAsFixed(2),
+  };
 }
 
 /// Specialized cache for folder hierarchy

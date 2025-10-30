@@ -13,26 +13,18 @@
 library;
 
 @Deprecated(
-    'Use TaskStatus from app_db.dart instead. See TaskModelConverter for migration.')
-enum UiTaskStatus {
-  pending,
-  inProgress,
-  completed,
-  cancelled,
-}
+  'Use TaskStatus from app_db.dart instead. See TaskModelConverter for migration.',
+)
+enum UiTaskStatus { pending, inProgress, completed, cancelled }
 
 @Deprecated(
-    'Use TaskPriority from app_db.dart instead. See TaskModelConverter for migration.')
-enum UiTaskPriority {
-  none,
-  low,
-  medium,
-  high,
-  urgent,
-}
+  'Use TaskPriority from app_db.dart instead. See TaskModelConverter for migration.',
+)
+enum UiTaskPriority { none, low, medium, high, urgent }
 
 @Deprecated(
-    'Use NoteTask from app_db.dart instead. See TaskModelConverter for migration.')
+  'Use NoteTask from app_db.dart instead. See TaskModelConverter for migration.',
+)
 class UiNoteTask {
   final String id;
   final String content;

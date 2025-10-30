@@ -165,9 +165,7 @@ class BootstrapProviderScope extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ProviderScope(
-      overrides: [
-        bootstrapResultProvider.overrideWithValue(bootstrapResult),
-      ],
+      overrides: [bootstrapResultProvider.overrideWithValue(bootstrapResult)],
       child: child,
     );
   }

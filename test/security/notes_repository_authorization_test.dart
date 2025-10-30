@@ -71,25 +71,33 @@ void main() {
       activeUser = mockUserA;
       when(mockAuth.currentUser).thenAnswer((_) => activeUser);
 
-      when(mockNoteApi.fetchEncryptedNotes(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchEncryptedFolders(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchNoteTasks(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchTemplates(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchNoteFolderRelations(since: anyNamed('since')))
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.fetchNoteFolderRelations())
-          .thenAnswer((_) async => const []);
-      when(mockNoteApi.upsertEncryptedNote(
-        id: anyNamed('id'),
-        titleEnc: anyNamed('titleEnc'),
-        propsEnc: anyNamed('propsEnc'),
-        deleted: anyNamed('deleted'),
-        createdAt: anyNamed('createdAt'),
-      )).thenAnswer((_) async {});
+      when(
+        mockNoteApi.fetchEncryptedNotes(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchEncryptedFolders(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchNoteTasks(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchTemplates(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchNoteFolderRelations(since: anyNamed('since')),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.fetchNoteFolderRelations(),
+      ).thenAnswer((_) async => const []);
+      when(
+        mockNoteApi.upsertEncryptedNote(
+          id: anyNamed('id'),
+          titleEnc: anyNamed('titleEnc'),
+          propsEnc: anyNamed('propsEnc'),
+          deleted: anyNamed('deleted'),
+          createdAt: anyNamed('createdAt'),
+        ),
+      ).thenAnswer((_) async {});
 
       final secureApi = SecureApiWrapper.testing(
         api: mockNoteApi,
@@ -110,13 +118,13 @@ void main() {
       SecurityTestSetup.teardownEncryption();
     });
 
-    Future<domain.Note?> createNoteFor(MockUser? user,
-        {String title = 'Title', String body = 'Body'}) async {
+    Future<domain.Note?> createNoteFor(
+      MockUser? user, {
+      String title = 'Title',
+      String body = 'Body',
+    }) async {
       activeUser = user;
-      return repository.createOrUpdate(
-        title: title,
-        body: body,
-      );
+      return repository.createOrUpdate(title: title, body: body);
     }
 
     test('createOrUpdate returns null when user not authenticated', () async {
@@ -147,14 +155,17 @@ void main() {
       expect(stored.userId, 'user-a');
     });
 
-    test('getNoteById returns null when note belongs to another user', () async {
-      final created = await createNoteFor(mockUserA);
-      expect(created, isNotNull);
+    test(
+      'getNoteById returns null when note belongs to another user',
+      () async {
+        final created = await createNoteFor(mockUserA);
+        expect(created, isNotNull);
 
-      activeUser = mockUserB;
-      final fetched = await repository.getNoteById(created!.id);
-      expect(fetched, isNull);
-    });
+        activeUser = mockUserB;
+        final fetched = await repository.getNoteById(created!.id);
+        expect(fetched, isNull);
+      },
+    );
 
     test('localNotes returns only notes for current user', () async {
       final noteA = await createNoteFor(mockUserA, title: 'Owned by A');
@@ -196,9 +207,9 @@ void main() {
       expect(stillPresent, isNotNull);
 
       await repository.deleteNote(noteId);
-      final rawAfterDelete = await (db.select(db.localNotes)
-            ..where((n) => n.id.equals(noteId)))
-          .getSingle();
+      final rawAfterDelete = await (db.select(
+        db.localNotes,
+      )..where((n) => n.id.equals(noteId))).getSingle();
       expect(rawAfterDelete.deleted, isTrue);
 
       final visibleNotes = await repository.localNotes();

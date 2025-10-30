@@ -39,11 +39,13 @@ class PostLoginMigrationService {
         error: e,
         stackTrace: stackTrace,
       );
-      results.add(PostLoginMigrationResult(
-        migrationType: PostLoginMigrationType.savedSearches,
-        success: false,
-        message: 'SavedSearch migration failed: ${e.toString()}',
-      ));
+      results.add(
+        PostLoginMigrationResult(
+          migrationType: PostLoginMigrationType.savedSearches,
+          success: false,
+          message: 'SavedSearch migration failed: ${e.toString()}',
+        ),
+      );
     }
 
     // Future migrations can be added here
@@ -106,7 +108,8 @@ class PostLoginMigrationService {
       logger: logger,
     );
 
-    final savedSearchNeedsMigration = await savedSearchService.isMigrationNeeded();
+    final savedSearchNeedsMigration = await savedSearchService
+        .isMigrationNeeded();
 
     // Add checks for other migrations here
     // final otherMigrationNeeded = await ...;

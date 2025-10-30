@@ -1,4 +1,3 @@
-
 void main() {
   /* COMMENTED OUT - Tests use old domain models (150 errors)
    * These tests reference old Note/Task properties (title, body, isPinned, etc.)

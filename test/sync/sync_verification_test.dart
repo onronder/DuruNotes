@@ -46,10 +46,7 @@ void main() {
     test('Remote Supabase connection works', () async {
       // This will throw if connection fails
       try {
-        await supabase
-            .from('notes')
-            .select('count')
-            .limit(0);
+        await supabase.from('notes').select('count').limit(0);
         // If no exception, connection works
       } catch (e) {
         fail('Supabase connection should work, but got error: $e');
@@ -69,10 +66,7 @@ void main() {
       for (final table in requiredTables) {
         try {
           // Try to query each table
-          await supabase
-              .from(table)
-              .select('count')
-              .limit(0);
+          await supabase.from(table).select('count').limit(0);
           // If no exception, table exists and is queryable
         } catch (e) {
           fail('Table "$table" does not exist or is not accessible: $e');
@@ -80,33 +74,34 @@ void main() {
       }
     }, skip: _remoteSkipReason);
 
-    test('RLS policies are enforced (cannot query without auth)', () async {
-      // Sign out to test RLS
-      await supabase.auth.signOut();
+    test(
+      'RLS policies are enforced (cannot query without auth)',
+      () async {
+        // Sign out to test RLS
+        await supabase.auth.signOut();
 
-      try {
-        final response = await supabase
-            .from('notes')
-            .select()
-            .limit(1);
+        try {
+          final response = await supabase.from('notes').select().limit(1);
 
-        // Should either return empty or error (depending on RLS policy)
-        // The key is it shouldn't return other users' data
-        expect(
-          response,
-          isEmpty,
-          reason: 'Unauthenticated users should not see data',
-        );
-      } catch (e) {
-        // This is expected - RLS should block access
-        final errorStr = e.toString();
-        expect(
-          errorStr.contains('RLS') || errorStr.contains('auth'),
-          isTrue,
-          reason: 'Should get RLS or auth error, got: $errorStr',
-        );
-      }
-    }, skip: _remoteSkipReason);
+          // Should either return empty or error (depending on RLS policy)
+          // The key is it shouldn't return other users' data
+          expect(
+            response,
+            isEmpty,
+            reason: 'Unauthenticated users should not see data',
+          );
+        } catch (e) {
+          // This is expected - RLS should block access
+          final errorStr = e.toString();
+          expect(
+            errorStr.contains('RLS') || errorStr.contains('auth'),
+            isTrue,
+            reason: 'Should get RLS or auth error, got: $errorStr',
+          );
+        }
+      },
+      skip: _remoteSkipReason,
+    );
 
     test('User can authenticate', () async {
       // You'll need to replace these with test credentials
@@ -121,7 +116,11 @@ void main() {
         );
 
         expect(response.user, isNotNull, reason: 'User should authenticate');
-        expect(response.session, isNotNull, reason: 'Session should be created');
+        expect(
+          response.session,
+          isNotNull,
+          reason: 'Session should be created',
+        );
       } catch (e) {
         // If test user doesn't exist, that's ok - this is just verification
         print('Test user not set up: $e');
@@ -149,15 +148,17 @@ void main() {
 
     test('All tables have userId column', () async {
       // This is critical for user isolation
-      final tablesToCheck = ['notes', 'note_tasks', 'folders', 'saved_searches'];
+      final tablesToCheck = [
+        'notes',
+        'note_tasks',
+        'folders',
+        'saved_searches',
+      ];
 
       for (final table in tablesToCheck) {
         try {
           // Try to select userId column
-          await supabase
-              .from(table)
-              .select('user_id')
-              .limit(1);
+          await supabase.from(table).select('user_id').limit(1);
           // If no exception, column exists
         } catch (e) {
           if (e.toString().contains('column')) {

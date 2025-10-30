@@ -11,8 +11,12 @@ export 'package:duru_notes/infrastructure/providers/repository_providers.dart'
 
 /// Template list provider - fetches all templates and converts to infrastructure LocalTemplate
 /// UI components expect LocalTemplate for display properties (category, description, icon)
-final templateListProvider = FutureProvider.autoDispose<List<LocalTemplate>>((ref) async {
-  final repository = ref.watch(repository_providers.templateCoreRepositoryProvider);
+final templateListProvider = FutureProvider.autoDispose<List<LocalTemplate>>((
+  ref,
+) async {
+  final repository = ref.watch(
+    repository_providers.templateCoreRepositoryProvider,
+  );
   final domainTemplates = await repository.getAllTemplates();
   return TemplateMapper.toInfrastructureList(domainTemplates);
 });
@@ -20,36 +24,46 @@ final templateListProvider = FutureProvider.autoDispose<List<LocalTemplate>>((re
 /// Template list stream provider - real-time updates
 final templateListStreamProvider =
     StreamProvider.autoDispose<List<LocalTemplate>>((ref) async* {
-  final db = ref.watch(appDbProvider);
-  yield* db.select(db.localTemplates).watch();
-});
+      final db = ref.watch(appDbProvider);
+      yield* db.select(db.localTemplates).watch();
+    });
 
 /// System templates only - converted to LocalTemplate for UI
 final systemTemplateListProvider =
     FutureProvider.autoDispose<List<LocalTemplate>>((ref) async {
-  final repository = ref.watch(repository_providers.templateCoreRepositoryProvider);
-  final domainTemplates = await repository.getSystemTemplates();
-  return TemplateMapper.toInfrastructureList(domainTemplates);
-});
+      final repository = ref.watch(
+        repository_providers.templateCoreRepositoryProvider,
+      );
+      final domainTemplates = await repository.getSystemTemplates();
+      return TemplateMapper.toInfrastructureList(domainTemplates);
+    });
 
 /// User templates only - converted to LocalTemplate for UI
 final userTemplateListProvider =
     FutureProvider.autoDispose<List<LocalTemplate>>((ref) async {
-  final repository = ref.watch(repository_providers.templateCoreRepositoryProvider);
-  final domainTemplates = await repository.getUserTemplates();
-  return TemplateMapper.toInfrastructureList(domainTemplates);
-});
+      final repository = ref.watch(
+        repository_providers.templateCoreRepositoryProvider,
+      );
+      final domainTemplates = await repository.getUserTemplates();
+      return TemplateMapper.toInfrastructureList(domainTemplates);
+    });
 
 /// Domain templates provider - now always uses domain repository
-final domainTemplatesProvider = FutureProvider.autoDispose<List<domain_template.Template>>((ref) async {
-  // Always use domain repository
-  final repository = ref.watch(repository_providers.templateCoreRepositoryProvider);
-  return repository.getAllTemplates();
-});
+final domainTemplatesProvider =
+    FutureProvider.autoDispose<List<domain_template.Template>>((ref) async {
+      // Always use domain repository
+      final repository = ref.watch(
+        repository_providers.templateCoreRepositoryProvider,
+      );
+      return repository.getAllTemplates();
+    });
 
 /// Domain templates stream provider - now always uses domain repository
-final domainTemplatesStreamProvider = StreamProvider.autoDispose<List<domain_template.Template>>((ref) {
-  // Always use domain repository
-  final repository = ref.watch(repository_providers.templateCoreRepositoryProvider);
-  return repository.watchTemplates();
-});
+final domainTemplatesStreamProvider =
+    StreamProvider.autoDispose<List<domain_template.Template>>((ref) {
+      // Always use domain repository
+      final repository = ref.watch(
+        repository_providers.templateCoreRepositoryProvider,
+      );
+      return repository.watchTemplates();
+    });

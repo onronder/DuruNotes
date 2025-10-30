@@ -90,8 +90,9 @@ class Migration27EncryptTemplates {
         );
       }
 
-      logger.info('[Migration 27] Template encryption migration completed successfully');
-
+      logger.info(
+        '[Migration 27] Template encryption migration completed successfully',
+      );
     } catch (e, stack) {
       logger.error(
         '[Migration 27] Failed to add template encryption',
@@ -113,11 +114,13 @@ class Migration27EncryptTemplates {
 
     try {
       // Get all templates that need encryption
-      final unencryptedTemplates = await db.customSelect('''
+      final unencryptedTemplates =
+          await db.customSelect('''
         SELECT id, title, body, tags, description, metadata
         FROM local_templates
         WHERE encryption_version = 0
-      ''').get() as List<dynamic>;
+      ''').get()
+              as List<dynamic>;
 
       logger.info(
         '[Template Encryption] Found ${unencryptedTemplates.length} templates to encrypt',
@@ -170,7 +173,8 @@ class Migration27EncryptTemplates {
             : null;
 
         // Update template with encrypted data
-        await db.customUpdate('''
+        await db.customUpdate(
+          '''
           UPDATE local_templates
           SET
             title_encrypted = ?,
@@ -180,14 +184,9 @@ class Migration27EncryptTemplates {
             metadata_encrypted = ?,
             encryption_version = 1
           WHERE id = ?
-        ''', [
-          titleEnc,
-          bodyEnc,
-          tagsEnc,
-          descriptionEnc,
-          metadataEnc,
-          id,
-        ]);
+        ''',
+          [titleEnc, bodyEnc, tagsEnc, descriptionEnc, metadataEnc, id],
+        );
 
         logger.debug('[Template Encryption] Encrypted template: $id');
       }
@@ -198,7 +197,6 @@ class Migration27EncryptTemplates {
       logger.info(
         '[Template Encryption] Successfully encrypted ${unencryptedTemplates.length} templates',
       );
-
     } catch (e, stack) {
       logger.error(
         '[Template Encryption] Failed to encrypt existing templates',

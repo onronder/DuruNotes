@@ -13,7 +13,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 /// This migration is idempotent and safe to run multiple times.
 class Migration21FixTableNames {
   static const int version = 21;
-  static const String description = 'Recovery: Fix table names to match Drift schema';
+  static const String description =
+      'Recovery: Fix table names to match Drift schema';
 
   static Future<void> apply(AppDb db) async {
     final logger = LoggerFactory.instance;
@@ -21,9 +22,9 @@ class Migration21FixTableNames {
 
     try {
       // Get current table names
-      final tables = await db.customSelect(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-      ).get();
+      final tables = await db
+          .customSelect("SELECT name FROM sqlite_master WHERE type='table'")
+          .get();
 
       final tableNames = tables.map((t) => t.read<String>('name')).toSet();
       logger.info('Current tables: ${tableNames.join(', ')}');
@@ -39,34 +40,48 @@ class Migration21FixTableNames {
       }
 
       // If folders exists but local_folders doesn't, rename it back
-      if (tableNames.contains('folders') && !tableNames.contains('local_folders')) {
+      if (tableNames.contains('folders') &&
+          !tableNames.contains('local_folders')) {
         logger.info('Recovering: Renaming folders → local_folders');
         await db.customStatement('ALTER TABLE folders RENAME TO local_folders');
       }
 
       // If templates exists but local_templates doesn't, rename it back
-      if (tableNames.contains('templates') && !tableNames.contains('local_templates')) {
+      if (tableNames.contains('templates') &&
+          !tableNames.contains('local_templates')) {
         logger.info('Recovering: Renaming templates → local_templates');
-        await db.customStatement('ALTER TABLE templates RENAME TO local_templates');
+        await db.customStatement(
+          'ALTER TABLE templates RENAME TO local_templates',
+        );
       }
 
       // If attachments exists but local_attachments doesn't, rename it back
-      if (tableNames.contains('attachments') && !tableNames.contains('local_attachments')) {
+      if (tableNames.contains('attachments') &&
+          !tableNames.contains('local_attachments')) {
         logger.info('Recovering: Renaming attachments → local_attachments');
-        await db.customStatement('ALTER TABLE attachments RENAME TO local_attachments');
+        await db.customStatement(
+          'ALTER TABLE attachments RENAME TO local_attachments',
+        );
       }
 
       // ============================================
       // Verify all expected tables exist now
       // ============================================
 
-      final expectedTables = ['local_notes', 'local_folders', 'local_templates', 'local_attachments'];
+      final expectedTables = [
+        'local_notes',
+        'local_folders',
+        'local_templates',
+        'local_attachments',
+      ];
       bool allGood = true;
 
       for (final tableName in expectedTables) {
-        final result = await db.customSelect(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName'"
-        ).get();
+        final result = await db
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName'",
+            )
+            .get();
 
         if (result.isEmpty) {
           logger.error('CRITICAL: Table $tableName is missing after recovery!');
@@ -77,7 +92,9 @@ class Migration21FixTableNames {
       }
 
       if (!allGood) {
-        throw Exception('Migration 21 failed: Some expected tables are missing');
+        throw Exception(
+          'Migration 21 failed: Some expected tables are missing',
+        );
       }
 
       // ============================================
@@ -90,7 +107,6 @@ class Migration21FixTableNames {
       ''');
 
       logger.info('Migration 21 completed successfully - Database recovered');
-
     } catch (e, stack) {
       logger.error('Failed to apply Migration 21: $e\nStack: $stack');
       rethrow;
@@ -101,15 +117,24 @@ class Migration21FixTableNames {
   static Future<bool> verify(AppDb db) async {
     try {
       // Check that all expected tables exist
-      final expectedTables = ['local_notes', 'local_folders', 'local_templates', 'local_attachments'];
+      final expectedTables = [
+        'local_notes',
+        'local_folders',
+        'local_templates',
+        'local_attachments',
+      ];
 
       for (final tableName in expectedTables) {
-        final result = await db.customSelect(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName'"
-        ).get();
+        final result = await db
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table' AND name='$tableName'",
+            )
+            .get();
 
         if (result.isEmpty) {
-          LoggerFactory.instance.error('Migration 21 verification failed: Table $tableName missing');
+          LoggerFactory.instance.error(
+            'Migration 21 verification failed: Table $tableName missing',
+          );
           return false;
         }
       }
@@ -117,9 +142,10 @@ class Migration21FixTableNames {
       // Note: It's OK if old renamed tables (notes, folders, etc.) still exist
       // as long as the local_ versions also exist. The app expects local_ table names.
 
-      LoggerFactory.instance.info('Migration 21 verification passed - All tables correctly named');
+      LoggerFactory.instance.info(
+        'Migration 21 verification passed - All tables correctly named',
+      );
       return true;
-
     } catch (e) {
       LoggerFactory.instance.error('Migration 21 verification failed: $e');
       return false;

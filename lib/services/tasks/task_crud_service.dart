@@ -10,9 +10,9 @@ class TaskCrudService {
     required ITaskRepository repository,
     required AppDb db, // Kept for backward compatibility
     AppLogger? logger,
-  })  : _repository = repository,
-        _logger = logger ?? LoggerFactory.instance,
-        _uuid = const Uuid();
+  }) : _repository = repository,
+       _logger = logger ?? LoggerFactory.instance,
+       _uuid = const Uuid();
 
   final ITaskRepository _repository;
   final AppLogger _logger;
@@ -30,12 +30,15 @@ class TaskCrudService {
     int? reminderId,
   }) async {
     try {
-      _logger.info('[TaskCrudService] Creating task', data: {
-        'noteId': noteId,
-        'content': content,
-        'isCompleted': isCompleted,
-        'parentTaskId': parentTaskId,
-      });
+      _logger.info(
+        '[TaskCrudService] Creating task',
+        data: {
+          'noteId': noteId,
+          'content': content,
+          'isCompleted': isCompleted,
+          'parentTaskId': parentTaskId,
+        },
+      );
 
       final taskId = _uuid.v4();
       final now = DateTime.now();
@@ -46,12 +49,14 @@ class TaskCrudService {
         noteId: noteId,
         title: content,
         description: null,
-        status: isCompleted ? domain.TaskStatus.completed : domain.TaskStatus.pending,
+        status: isCompleted
+            ? domain.TaskStatus.completed
+            : domain.TaskStatus.pending,
         priority: priority ?? domain.TaskPriority.medium,
         dueDate: dueDate,
         completedAt: isCompleted ? now : null,
-        createdAt: now,  // Required domain parameter
-        updatedAt: now,  // Required domain parameter
+        createdAt: now, // Required domain parameter
+        updatedAt: now, // Required domain parameter
         tags: [],
         metadata: {
           'blockLineNumber': blockLineNumber,
@@ -64,14 +69,18 @@ class TaskCrudService {
       // Save via repository
       final created = await _repository.createTask(task);
 
-      _logger.info('[TaskCrudService] Task created successfully', data: {
-        'taskId': created.id,
-      });
+      _logger.info(
+        '[TaskCrudService] Task created successfully',
+        data: {'taskId': created.id},
+      );
 
       return created;
     } catch (e, stack) {
-      _logger.error('[TaskCrudService] Failed to create task',
-          error: e, stackTrace: stack);
+      _logger.error(
+        '[TaskCrudService] Failed to create task',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
@@ -89,22 +98,26 @@ class TaskCrudService {
     bool clearReminderId = false,
   }) async {
     try {
-      _logger.debug('[TaskCrudService] Updating task', data: {
-        'taskId': taskId,
-        'updates': {
-          if (content != null) 'content': content,
-          if (isCompleted != null) 'isCompleted': isCompleted,
-          if (dueDate != null) 'dueDate': dueDate.toIso8601String(),
-          if (priority != null) 'priority': priority.toString(),
+      _logger.debug(
+        '[TaskCrudService] Updating task',
+        data: {
+          'taskId': taskId,
+          'updates': {
+            if (content != null) 'content': content,
+            if (isCompleted != null) 'isCompleted': isCompleted,
+            if (dueDate != null) 'dueDate': dueDate.toIso8601String(),
+            if (priority != null) 'priority': priority.toString(),
+          },
         },
-      });
+      );
 
       // Get existing task
       final existing = await _repository.getTaskById(taskId);
       if (existing == null) {
-        _logger.warning('[TaskCrudService] Task not found', data: {
-          'taskId': taskId,
-        });
+        _logger.warning(
+          '[TaskCrudService] Task not found',
+          data: {'taskId': taskId},
+        );
         return null;
       }
 
@@ -122,8 +135,11 @@ class TaskCrudService {
 
       final updated = existing.copyWith(
         title: content ?? existing.title,
-        status: isCompleted == true ? domain.TaskStatus.completed :
-                isCompleted == false ? domain.TaskStatus.pending : existing.status,
+        status: isCompleted == true
+            ? domain.TaskStatus.completed
+            : isCompleted == false
+            ? domain.TaskStatus.pending
+            : existing.status,
         completedAt: completedAt ?? existing.completedAt,
         dueDate: dueDate ?? existing.dueDate,
         priority: priority ?? existing.priority,
@@ -133,14 +149,19 @@ class TaskCrudService {
       // Save via repository
       final saved = await _repository.updateTask(updated);
 
-      _logger.info('[TaskCrudService] Task updated successfully', data: {
-        'taskId': saved.id,
-      });
+      _logger.info(
+        '[TaskCrudService] Task updated successfully',
+        data: {'taskId': saved.id},
+      );
 
       return saved;
     } catch (e, stack) {
-      _logger.error('[TaskCrudService] Failed to update task',
-          error: e, stackTrace: stack, data: {'taskId': taskId});
+      _logger.error(
+        '[TaskCrudService] Failed to update task',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId},
+      );
       return null;
     }
   }
@@ -148,20 +169,23 @@ class TaskCrudService {
   /// Delete a task
   Future<bool> deleteTask(String taskId) async {
     try {
-      _logger.info('[TaskCrudService] Deleting task', data: {
-        'taskId': taskId,
-      });
+      _logger.info('[TaskCrudService] Deleting task', data: {'taskId': taskId});
 
       await _repository.deleteTask(taskId);
 
-      _logger.info('[TaskCrudService] Task deleted successfully', data: {
-        'taskId': taskId,
-      });
+      _logger.info(
+        '[TaskCrudService] Task deleted successfully',
+        data: {'taskId': taskId},
+      );
 
       return true;
     } catch (e, stack) {
-      _logger.error('[TaskCrudService] Failed to delete task',
-          error: e, stackTrace: stack, data: {'taskId': taskId});
+      _logger.error(
+        '[TaskCrudService] Failed to delete task',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId},
+      );
       return false;
     }
   }
@@ -171,8 +195,12 @@ class TaskCrudService {
     try {
       return await _repository.getTaskById(taskId);
     } catch (e, stack) {
-      _logger.error('[TaskCrudService] Failed to get task',
-          error: e, stackTrace: stack, data: {'taskId': taskId});
+      _logger.error(
+        '[TaskCrudService] Failed to get task',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId},
+      );
       return null;
     }
   }
@@ -182,8 +210,12 @@ class TaskCrudService {
     try {
       return await _repository.getTasksForNote(noteId);
     } catch (e, stack) {
-      _logger.error('[TaskCrudService] Failed to get tasks for note',
-          error: e, stackTrace: stack, data: {'noteId': noteId});
+      _logger.error(
+        '[TaskCrudService] Failed to get tasks for note',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': noteId},
+      );
       return [];
     }
   }
@@ -193,8 +225,11 @@ class TaskCrudService {
     try {
       return await _repository.getAllTasks();
     } catch (e, stack) {
-      _logger.error('[TaskCrudService] Failed to get all tasks',
-          error: e, stackTrace: stack);
+      _logger.error(
+        '[TaskCrudService] Failed to get all tasks',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -208,11 +243,17 @@ class TaskCrudService {
       return await updateTask(
         taskId: taskId,
         isCompleted: !(task.status == domain.TaskStatus.completed),
-        completedAt: task.status == domain.TaskStatus.completed ? null : DateTime.now(),
+        completedAt: task.status == domain.TaskStatus.completed
+            ? null
+            : DateTime.now(),
       );
     } catch (e, stack) {
-      _logger.error('[TaskCrudService] Failed to toggle task completion',
-          error: e, stackTrace: stack, data: {'taskId': taskId});
+      _logger.error(
+        '[TaskCrudService] Failed to toggle task completion',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId},
+      );
       return null;
     }
   }

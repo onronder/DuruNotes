@@ -10,11 +10,14 @@ import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/domain/entities/task.dart' as domain;
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/task_sync_metrics.dart';
-import 'package:duru_notes/data/local/app_db.dart' as db show TaskStatus, TaskPriority;
+import 'package:duru_notes/data/local/app_db.dart'
+    as db
+    show TaskStatus, TaskPriority;
 
 class _MockNotesRepository extends Mock implements INotesRepository {}
 
-class _StubEnhancedTaskService extends Mock implements enhanced.EnhancedTaskService {
+class _StubEnhancedTaskService extends Mock
+    implements enhanced.EnhancedTaskService {
   String? lastNoteId;
   String? lastContent;
   bool? lastCreateReminder;
@@ -75,8 +78,9 @@ class _InMemoryTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getAllTasks() async => _tasks.values.toList();
 
   @override
-  Future<List<domain.Task>> getPendingTasks() async =>
-      _tasks.values.where((t) => t.status != domain.TaskStatus.completed).toList();
+  Future<List<domain.Task>> getPendingTasks() async => _tasks.values
+      .where((t) => t.status != domain.TaskStatus.completed)
+      .toList();
 
   @override
   Future<domain.Task?> getTaskById(String id) async => _tasks[id];
@@ -117,8 +121,9 @@ class _InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Stream<List<domain.Task>> watchTasksForNote(String noteId) =>
-      _allTasksController.stream
-          .map((tasks) => tasks.where((t) => t.noteId == noteId).toList());
+      _allTasksController.stream.map(
+        (tasks) => tasks.where((t) => t.noteId == noteId).toList(),
+      );
 
   @override
   Future<List<domain.Task>> searchTasks(String query) async =>
@@ -136,7 +141,10 @@ class _InMemoryTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<void> updateTaskPriority(String id, domain.TaskPriority priority) async {
+  Future<void> updateTaskPriority(
+    String id,
+    domain.TaskPriority priority,
+  ) async {
     final task = _tasks[id];
     if (task == null) return;
     _tasks[id] = task.copyWith(priority: priority);
@@ -152,8 +160,13 @@ class _InMemoryTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<List<domain.Task>> getCompletedTasks({int? limit, DateTime? since}) async {
-    final tasks = _tasks.values.where((t) => t.status == domain.TaskStatus.completed);
+  Future<List<domain.Task>> getCompletedTasks({
+    int? limit,
+    DateTime? since,
+  }) async {
+    final tasks = _tasks.values.where(
+      (t) => t.status == domain.TaskStatus.completed,
+    );
     if (limit != null) {
       return tasks.take(limit).toList();
     }
@@ -172,10 +185,14 @@ class _InMemoryTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getTasksByDateRange({
     required DateTime start,
     required DateTime end,
-  }) async =>
-      _tasks.values
-          .where((t) => t.dueDate != null && !t.dueDate!.isBefore(start) && !t.dueDate!.isAfter(end))
-          .toList();
+  }) async => _tasks.values
+      .where(
+        (t) =>
+            t.dueDate != null &&
+            !t.dueDate!.isBefore(start) &&
+            !t.dueDate!.isAfter(end),
+      )
+      .toList();
 
   @override
   Future<void> deleteTasksForNote(String noteId) async {
@@ -185,14 +202,16 @@ class _InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Future<Map<String, int>> getTaskStatistics() async => {
-        'total': _tasks.length,
-        'completed':
-            _tasks.values.where((t) => t.status == domain.TaskStatus.completed).length,
-      };
+    'total': _tasks.length,
+    'completed': _tasks.values
+        .where((t) => t.status == domain.TaskStatus.completed)
+        .length,
+  };
 
   @override
-  Future<List<domain.Task>> getTasksByPriority(domain.TaskPriority priority) async =>
-      _tasks.values.where((t) => t.priority == priority).toList();
+  Future<List<domain.Task>> getTasksByPriority(
+    domain.TaskPriority priority,
+  ) async => _tasks.values.where((t) => t.priority == priority).toList();
 
   @override
   Future<void> addTagToTask(String taskId, String tag) async {
@@ -213,7 +232,10 @@ class _InMemoryTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<void> syncTasksWithNoteContent(String noteId, String noteContent) async {}
+  Future<void> syncTasksWithNoteContent(
+    String noteId,
+    String noteContent,
+  ) async {}
 
   @override
   Future<domain.Task> createSubtask({
@@ -242,10 +264,12 @@ class _InMemoryTaskRepository implements ITaskRepository {
   }
 
   @override
-  Future<List<domain.Task>> getSubtasks(String parentTaskId) async =>
-      _tasks.values
-          .where((t) => t.metadata['parentTaskId'] == true && t.noteId == parentTaskId)
-          .toList();
+  Future<List<domain.Task>> getSubtasks(String parentTaskId) async => _tasks
+      .values
+      .where(
+        (t) => t.metadata['parentTaskId'] == true && t.noteId == parentTaskId,
+      )
+      .toList();
 }
 
 class _StubLogger implements AppLogger {
@@ -271,10 +295,7 @@ class _StubLogger implements AppLogger {
   void warning(String message, {Map<String, dynamic>? data}) {}
 }
 
-domain.Task _makeTask({
-  required String id,
-  required domain.TaskStatus status,
-}) {
+domain.Task _makeTask({required String id, required domain.TaskStatus status}) {
   final now = DateTime.now();
   return domain.Task(
     id: id,
@@ -296,71 +317,87 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Phase 3: Sync System Integrity', () {
-    test('DomainTaskController delegates creation to EnhancedTaskService', () async {
-      final taskRepository = _InMemoryTaskRepository();
-      final notesRepository = _MockNotesRepository();
-      final enhancedService = _StubEnhancedTaskService();
+    test(
+      'DomainTaskController delegates creation to EnhancedTaskService',
+      () async {
+        final taskRepository = _InMemoryTaskRepository();
+        final notesRepository = _MockNotesRepository();
+        final enhancedService = _StubEnhancedTaskService();
 
-      final controller = DomainTaskController(
-        taskRepository: taskRepository,
-        notesRepository: notesRepository,
-        enhancedTaskService: enhancedService,
-        logger: const _StubLogger(),
-      );
+        final controller = DomainTaskController(
+          taskRepository: taskRepository,
+          notesRepository: notesRepository,
+          enhancedTaskService: enhancedService,
+          logger: const _StubLogger(),
+        );
 
-      const createdTaskId = 'task-001';
-      final task = _makeTask(
-        id: createdTaskId,
-        status: domain.TaskStatus.pending,
-      );
+        const createdTaskId = 'task-001';
+        final task = _makeTask(
+          id: createdTaskId,
+          status: domain.TaskStatus.pending,
+        );
 
-      final dueDate = DateTime(2025, 1, 1);
+        final dueDate = DateTime(2025, 1, 1);
 
-      enhancedService.onCreateTask = () async {
-        taskRepository.addTask(task);
-        return createdTaskId;
-      };
+        enhancedService.onCreateTask = () async {
+          taskRepository.addTask(task);
+          return createdTaskId;
+        };
 
-      final result = await controller.createTask(
-        noteId: 'note-123',
-        title: 'Write tests',
-        dueDate: dueDate,
-        createReminder: true,
-      );
+        final result = await controller.createTask(
+          noteId: 'note-123',
+          title: 'Write tests',
+          dueDate: dueDate,
+          createReminder: true,
+        );
 
-      expect(result, task);
-      expect(await taskRepository.getTaskById(createdTaskId), task);
-      expect(enhancedService.lastNoteId, 'note-123');
-      expect(enhancedService.lastContent, 'Write tests');
-      expect(enhancedService.lastCreateReminder, isTrue);
-      expect(enhancedService.lastDueDate, dueDate);
-    });
+        expect(result, task);
+        expect(await taskRepository.getTaskById(createdTaskId), task);
+        expect(enhancedService.lastNoteId, 'note-123');
+        expect(enhancedService.lastContent, 'Write tests');
+        expect(enhancedService.lastCreateReminder, isTrue);
+        expect(enhancedService.lastDueDate, dueDate);
+      },
+    );
 
-    test('DomainTaskController stream filtering excludes completed tasks', () async {
-      final taskRepository = _InMemoryTaskRepository();
-      final notesRepository = _MockNotesRepository();
-      final enhancedService = _StubEnhancedTaskService();
+    test(
+      'DomainTaskController stream filtering excludes completed tasks',
+      () async {
+        final taskRepository = _InMemoryTaskRepository();
+        final notesRepository = _MockNotesRepository();
+        final enhancedService = _StubEnhancedTaskService();
 
-      final controller = DomainTaskController(
-        taskRepository: taskRepository,
-        notesRepository: notesRepository,
-        enhancedTaskService: enhancedService,
-        logger: const _StubLogger(),
-      );
+        final controller = DomainTaskController(
+          taskRepository: taskRepository,
+          notesRepository: notesRepository,
+          enhancedTaskService: enhancedService,
+          logger: const _StubLogger(),
+        );
 
-      final pendingTask = _makeTask(id: 'pending', status: domain.TaskStatus.pending);
-      final completedTask = _makeTask(id: 'done', status: domain.TaskStatus.completed);
+        final pendingTask = _makeTask(
+          id: 'pending',
+          status: domain.TaskStatus.pending,
+        );
+        final completedTask = _makeTask(
+          id: 'done',
+          status: domain.TaskStatus.completed,
+        );
 
-      final tasksFuture = controller.watchAllTasks(includeCompleted: false).first;
-      taskRepository.replaceAll([pendingTask, completedTask]);
-      final tasks = await tasksFuture;
-      expect(tasks, [pendingTask]);
+        final tasksFuture = controller
+            .watchAllTasks(includeCompleted: false)
+            .first;
+        taskRepository.replaceAll([pendingTask, completedTask]);
+        final tasks = await tasksFuture;
+        expect(tasks, [pendingTask]);
 
-      final allTasksFuture = controller.watchAllTasks(includeCompleted: true).first;
-      taskRepository.replaceAll([pendingTask, completedTask]);
-      final allTasks = await allTasksFuture;
-      expect(allTasks, containsAll([pendingTask, completedTask]));
-    });
+        final allTasksFuture = controller
+            .watchAllTasks(includeCompleted: true)
+            .first;
+        taskRepository.replaceAll([pendingTask, completedTask]);
+        final allTasks = await allTasksFuture;
+        expect(allTasks, containsAll([pendingTask, completedTask]));
+      },
+    );
 
     test('TaskSyncMetrics records successful sync completion', () {
       final metrics = TaskSyncMetrics.instance;
@@ -373,11 +410,7 @@ void main() {
         syncType: 'domain-task-sync',
       );
 
-      metrics.endSync(
-        syncId: syncId,
-        success: true,
-        taskCount: 3,
-      );
+      metrics.endSync(syncId: syncId, success: true, taskCount: 3);
 
       final after = metrics.getHealthMetrics();
       final finalSuccesses = (after['successCount'] as int?) ?? 0;

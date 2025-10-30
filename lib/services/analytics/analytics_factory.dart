@@ -30,10 +30,7 @@ class AnalyticsFactory {
     }
 
     if (config.analyticsEnabled && config.isSentryConfigured) {
-      final sentryAnalytics = SentryAnalytics(
-        logger: logger,
-        config: config,
-      );
+      final sentryAnalytics = SentryAnalytics(logger: logger, config: config);
       await sentryAnalytics.initialize();
       _instance = sentryAnalytics;
     } else {

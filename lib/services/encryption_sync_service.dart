@@ -46,8 +46,8 @@ class EncryptionSyncService {
     required this.secureStorage,
     AccountKeyService? accountKeyService,
     AppLogger? logger,
-  })  : _logger = logger ?? LoggerFactory.instance,
-        _accountKeyService = accountKeyService;
+  }) : _logger = logger ?? LoggerFactory.instance,
+       _accountKeyService = accountKeyService;
 
   final SupabaseClient supabase;
   final FlutterSecureStorage secureStorage;
@@ -63,7 +63,8 @@ class EncryptionSyncService {
   static const int _saltLength = 16; // 128 bits
   static const int _amkLength = 32; // 256 bits
   static const int _iterations = 5; // Argon2id iterations (OWASP minimum)
-  static const int _memoryKiB = 131072; // 128 MB (enhanced from 64MB for better resistance)
+  static const int _memoryKiB =
+      131072; // 128 MB (enhanced from 64MB for better resistance)
   static const int _parallelism = 4; // 4 lanes (optimal for mobile devices)
 
   // Encryption algorithm for AMK
@@ -83,7 +84,8 @@ class EncryptionSyncService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'EncryptionSyncService');
-          scope.setTag('operation', operation);        },
+          scope.setTag('operation', operation);
+        },
       ),
     );
   }
@@ -126,10 +128,7 @@ class EncryptionSyncService {
         );
       }
 
-      _logger.info(
-        'Setting up encryption sync',
-        data: {'userId': userId},
-      );
+      _logger.info('Setting up encryption sync', data: {'userId': userId});
 
       // 1. Generate AMK
       final amk = _generateRandomBytes(_amkLength);
@@ -157,10 +156,7 @@ class EncryptionSyncService {
       // Also update AccountKeyService so CryptoBox derives keys from the shared AMK
       await _accountKeyService?.setLocalAmk(amk, userId: userId);
 
-      _logger.info(
-        'Encryption sync setup complete',
-        data: {'userId': userId},
-      );
+      _logger.info('Encryption sync setup complete', data: {'userId': userId});
     } on EncryptionException {
       rethrow; // Already user-friendly, pass through
     } on PostgrestException catch (error, stack) {
@@ -232,10 +228,7 @@ class EncryptionSyncService {
         );
       }
 
-      _logger.info(
-        'Retrieving encryption sync keys',
-        data: {'userId': userId},
-      );
+      _logger.info('Retrieving encryption sync keys', data: {'userId': userId});
 
       // 1. Fetch encrypted AMK from backend
       final keyData = await _fetchEncryptionKey(userId);
@@ -270,10 +263,7 @@ class EncryptionSyncService {
       );
       await _accountKeyService?.setLocalAmk(amk, userId: userId);
 
-      _logger.info(
-        'Encryption sync keys retrieved',
-        data: {'userId': userId},
-      );
+      _logger.info('Encryption sync keys retrieved', data: {'userId': userId});
     } on EncryptionException {
       rethrow; // Already user-friendly
     } on PostgrestException catch (error, stack) {
@@ -339,10 +329,7 @@ class EncryptionSyncService {
       throw Exception('User must be authenticated');
     }
 
-    _logger.info(
-      'Rotating encryption keys',
-      data: {'userId': userId},
-    );
+    _logger.info('Rotating encryption keys', data: {'userId': userId});
 
     try {
       // 1. Fetch and decrypt AMK with old password (verifies old password)
@@ -376,11 +363,14 @@ class EncryptionSyncService {
       final newEncryptedAmk = await _encryptData(amk, newDek);
 
       // 5. Update backend
-      await supabase.from('user_encryption_keys').update({
-        'encrypted_amk': base64Encode(newEncryptedAmk),
-        'amk_salt': base64Encode(newSalt),
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId);
+      await supabase
+          .from('user_encryption_keys')
+          .update({
+            'encrypted_amk': base64Encode(newEncryptedAmk),
+            'amk_salt': base64Encode(newSalt),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('user_id', userId);
 
       // Update local storage (AMK doesn't change, just re-wrapped with new password)
       await secureStorage.write(
@@ -453,10 +443,7 @@ class EncryptionSyncService {
     await secureStorage.delete(key: '$_amkKeyPrefix$userId');
     await _accountKeyService?.clearLocalAmk();
 
-    _logger.debug(
-      'Cleared local encryption keys',
-      data: {'userId': userId},
-    );
+    _logger.debug('Cleared local encryption keys', data: {'userId': userId});
   }
 
   // ========== Private Helper Methods ==========
@@ -497,14 +484,14 @@ class EncryptionSyncService {
     final passwordBytes = Uint8List.fromList(utf8.encode(password));
 
     final args = Argon2Arguments(
-      passwordBytes,  // key (password)
-      salt,           // salt
-      _memoryKiB,     // memory in KiB
-      _iterations,    // iterations
-      32,             // length (output key size)
-      _parallelism,   // parallelism
-      2,              // type: 2 = Argon2id (hybrid)
-      19,             // version: 19 = v1.3
+      passwordBytes, // key (password)
+      salt, // salt
+      _memoryKiB, // memory in KiB
+      _iterations, // iterations
+      32, // length (output key size)
+      _parallelism, // parallelism
+      2, // type: 2 = Argon2id (hybrid)
+      19, // version: 19 = v1.3
     );
 
     final result = await argon2.argon2Async(args);
@@ -514,10 +501,7 @@ class EncryptionSyncService {
 
   /// Encrypt data with AES-256-GCM
   Future<Uint8List> _encryptData(Uint8List data, SecretKey key) async {
-    final secretBox = await _aesGcm.encrypt(
-      data,
-      secretKey: key,
-    );
+    final secretBox = await _aesGcm.encrypt(data, secretKey: key);
 
     // Combine nonce + ciphertext + mac for storage
     final combined = Uint8List.fromList([
@@ -536,16 +520,9 @@ class EncryptionSyncService {
     final mac = combined.sublist(combined.length - 16);
     final cipherText = combined.sublist(12, combined.length - 16);
 
-    final secretBox = SecretBox(
-      cipherText,
-      nonce: nonce,
-      mac: Mac(mac),
-    );
+    final secretBox = SecretBox(cipherText, nonce: nonce, mac: Mac(mac));
 
-    final decrypted = await _aesGcm.decrypt(
-      secretBox,
-      secretKey: key,
-    );
+    final decrypted = await _aesGcm.decrypt(secretBox, secretKey: key);
 
     return Uint8List.fromList(decrypted);
   }

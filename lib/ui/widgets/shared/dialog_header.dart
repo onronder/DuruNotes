@@ -31,10 +31,9 @@ class DialogHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final effectiveTitleStyle = titleStyle ??
-        theme.textTheme.headlineSmall?.copyWith(
-          fontWeight: FontWeight.w600,
-        );
+    final effectiveTitleStyle =
+        titleStyle ??
+        theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600);
 
     final effectiveIconColor = iconColor ?? colorScheme.primary;
     final effectivePadding =
@@ -43,11 +42,7 @@ class DialogHeader extends StatelessWidget {
     Widget header = Row(
       children: [
         if (icon != null) ...[
-          Icon(
-            icon,
-            color: effectiveIconColor,
-            size: 28,
-          ),
+          Icon(icon, color: effectiveIconColor, size: 28),
           const SizedBox(width: 12),
         ],
         Expanded(
@@ -58,10 +53,7 @@ class DialogHeader extends StatelessWidget {
             maxLines: 2,
           ),
         ),
-        if (trailing != null) ...[
-          const SizedBox(width: 12),
-          trailing!,
-        ],
+        if (trailing != null) ...[const SizedBox(width: 12), trailing!],
         if (onClose != null) ...[
           const SizedBox(width: 8),
           IconButton(
@@ -76,19 +68,13 @@ class DialogHeader extends StatelessWidget {
     );
 
     if (padding != null || padding == EdgeInsets.zero) {
-      header = Padding(
-        padding: effectivePadding,
-        child: header,
-      );
+      header = Padding(padding: effectivePadding, child: header);
     }
 
     if (showDivider) {
       return Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          header,
-          const Divider(height: 1),
-        ],
+        children: [header, const Divider(height: 1)],
       );
     }
 
@@ -109,11 +95,7 @@ extension DialogHeaderExtensions on DialogHeader {
     required IconData icon,
     Color? iconColor,
   }) {
-    return DialogHeader(
-      title: title,
-      icon: icon,
-      iconColor: iconColor,
-    );
+    return DialogHeader(title: title, icon: icon, iconColor: iconColor);
   }
 
   /// Create a closeable header
@@ -122,11 +104,7 @@ extension DialogHeaderExtensions on DialogHeader {
     required VoidCallback onClose,
     IconData? icon,
   }) {
-    return DialogHeader(
-      title: title,
-      icon: icon,
-      onClose: onClose,
-    );
+    return DialogHeader(title: title, icon: icon, onClose: onClose);
   }
 
   /// Create a header for forms (with close button and divider)
@@ -157,10 +135,7 @@ extension DialogHeaderExtensions on DialogHeader {
   }
 
   /// Create a header for info dialogs
-  static DialogHeader info({
-    required String title,
-    VoidCallback? onClose,
-  }) {
+  static DialogHeader info({required String title, VoidCallback? onClose}) {
     return DialogHeader(
       title: title,
       icon: Icons.info_outline,

@@ -66,13 +66,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       curve: Curves.easeIn,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
 
     // Start animations
     _fadeController.forward();
@@ -100,7 +97,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     HapticFeedback.lightImpact();
 
     try {
-      debugPrint('[Auth] Starting ${_isSignUp ? 'sign up' : 'sign in'} for $email');
+      debugPrint(
+        '[Auth] Starting ${_isSignUp ? 'sign up' : 'sign in'} for $email',
+      );
       if (_isSignUp) {
         final signUpRes = await Supabase.instance.client.auth.signUp(
           email: email,
@@ -112,10 +111,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
         _logger.info(
           'User sign-up completed',
-          data: {
-            'flow': 'signUp',
-            'emailDomain': _extractEmailDomain(email),
-          },
+          data: {'flow': 'signUp', 'emailDomain': _extractEmailDomain(email)},
         );
 
         // Get the user ID / active session from signup response or auth state.
@@ -132,15 +128,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           // SAFETY: Completely non-blocking, user can skip, feature flag controlled
           // If disabled (default), this is a no-op
           if (kDebugMode) {
-            debugPrint('[Auth] 📝 Sign-up successful, checking cross-device encryption...');
-            debugPrint('[Auth] Feature flag enabled: ${EncryptionFeatureFlags.enableCrossDeviceEncryption}');
+            debugPrint(
+              '[Auth] 📝 Sign-up successful, checking cross-device encryption...',
+            );
+            debugPrint(
+              '[Auth] Feature flag enabled: ${EncryptionFeatureFlags.enableCrossDeviceEncryption}',
+            );
           }
 
           try {
             // PRODUCTION FIX: Check if widget is still mounted before using ref
             if (!mounted) {
               if (kDebugMode) {
-                debugPrint('[Auth] ⚠️ Widget unmounted before onboarding setup');
+                debugPrint(
+                  '[Auth] ⚠️ Widget unmounted before onboarding setup',
+                );
               }
               return;
             }
@@ -164,7 +166,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               stackTrace: stack,
               data: {
                 'flow': 'signUp',
-                'featureEnabled': EncryptionFeatureFlags.enableCrossDeviceEncryption,
+                'featureEnabled':
+                    EncryptionFeatureFlags.enableCrossDeviceEncryption,
               },
             );
             unawaited(Sentry.captureException(e, stackTrace: stack));
@@ -200,10 +203,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
         _logger.info(
           'User sign-in completed',
-          data: {
-            'flow': 'signIn',
-            'emailDomain': _extractEmailDomain(email),
-          },
+          data: {'flow': 'signIn', 'emailDomain': _extractEmailDomain(email)},
         );
 
         // CRITICAL FIX: DO NOT register push token here!
@@ -385,8 +385,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         // Tagline
         Text(
           _isSignUp
-            ? 'Create your secure workspace'
-            : 'Welcome back to your notes',
+              ? 'Create your secure workspace'
+              : 'Welcome back to your notes',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
@@ -423,7 +423,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             // Tab Switcher
             Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -581,31 +583,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(
-          vertical: DuruSpacing.sm,
-        ),
+        padding: EdgeInsets.symmetric(vertical: DuruSpacing.sm),
         decoration: BoxDecoration(
-          color: isActive
-            ? theme.colorScheme.surface
-            : Colors.transparent,
+          color: isActive ? theme.colorScheme.surface : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           boxShadow: isActive
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
         ),
         child: Center(
           child: Text(
             title,
             style: theme.textTheme.titleMedium?.copyWith(
               color: isActive
-                ? DuruColors.primary
-                : theme.colorScheme.onSurfaceVariant,
+                  ? DuruColors.primary
+                  : theme.colorScheme.onSurfaceVariant,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
@@ -635,7 +633,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.3,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -648,16 +648,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: DuruColors.primary,
-            width: 2,
-          ),
+          borderSide: BorderSide(color: DuruColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: DuruColors.error,
-          ),
+          borderSide: BorderSide(color: DuruColors.error),
         ),
       ),
     );
@@ -752,10 +747,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           children: [
             Icon(icon, size: 24),
             SizedBox(height: DuruSpacing.xs),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall,
-            ),
+            Text(label, style: theme.textTheme.bodySmall),
           ],
         ),
       ),

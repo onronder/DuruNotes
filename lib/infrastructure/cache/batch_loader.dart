@@ -26,9 +26,9 @@ class BatchLoader {
     if (noteIds.isEmpty) return {};
 
     // Single query to get all tags
-    final tagRecords = await (db.select(db.noteTags)
-          ..where((t) => t.noteId.isIn(noteIds)))
-        .get();
+    final tagRecords = await (db.select(
+      db.noteTags,
+    )..where((t) => t.noteId.isIn(noteIds))).get();
 
     // Group by noteId
     final tagsByNote = groupBy<NoteTag, String>(
@@ -56,9 +56,9 @@ class BatchLoader {
     if (noteIds.isEmpty) return {};
 
     // Single query to get all links
-    final linkRecords = await (db.select(db.noteLinks)
-          ..where((l) => l.sourceId.isIn(noteIds)))
-        .get();
+    final linkRecords = await (db.select(
+      db.noteLinks,
+    )..where((l) => l.sourceId.isIn(noteIds))).get();
 
     // Group by sourceId
     final linksByNote = groupBy<NoteLink, String>(
@@ -86,9 +86,9 @@ class BatchLoader {
     if (noteIds.isEmpty) return {};
 
     // Single query to get all folder relationships
-    final folderRecords = await (db.select(db.noteFolders)
-          ..where((nf) => nf.noteId.isIn(noteIds)))
-        .get();
+    final folderRecords = await (db.select(
+      db.noteFolders,
+    )..where((nf) => nf.noteId.isIn(noteIds))).get();
 
     // Map noteId to folderId
     final result = <String, String?>{};
@@ -113,9 +113,9 @@ class BatchLoader {
     if (noteIds.isEmpty) return {};
 
     // Single query to get all tasks
-    final taskRecords = await (db.select(db.noteTasks)
-          ..where((t) => t.noteId.isIn(noteIds) & t.deleted.equals(false)))
-        .get();
+    final taskRecords = await (db.select(
+      db.noteTasks,
+    )..where((t) => t.noteId.isIn(noteIds) & t.deleted.equals(false))).get();
 
     // Group by noteId
     final tasksByNote = groupBy<NoteTask, String>(
@@ -143,10 +143,7 @@ class BatchLoader {
 
     // Single query with GROUP BY
     final query = db.selectOnly(db.noteFolders)
-      ..addColumns([
-        db.noteFolders.folderId,
-        db.noteFolders.noteId.count(),
-      ])
+      ..addColumns([db.noteFolders.folderId, db.noteFolders.noteId.count()])
       ..where(db.noteFolders.folderId.isIn(folderIds))
       ..groupBy([db.noteFolders.folderId]);
 

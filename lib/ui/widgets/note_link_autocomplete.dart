@@ -217,14 +217,14 @@ class _NoteLinkAutocompleteState extends ConsumerState<NoteLinkAutocomplete> {
           elevation: 8,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            constraints: const BoxConstraints(
-              maxHeight: _overlayMaxHeight,
-            ),
+            constraints: const BoxConstraints(maxHeight: _overlayMaxHeight),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.2),
               ),
             ),
             child: _buildSuggestionsList(),
@@ -253,7 +253,9 @@ class _NoteLinkAutocompleteState extends ConsumerState<NoteLinkAutocomplete> {
             height: _itemHeight,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: isSelected
-                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                ? Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.3)
                 : null,
             child: Row(
               children: [
@@ -271,18 +273,19 @@ class _NoteLinkAutocompleteState extends ConsumerState<NoteLinkAutocomplete> {
                       Text(
                         note.title,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
+                          fontWeight: FontWeight.w500,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (note.body.isNotEmpty)
                         Text(
                           note.body,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -349,7 +352,8 @@ class _NoteLinkAutocompleteState extends ConsumerState<NoteLinkAutocomplete> {
       return true;
     } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
       setState(() {
-        _selectedIndex = (_selectedIndex - 1 + _suggestions.length) % _suggestions.length;
+        _selectedIndex =
+            (_selectedIndex - 1 + _suggestions.length) % _suggestions.length;
       });
       _overlayEntry?.markNeedsBuild();
       return true;

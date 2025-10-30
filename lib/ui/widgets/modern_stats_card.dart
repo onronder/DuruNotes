@@ -103,7 +103,8 @@ class ModernStatsCard extends StatelessWidget {
                           Text(
                             _getStatsummary(),
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -125,8 +126,8 @@ class ModernStatsCard extends StatelessWidget {
                       ),
                       child: Icon(
                         isCollapsed
-                          ? CupertinoIcons.chevron_down
-                          : CupertinoIcons.chevron_up,
+                            ? CupertinoIcons.chevron_down
+                            : CupertinoIcons.chevron_up,
                         size: 16,
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -143,19 +144,23 @@ class ModernStatsCard extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.all(DuruSpacing.sm),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withValues(alpha: 0.5),
+                          color: theme.colorScheme.surface.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: stats.map((stat) => _buildStatItem(context, stat)).toList(),
+                          children: stats
+                              .map((stat) => _buildStatItem(context, stat))
+                              .toList(),
                         ),
                       ),
                     ],
                   ),
                   crossFadeState: isCollapsed
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
+                      ? CrossFadeState.showFirst
+                      : CrossFadeState.showSecond,
                   duration: const Duration(milliseconds: 300),
                 ),
               ],
@@ -176,8 +181,10 @@ class ModernStatsCard extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                stat.color?.withValues(alpha: 0.1) ?? DuruColors.primary.withValues(alpha: 0.1),
-                stat.color?.withValues(alpha: 0.05) ?? DuruColors.primary.withValues(alpha: 0.05),
+                stat.color?.withValues(alpha: 0.1) ??
+                    DuruColors.primary.withValues(alpha: 0.1),
+                stat.color?.withValues(alpha: 0.05) ??
+                    DuruColors.primary.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(8),
@@ -244,11 +251,7 @@ class StatItem extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 24,
-          color: color ?? theme.colorScheme.primary,
-        ),
+        Icon(icon, size: 24, color: color ?? theme.colorScheme.primary),
         const SizedBox(height: 4),
         Text(
           value,

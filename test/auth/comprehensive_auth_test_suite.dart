@@ -36,37 +36,34 @@ void main() {
       authGuard.dispose();
     });
 
-    test('initialize() should be idempotent - can be called multiple times', () async {
-      // First initialization
-      await authGuard.initialize(
-        jwtSecret: 'test-secret-1',
-        csrfSecret: 'csrf-secret-1',
-      );
+    test(
+      'initialize() should be idempotent - can be called multiple times',
+      () async {
+        // First initialization
+        await authGuard.initialize(
+          jwtSecret: 'test-secret-1',
+          csrfSecret: 'csrf-secret-1',
+        );
 
-      // Second initialization (simulates sign-out → sign-up)
-      expect(
-        () async => await authGuard.initialize(
-          jwtSecret: 'test-secret-2',
-          csrfSecret: 'csrf-secret-2',
-        ),
-        returnsNormally,
-      );
-    });
+        // Second initialization (simulates sign-out → sign-up)
+        expect(
+          () async => await authGuard.initialize(
+            jwtSecret: 'test-secret-2',
+            csrfSecret: 'csrf-secret-2',
+          ),
+          returnsNormally,
+        );
+      },
+    );
 
     test('initialize() should update secrets on re-initialization', () async {
       final secret1 = 'secret-1';
       final secret2 = 'secret-2';
 
-      await authGuard.initialize(
-        jwtSecret: secret1,
-        csrfSecret: secret1,
-      );
+      await authGuard.initialize(jwtSecret: secret1, csrfSecret: secret1);
 
       // Re-initialize with different secrets
-      await authGuard.initialize(
-        jwtSecret: secret2,
-        csrfSecret: secret2,
-      );
+      await authGuard.initialize(jwtSecret: secret2, csrfSecret: secret2);
 
       // Create a session and generate tokens to verify new secrets are used
       final session = await authGuard.authenticate(
@@ -79,33 +76,33 @@ void main() {
       expect(session.accessToken, isNotNull);
     });
 
-    test('validateAccessToken() should fail gracefully when not initialized', () async {
-      final guard = AuthenticationGuard();
+    test(
+      'validateAccessToken() should fail gracefully when not initialized',
+      () async {
+        final guard = AuthenticationGuard();
 
-      final result = await guard.validateAccessToken('fake.token.here');
+        final result = await guard.validateAccessToken('fake.token.here');
 
-      expect(result.valid, false);
-      expect(result.error, contains('not initialized'));
-    });
+        expect(result.valid, false);
+        expect(result.error, contains('not initialized'));
+      },
+    );
 
-    test('should handle rapid multiple initializations (stress test)', () async {
-      final futures = <Future<void>>[];
+    test(
+      'should handle rapid multiple initializations (stress test)',
+      () async {
+        final futures = <Future<void>>[];
 
-      for (var i = 0; i < 10; i++) {
-        futures.add(
-          authGuard.initialize(
-            jwtSecret: 'secret-$i',
-            csrfSecret: 'csrf-$i',
-          ),
-        );
-      }
+        for (var i = 0; i < 10; i++) {
+          futures.add(
+            authGuard.initialize(jwtSecret: 'secret-$i', csrfSecret: 'csrf-$i'),
+          );
+        }
 
-      // All should complete without errors
-      expect(
-        () async => await Future.wait(futures),
-        returnsNormally,
-      );
-    });
+        // All should complete without errors
+        expect(() async => await Future.wait(futures), returnsNormally);
+      },
+    );
   });
 
   group('CRITICAL: Security Initialization', () {
@@ -205,15 +202,18 @@ void main() {
       // TODO: Implement with mocked dependencies
     });
 
-    test('unlockAmkWithPassphrase() should validate passphrase and decrypt AMK', () async {
-      // This test would verify:
-      // 1. Passphrase is validated
-      // 2. Wrapping key is derived correctly
-      // 3. AMK is unwrapped from user_keys
-      // 4. Local AMK is cached
+    test(
+      'unlockAmkWithPassphrase() should validate passphrase and decrypt AMK',
+      () async {
+        // This test would verify:
+        // 1. Passphrase is validated
+        // 2. Wrapping key is derived correctly
+        // 3. AMK is unwrapped from user_keys
+        // 4. Local AMK is cached
 
-      // TODO: Implement with mocked dependencies
-    });
+        // TODO: Implement with mocked dependencies
+      },
+    );
 
     test('should handle incorrect passphrase gracefully', () async {
       // Verify error handling for wrong passphrase

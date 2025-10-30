@@ -36,11 +36,14 @@ class UnifiedMigrationCoordinator {
     bool skipRemote = false,
   }) async {
     final stopwatch = Stopwatch()..start();
-    _logger.info('Starting Phase 3 unified migration', data: {
-      'version': _phase3Version,
-      'dry_run': dryRun,
-      'skip_remote': skipRemote,
-    });
+    _logger.info(
+      'Starting Phase 3 unified migration',
+      data: {
+        'version': _phase3Version,
+        'dry_run': dryRun,
+        'skip_remote': skipRemote,
+      },
+    );
 
     try {
       // 1. Pre-migration validation
@@ -104,18 +107,20 @@ class UnifiedMigrationCoordinator {
       await _updateMigrationMetadata();
 
       stopwatch.stop();
-      _logger.info('Phase 3 migration completed successfully', data: {
-        'duration_ms': stopwatch.elapsedMilliseconds,
-        'local_indexes_added': localResult.indexesAdded,
-        'remote_indexes_added': remoteResult?.indexesAdded ?? 0,
-      });
+      _logger.info(
+        'Phase 3 migration completed successfully',
+        data: {
+          'duration_ms': stopwatch.elapsedMilliseconds,
+          'local_indexes_added': localResult.indexesAdded,
+          'remote_indexes_added': remoteResult?.indexesAdded ?? 0,
+        },
+      );
 
       return MigrationResult.success(
         localIndexes: localResult.indexesAdded,
         remoteIndexes: remoteResult?.indexesAdded ?? 0,
         duration: stopwatch.elapsed,
       );
-
     } catch (e, stackTrace) {
       stopwatch.stop();
       _logger.error(
@@ -139,7 +144,9 @@ class UnifiedMigrationCoordinator {
       // Check local database version - Migration 12 is now idempotent
       final currentVersion = _localDb.schemaVersion;
       if (currentVersion > _localSchemaVersion) {
-        errors.add('Local database version ($currentVersion) is higher than target ($_localSchemaVersion)');
+        errors.add(
+          'Local database version ($currentVersion) is higher than target ($_localSchemaVersion)',
+        );
       }
 
       // For version 12, allow running on v12 since it's idempotent
@@ -165,15 +172,18 @@ class UnifiedMigrationCoordinator {
       // Check for active sync operations
       final pendingOps = await _localDb.managers.pendingOps.count();
       if (pendingOps > 0) {
-        errors.add('$pendingOps pending sync operations detected. Complete sync before migration.');
+        errors.add(
+          '$pendingOps pending sync operations detected. Complete sync before migration.',
+        );
       }
 
       // Validate backup prerequisites
       final hasWriteAccess = await _checkDatabaseWriteAccess();
       if (!hasWriteAccess) {
-        errors.add('Insufficient database write permissions for backup creation');
+        errors.add(
+          'Insufficient database write permissions for backup creation',
+        );
       }
-
     } catch (e) {
       errors.add('Validation error: $e');
     }
@@ -190,11 +200,14 @@ class UnifiedMigrationCoordinator {
       await _localDb.customStatement('PRAGMA wal_checkpoint(FULL)');
 
       // Store backup metadata
-      await _localDb.customStatement('''
+      await _localDb.customStatement(
+        '''
         INSERT OR REPLACE INTO migration_backups (
           backup_id, created_at, migration_version, status
         ) VALUES (?, ?, ?, ?)
-      ''', [backupId, DateTime.now().toIso8601String(), _phase3Version, 'created']);
+      ''',
+        [backupId, DateTime.now().toIso8601String(), _phase3Version, 'created'],
+      );
 
       _logger.info('Migration backup created', data: {'backup_id': backupId});
 
@@ -219,14 +232,17 @@ class UnifiedMigrationCoordinator {
 
         // Update schema version
         await _localDb.customStatement(
-          'PRAGMA user_version = $_localSchemaVersion'
+          'PRAGMA user_version = $_localSchemaVersion',
         );
       });
 
-      _logger.info('Local migration completed', data: {
-        'indexes_added': indexesAdded,
-        'new_version': _localSchemaVersion,
-      });
+      _logger.info(
+        'Local migration completed',
+        data: {
+          'indexes_added': indexesAdded,
+          'new_version': _localSchemaVersion,
+        },
+      );
 
       return LocalMigrationResult(true, indexesAdded: indexesAdded);
     } catch (e) {
@@ -250,15 +266,17 @@ class UnifiedMigrationCoordinator {
         'execute_migration_sql',
         params: {
           'migration_sql': migrationSql,
-          'migration_id': 'phase3_optimizations_${DateTime.now().millisecondsSinceEpoch}',
+          'migration_id':
+              'phase3_optimizations_${DateTime.now().millisecondsSinceEpoch}',
         },
       );
 
       indexesAdded = 15; // Count from PostgreSQL migration
 
-      _logger.info('Remote migration completed', data: {
-        'indexes_added': indexesAdded,
-      });
+      _logger.info(
+        'Remote migration completed',
+        data: {'indexes_added': indexesAdded},
+      );
 
       return RemoteMigrationResult(true, indexesAdded: indexesAdded);
     } catch (e) {
@@ -275,13 +293,17 @@ class UnifiedMigrationCoordinator {
       // Validate local schema version
       final localVersion = _localDb.schemaVersion;
       if (localVersion != _localSchemaVersion) {
-        errors.add('Local schema version mismatch: expected $_localSchemaVersion, got $localVersion');
+        errors.add(
+          'Local schema version mismatch: expected $_localSchemaVersion, got $localVersion',
+        );
       }
 
       // Validate local indexes exist
-      final localIndexes = await _localDb.customSelect(
-        "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'"
-      ).get();
+      final localIndexes = await _localDb
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
+          )
+          .get();
 
       if (localIndexes.length < 10) {
         errors.add('Expected local indexes not found');
@@ -308,7 +330,6 @@ class UnifiedMigrationCoordinator {
 
         // Query should execute without error
       }
-
     } catch (e) {
       errors.add('Post-migration validation error: $e');
     }
@@ -320,11 +341,19 @@ class UnifiedMigrationCoordinator {
   Future<void> _updateMigrationMetadata() async {
     try {
       // Update local metadata
-      await _localDb.customStatement('''
+      await _localDb.customStatement(
+        '''
         INSERT OR REPLACE INTO migration_history (
           version, applied_at, migration_type, status
         ) VALUES (?, ?, ?, ?)
-      ''', [_phase3Version, DateTime.now().toIso8601String(), 'phase3_optimization', 'completed']);
+      ''',
+        [
+          _phase3Version,
+          DateTime.now().toIso8601String(),
+          'phase3_optimization',
+          'completed',
+        ],
+      );
 
       // Update remote metadata (if function exists)
       try {
@@ -336,11 +365,16 @@ class UnifiedMigrationCoordinator {
           },
         );
       } catch (e) {
-        _logger.warning('Could not update remote migration metadata', data: {'error': e.toString()});
+        _logger.warning(
+          'Could not update remote migration metadata',
+          data: {'error': e.toString()},
+        );
       }
-
     } catch (e) {
-      _logger.warning('Failed to update migration metadata', data: {'error': e.toString()});
+      _logger.warning(
+        'Failed to update migration metadata',
+        data: {'error': e.toString()},
+      );
     }
   }
 
@@ -353,11 +387,14 @@ class UnifiedMigrationCoordinator {
       await Migration12Phase3Optimization.rollback(_localDb);
 
       // Update backup status
-      await _localDb.customStatement('''
+      await _localDb.customStatement(
+        '''
         UPDATE migration_backups
         SET status = 'rollback_applied'
         WHERE backup_id = ?
-      ''', [backupId]);
+      ''',
+        [backupId],
+      );
 
       _logger.info('Migration rollback completed');
     } catch (e) {
@@ -436,7 +473,9 @@ class UnifiedMigrationCoordinator {
   /// Check database write access
   Future<bool> _checkDatabaseWriteAccess() async {
     try {
-      await _localDb.customStatement('CREATE TEMP TABLE test_write (id INTEGER)');
+      await _localDb.customStatement(
+        'CREATE TEMP TABLE test_write (id INTEGER)',
+      );
       await _localDb.customStatement('DROP TABLE test_write');
       return true;
     } catch (e) {
@@ -470,7 +509,11 @@ class UnifiedMigrationCoordinator {
   /// Check remote database access
   Future<bool> _checkRemoteAccess() async {
     try {
-      await _supabaseClient.from('notes').select('count').limit(1).maybeSingle();
+      await _supabaseClient
+          .from('notes')
+          .select('count')
+          .limit(1)
+          .maybeSingle();
       return true;
     } catch (e) {
       return false;

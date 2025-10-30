@@ -29,8 +29,9 @@ class ChartTheme {
     final isDark = theme.brightness == Brightness.dark;
 
     return ChartTheme(
-      gridColor: colorScheme.surfaceContainerHighest
-          .withValues(alpha: isDark ? 0.3 : 0.5),
+      gridColor: colorScheme.surfaceContainerHighest.withValues(
+        alpha: isDark ? 0.3 : 0.5,
+      ),
       borderColor: colorScheme.outline.withValues(alpha: 0.3),
       lineColor: colorScheme.primary,
       dotColor: colorScheme.primary,
@@ -158,9 +159,7 @@ class ChartBuilders {
       sections: sections,
       centerSpaceRadius: centerSpaceRadius,
       sectionsSpace: sectionsSpace,
-      pieTouchData: PieTouchData(
-        enabled: true,
-      ),
+      pieTouchData: PieTouchData(enabled: true),
     );
   }
 
@@ -207,7 +206,8 @@ class ChartBuilders {
         title: showTitle ? '$percentage%' : '',
         color: colors[index],
         radius: radius,
-        titleStyle: titleStyle ??
+        titleStyle:
+            titleStyle ??
             const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -254,10 +254,7 @@ class ChartBuilders {
                   if (index >= 0 && index < bottomTitles.length) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        bottomTitles[index],
-                        style: theme.labelStyle,
-                      ),
+                      child: Text(bottomTitles[index], style: theme.labelStyle),
                     );
                   }
                   return const SizedBox.shrink();
@@ -272,35 +269,23 @@ class ChartBuilders {
               ? (value, meta) {
                   final index = value.toInt();
                   if (index >= 0 && index < leftTitles.length) {
-                    return Text(
-                      leftTitles[index],
-                      style: theme.labelStyle,
-                    );
+                    return Text(leftTitles[index], style: theme.labelStyle);
                   }
                   return const SizedBox.shrink();
                 }
-              : (value, meta) => Text(
-                    value.toInt().toString(),
-                    style: theme.labelStyle,
-                  ),
+              : (value, meta) =>
+                    Text(value.toInt().toString(), style: theme.labelStyle),
         ),
       ),
-      topTitles: const AxisTitles(
-        sideTitles: SideTitles(showTitles: false),
-      ),
-      rightTitles: const AxisTitles(
-        sideTitles: SideTitles(showTitles: false),
-      ),
+      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
     );
   }
 
   static FlBorderData _buildBorderData(ChartTheme theme, ChartConfig config) {
     return FlBorderData(
       show: true,
-      border: Border.all(
-        color: theme.borderColor,
-        width: 1,
-      ),
+      border: Border.all(color: theme.borderColor, width: 1),
     );
   }
 
@@ -335,7 +320,9 @@ class ChartBuilders {
   }
 
   static LineTouchData _buildLineTouchData(
-      ChartTheme theme, ChartConfig config) {
+    ChartTheme theme,
+    ChartConfig config,
+  ) {
     if (!config.showTooltips) {
       return const LineTouchData(enabled: false);
     }
@@ -347,10 +334,7 @@ class ChartBuilders {
           return touchedSpots.map((spot) {
             return LineTooltipItem(
               spot.y.toStringAsFixed(1),
-              TextStyle(
-                color: theme.tooltipText,
-                fontWeight: FontWeight.bold,
-              ),
+              TextStyle(color: theme.tooltipText, fontWeight: FontWeight.bold),
             );
           }).toList();
         },
@@ -369,10 +353,7 @@ class ChartBuilders {
         getTooltipItem: (group, groupIndex, rod, rodIndex) {
           return BarTooltipItem(
             rod.toY.toStringAsFixed(1),
-            TextStyle(
-              color: theme.tooltipText,
-              fontWeight: FontWeight.bold,
-            ),
+            TextStyle(color: theme.tooltipText, fontWeight: FontWeight.bold),
           );
         },
       ),

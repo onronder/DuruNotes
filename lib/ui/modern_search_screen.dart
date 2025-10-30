@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
-import 'package:duru_notes/infrastructure/providers/repository_providers.dart' show notesCoreRepositoryProvider;
+import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
+    show notesCoreRepositoryProvider;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -47,13 +48,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeIn,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
 
     _loadRecentNotes();
     _animationController.forward();
@@ -74,7 +71,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
 
   Future<void> _loadRecentNotes() async {
     // Get recent notes from repository - already decrypted domain notes
-    final recentNotes = await ref.read(notesCoreRepositoryProvider).getRecentlyViewedNotes(limit: 5);
+    final recentNotes = await ref
+        .read(notesCoreRepositoryProvider)
+        .getRecentlyViewedNotes(limit: 5);
 
     if (mounted) {
       setState(() {
@@ -104,7 +103,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
         results = await _performSemanticSearch(query);
       } else {
         // Use traditional search with repository
-        final allNotes = await ref.read(notesCoreRepositoryProvider).localNotes();
+        final allNotes = await ref
+            .read(notesCoreRepositoryProvider)
+            .localNotes();
 
         results = allNotes.where((note) {
           if (note.deleted) return false;
@@ -242,9 +243,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  isDark
-                      ? Colors.white.withValues(alpha: 0.08)
-                      : Colors.white,
+                  isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
                   isDark
                       ? Colors.white.withValues(alpha: 0.05)
                       : Colors.white.withValues(alpha: 0.95),
@@ -252,7 +251,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
               ),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: (isDark ? Colors.white : Colors.grey).withValues(alpha: 0.1),
+                color: (isDark ? Colors.white : Colors.grey).withValues(
+                  alpha: 0.1,
+                ),
               ),
               boxShadow: [
                 BoxShadow(
@@ -266,13 +267,12 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
               children: [
                 // Search field
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: DuruSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DuruSpacing.md,
+                  ),
                   child: Row(
                     children: [
-                      Icon(
-                        CupertinoIcons.search,
-                        color: DuruColors.primary,
-                      ),
+                      Icon(CupertinoIcons.search, color: DuruColors.primary),
                       const SizedBox(width: DuruSpacing.sm),
                       Expanded(
                         child: TextField(
@@ -294,11 +294,14 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                           onChanged: (value) {
                             _generateSuggestions(value);
                             // Debounced search
-                            Future<void>.delayed(const Duration(milliseconds: 300), () {
-                              if (value == _searchController.text) {
-                                _performSearch(value);
-                              }
-                            });
+                            Future<void>.delayed(
+                              const Duration(milliseconds: 300),
+                              () {
+                                if (value == _searchController.text) {
+                                  _performSearch(value);
+                                }
+                              },
+                            );
                           },
                           onSubmitted: _performSearch,
                         ),
@@ -359,7 +362,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                           'Threshold: ${(_semanticThreshold * 100).round()}%',
                           style: TextStyle(
                             fontSize: 11,
-                            color: const Color(0xFF9333EA).withValues(alpha: 0.7),
+                            color: const Color(
+                              0xFF9333EA,
+                            ).withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -369,30 +374,42 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                 // Suggestions
                 if (_searchSuggestions.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: DuruSpacing.sm),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: DuruSpacing.sm,
+                    ),
                     decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(
-                          color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+                          color: colorScheme.outlineVariant.withValues(
+                            alpha: 0.2,
+                          ),
                         ),
                       ),
                     ),
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: DuruSpacing.md),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: DuruSpacing.md,
+                      ),
                       child: Row(
                         children: _searchSuggestions.map((suggestion) {
                           return Padding(
-                            padding: const EdgeInsets.only(right: DuruSpacing.sm),
+                            padding: const EdgeInsets.only(
+                              right: DuruSpacing.sm,
+                            ),
                             child: ActionChip(
                               label: Text(suggestion),
                               onPressed: () {
                                 _searchController.text = suggestion;
                                 _performSearch(suggestion);
                               },
-                              backgroundColor: DuruColors.primary.withValues(alpha: 0.1),
+                              backgroundColor: DuruColors.primary.withValues(
+                                alpha: 0.1,
+                              ),
                               side: BorderSide(
-                                color: DuruColors.primary.withValues(alpha: 0.3),
+                                color: DuruColors.primary.withValues(
+                                  alpha: 0.3,
+                                ),
                               ),
                             ),
                           );
@@ -407,12 +424,10 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
           // Results area
           Expanded(
             child: _isSearching
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
+                ? const Center(child: CircularProgressIndicator())
                 : _searchController.text.isEmpty
-                    ? _buildEmptyState()
-                    : _buildSearchResults(),
+                ? _buildEmptyState()
+                : _buildSearchResults(),
           ),
         ],
       ),
@@ -489,9 +504,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
               _useSemanticSearch
                   ? 'Try rephrasing your query'
                   : 'Try different keywords or filters',
-              style: TextStyle(
-                color: Colors.grey.withValues(alpha: 0.7),
-              ),
+              style: TextStyle(color: Colors.grey.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -510,10 +523,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
     );
   }
 
-  Widget _buildSectionHeader({
-    required String title,
-    required IconData icon,
-  }) {
+  Widget _buildSectionHeader({required String title, required IconData icon}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
@@ -526,11 +536,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
             ),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: Colors.white,
-          ),
+          child: Icon(icon, size: 16, color: Colors.white),
         ),
         const SizedBox(width: DuruSpacing.sm),
         Text(
@@ -554,9 +560,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            isDark
-                ? Colors.white.withValues(alpha: 0.05)
-                : Colors.white,
+            isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
             isDark
                 ? Colors.white.withValues(alpha: 0.03)
                 : Colors.white.withValues(alpha: 0.95),
@@ -621,8 +625,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                   note.body,
                   style: TextStyle(
                     fontSize: 14,
-                    color: (isDark ? Colors.white : Colors.black87)
-                        .withValues(alpha: 0.7),
+                    color: (isDark ? Colors.white : Colors.black87).withValues(
+                      alpha: 0.7,
+                    ),
                     height: 1.4,
                   ),
                   maxLines: 2,
@@ -650,9 +655,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
           ],
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: DuruColors.primary.withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: DuruColors.primary.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -662,11 +665,7 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
               color: DuruColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: DuruColors.primary,
-            ),
+            child: Icon(icon, size: 20, color: DuruColors.primary),
           ),
           const SizedBox(width: DuruSpacing.md),
           Expanded(
@@ -684,8 +683,9 @@ class _ModernSearchScreenState extends ConsumerState<ModernSearchScreen>
                   description,
                   style: TextStyle(
                     fontSize: 12,
-                    color: (isDark ? Colors.white : Colors.black87)
-                        .withValues(alpha: 0.7),
+                    color: (isDark ? Colors.white : Colors.black87).withValues(
+                      alpha: 0.7,
+                    ),
                   ),
                 ),
               ],

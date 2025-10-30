@@ -4,8 +4,10 @@ import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 // Phase 10: Migrated to organized provider imports
-import 'package:duru_notes/features/folders/providers/folders_state_providers.dart' show folderHierarchyProvider, visibleFolderNodesProvider;
-import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart' show unfiledNotesCountProvider, rootFoldersProvider;
+import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
+    show folderHierarchyProvider, visibleFolderNodesProvider;
+import 'package:duru_notes/features/folders/providers/folders_integration_providers.dart'
+    show unfiledNotesCountProvider, rootFoldersProvider;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -117,13 +119,13 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
                 child: hierarchyState.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : hierarchyState.error != null
-                        ? _buildErrorState(theme, hierarchyState.error!)
-                        : _buildFolderList(
-                            theme,
-                            visibleNodes,
-                            unfiledCount,
-                            scrollController,
-                          ),
+                    ? _buildErrorState(theme, hierarchyState.error!)
+                    : _buildFolderList(
+                        theme,
+                        visibleNodes,
+                        unfiledCount,
+                        scrollController,
+                      ),
               ),
 
               // Actions
@@ -243,11 +245,7 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: theme.colorScheme.error,
-          ),
+          Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
           const SizedBox(height: 16),
           Text(
             AppLocalizations.of(context).errorLoadingFolders,
@@ -315,7 +313,8 @@ class _FolderPickerState extends ConsumerState<FolderPicker> {
             const SizedBox(width: 24),
           Icon(
             FolderIconHelpers.getFolderIcon(node.folder.icon),
-            color: FolderIconHelpers.getFolderColor(node.folder.color) ??
+            color:
+                FolderIconHelpers.getFolderColor(node.folder.color) ??
                 (isSelected
                     ? theme.colorScheme.primary
                     : theme.colorScheme.onSurfaceVariant),

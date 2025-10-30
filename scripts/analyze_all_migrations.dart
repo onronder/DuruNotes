@@ -1,5 +1,4 @@
 #!/usr/bin/env dart
-
 // Comprehensive Migration Analysis Tool
 //
 // Analyzes ALL migration files (applied and skipped)
@@ -49,7 +48,6 @@ void main() async {
 
     // Step 7: Print summary
     printSummary(migrations, categories, conflicts);
-
   } catch (e, stackTrace) {
     print('❌ ERROR: $e');
     print('Stack trace: $stackTrace');
@@ -85,10 +83,14 @@ class Migration {
     if (lower.contains('phase') || lower.contains('migration')) {
       return 'PHASED_MIGRATION';
     }
-    if (lower.contains('security') || lower.contains('rls') || lower.contains('policy')) {
+    if (lower.contains('security') ||
+        lower.contains('rls') ||
+        lower.contains('policy')) {
       return 'SECURITY';
     }
-    if (lower.contains('performance') || lower.contains('index') || lower.contains('optimize')) {
+    if (lower.contains('performance') ||
+        lower.contains('index') ||
+        lower.contains('optimize')) {
       return 'PERFORMANCE';
     }
     if (lower.contains('fix') || lower.contains('repair')) {
@@ -97,13 +99,17 @@ class Migration {
     if (lower.contains('notification') || lower.contains('cron')) {
       return 'NOTIFICATIONS';
     }
-    if (lower.contains('schema') || lower.contains('table') || lower.contains('column')) {
+    if (lower.contains('schema') ||
+        lower.contains('table') ||
+        lower.contains('column')) {
       return 'SCHEMA_CHANGE';
     }
     if (lower.contains('encryption') || lower.contains('key')) {
       return 'ENCRYPTION';
     }
-    if (lower.contains('folder') || lower.contains('template') || lower.contains('search')) {
+    if (lower.contains('folder') ||
+        lower.contains('template') ||
+        lower.contains('search')) {
       return 'FEATURE';
     }
     if (lower.contains('audit') || lower.contains('log')) {
@@ -178,8 +184,10 @@ Future<List<Migration>> scanMigrations() async {
     if (RegExp(r'DROP\s+TABLE', caseSensitive: false).hasMatch(content)) {
       operations.add('DROP_TABLE');
     }
-    if (RegExp(r'CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION', caseSensitive: false)
-        .hasMatch(content)) {
+    if (RegExp(
+      r'CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION',
+      caseSensitive: false,
+    ).hasMatch(content)) {
       operations.add('CREATE_FUNCTION');
     }
     if (RegExp(r'CREATE\s+POLICY', caseSensitive: false).hasMatch(content)) {
@@ -240,12 +248,14 @@ List<ConflictGroup> detectConflicts(List<Migration> migrations) {
 
   for (final entry in timestampGroups.entries) {
     if (entry.value.length > 1) {
-      conflicts.add(ConflictGroup(
-        type: 'DUPLICATE_TIMESTAMP',
-        migrations: entry.value,
-        severity: 'HIGH',
-        description: 'Multiple migrations with timestamp ${entry.key}',
-      ));
+      conflicts.add(
+        ConflictGroup(
+          type: 'DUPLICATE_TIMESTAMP',
+          migrations: entry.value,
+          severity: 'HIGH',
+          description: 'Multiple migrations with timestamp ${entry.key}',
+        ),
+      );
     }
   }
 
@@ -259,24 +269,30 @@ List<ConflictGroup> detectConflicts(List<Migration> migrations) {
 
   for (final entry in tableGroups.entries) {
     if (entry.value.length > 3) {
-      conflicts.add(ConflictGroup(
-        type: 'TABLE_HOTSPOT',
-        migrations: entry.value,
-        severity: 'MEDIUM',
-        description: 'Table "${entry.key}" modified by ${entry.value.length} migrations',
-      ));
+      conflicts.add(
+        ConflictGroup(
+          type: 'TABLE_HOTSPOT',
+          migrations: entry.value,
+          severity: 'MEDIUM',
+          description:
+              'Table "${entry.key}" modified by ${entry.value.length} migrations',
+        ),
+      );
     }
   }
 
   // Detect naming issues
   final namingIssues = migrations.where((m) => m.hasNamingIssue).toList();
   if (namingIssues.isNotEmpty) {
-    conflicts.add(ConflictGroup(
-      type: 'NAMING_ISSUE',
-      migrations: namingIssues,
-      severity: 'HIGH',
-      description: '${namingIssues.length} migrations with improper naming (missing HHMMSS)',
-    ));
+    conflicts.add(
+      ConflictGroup(
+        type: 'NAMING_ISSUE',
+        migrations: namingIssues,
+        severity: 'HIGH',
+        description:
+            '${namingIssues.length} migrations with improper naming (missing HHMMSS)',
+      ),
+    );
   }
 
   return conflicts;
@@ -289,7 +305,9 @@ void printConflicts(List<ConflictGroup> conflicts) {
   }
 
   for (final conflict in conflicts) {
-    print('   🔴 [${conflict.severity}] ${conflict.type}: ${conflict.description}');
+    print(
+      '   🔴 [${conflict.severity}] ${conflict.type}: ${conflict.description}',
+    );
     for (final migration in conflict.migrations.take(5)) {
       print('      - ${migration.filename}');
     }
@@ -318,10 +336,7 @@ SkippedAnalysis analyzeSkippedMigrations(List<Migration> skipped) {
       reason = 'Intentionally deferred';
     }
 
-    analysis.items.add(SkippedItem(
-      migration: migration,
-      reason: reason,
-    ));
+    analysis.items.add(SkippedItem(migration: migration, reason: reason));
   }
 
   return analysis;
@@ -367,17 +382,25 @@ String generateConsolidationPlan(
   buffer.writeln('| Metric | Count |');
   buffer.writeln('|--------|-------|');
   buffer.writeln('| Total Migrations | ${migrations.length} |');
-  buffer.writeln('| Applied | ${migrations.where((m) => m.isApplied).length} |');
-  buffer.writeln('| Skipped | ${migrations.where((m) => m.isSkipped).length} |');
+  buffer.writeln(
+    '| Applied | ${migrations.where((m) => m.isApplied).length} |',
+  );
+  buffer.writeln(
+    '| Skipped | ${migrations.where((m) => m.isSkipped).length} |',
+  );
   buffer.writeln('| Conflicts | ${conflicts.length} |');
-  buffer.writeln('| Naming Issues | ${migrations.where((m) => m.hasNamingIssue).length} |');
+  buffer.writeln(
+    '| Naming Issues | ${migrations.where((m) => m.hasNamingIssue).length} |',
+  );
   buffer.writeln();
 
   // Categories
   buffer.writeln('## Migration Categories');
   buffer.writeln();
   for (final category in categories.keys) {
-    buffer.writeln('### $category (${categories[category]!.length} migrations)');
+    buffer.writeln(
+      '### $category (${categories[category]!.length} migrations)',
+    );
     buffer.writeln();
     for (final migration in categories[category]!) {
       final status = migration.isSkipped ? '⏸️ SKIPPED' : '✅ APPLIED';
@@ -413,9 +436,15 @@ String generateConsolidationPlan(
   buffer.writeln();
   buffer.writeln('### Immediate Actions');
   buffer.writeln();
-  buffer.writeln('1. **Fix Naming Issues** - ${migrations.where((m) => m.hasNamingIssue).length} migrations need HHMMSS timestamps');
-  buffer.writeln('2. **Review Duplicates** - ${conflicts.where((c) => c.type == 'DUPLICATE_TIMESTAMP').length} duplicate timestamp conflicts');
-  buffer.writeln('3. **Analyze Skipped** - ${migrations.where((m) => m.isSkipped).length} skipped migrations need review');
+  buffer.writeln(
+    '1. **Fix Naming Issues** - ${migrations.where((m) => m.hasNamingIssue).length} migrations need HHMMSS timestamps',
+  );
+  buffer.writeln(
+    '2. **Review Duplicates** - ${conflicts.where((c) => c.type == 'DUPLICATE_TIMESTAMP').length} duplicate timestamp conflicts',
+  );
+  buffer.writeln(
+    '3. **Analyze Skipped** - ${migrations.where((m) => m.isSkipped).length} skipped migrations need review',
+  );
   buffer.writeln();
 
   return buffer.toString();
@@ -431,11 +460,17 @@ void printSummary(
   print('═══════════════════════════════════════════════════════════════');
   print('');
   print('Total migrations:       ${migrations.length}');
-  print('Applied:                ${migrations.where((m) => m.isApplied).length}');
-  print('Skipped:                ${migrations.where((m) => m.isSkipped).length}');
+  print(
+    'Applied:                ${migrations.where((m) => m.isApplied).length}',
+  );
+  print(
+    'Skipped:                ${migrations.where((m) => m.isSkipped).length}',
+  );
   print('Categories:             ${categories.length}');
   print('Conflicts:              ${conflicts.length}');
-  print('Naming issues:          ${migrations.where((m) => m.hasNamingIssue).length}');
+  print(
+    'Naming issues:          ${migrations.where((m) => m.hasNamingIssue).length}',
+  );
   print('');
 }
 
@@ -461,8 +496,5 @@ class SkippedItem {
   final Migration migration;
   final String reason;
 
-  SkippedItem({
-    required this.migration,
-    required this.reason,
-  });
+  SkippedItem({required this.migration, required this.reason});
 }

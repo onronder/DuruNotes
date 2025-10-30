@@ -41,37 +41,19 @@ class NotificationConfigService {
           DarwinNotificationAction.plain(
             'complete_task',
             'Complete',
-            options: const {
-              DarwinNotificationActionOption.destructive,
-            },
+            options: const {DarwinNotificationActionOption.destructive},
           ),
-          DarwinNotificationAction.plain(
-            'snooze_task_5',
-            '5m',
-          ),
-          DarwinNotificationAction.plain(
-            'snooze_task_15',
-            '15m',
-          ),
-          DarwinNotificationAction.plain(
-            'snooze_task_1h',
-            '1h',
-          ),
-          DarwinNotificationAction.plain(
-            'snooze_task_tomorrow',
-            'Tomorrow',
-          ),
+          DarwinNotificationAction.plain('snooze_task_5', '5m'),
+          DarwinNotificationAction.plain('snooze_task_15', '15m'),
+          DarwinNotificationAction.plain('snooze_task_1h', '1h'),
+          DarwinNotificationAction.plain('snooze_task_tomorrow', 'Tomorrow'),
           DarwinNotificationAction.plain(
             'open_task',
             'Open',
-            options: const {
-              DarwinNotificationActionOption.foreground,
-            },
+            options: const {DarwinNotificationActionOption.foreground},
           ),
         ],
-        options: {
-          DarwinNotificationCategoryOption.hiddenPreviewShowTitle,
-        },
+        options: {DarwinNotificationCategoryOption.hiddenPreviewShowTitle},
       ),
 
       // Note reminder category
@@ -81,20 +63,13 @@ class NotificationConfigService {
           DarwinNotificationAction.plain(
             'open_note',
             'Open',
-            options: const {
-              DarwinNotificationActionOption.foreground,
-            },
+            options: const {DarwinNotificationActionOption.foreground},
           ),
-          DarwinNotificationAction.plain(
-            'snooze_15',
-            'Snooze 15m',
-          ),
+          DarwinNotificationAction.plain('snooze_15', 'Snooze 15m'),
           DarwinNotificationAction.plain(
             'dismiss',
             'Dismiss',
-            options: const {
-              DarwinNotificationActionOption.destructive,
-            },
+            options: const {DarwinNotificationActionOption.destructive},
           ),
         ],
       ),
@@ -148,12 +123,15 @@ class NotificationConfigService {
     void Function(String action, String payload) onAction,
   ) async {
     try {
-      _logger.info('Notification response received', data: {
-        'actionId': response.actionId,
-        'payload': response.payload,
-        'notificationResponseType':
-            response.notificationResponseType.toString(),
-      });
+      _logger.info(
+        'Notification response received',
+        data: {
+          'actionId': response.actionId,
+          'payload': response.payload,
+          'notificationResponseType': response.notificationResponseType
+              .toString(),
+        },
+      );
 
       // Get action ID (null for simple tap, string for action button)
       final action = response.actionId ?? 'tap';
@@ -166,10 +144,7 @@ class NotificationConfigService {
         'Failed to handle notification response',
         error: e,
         stackTrace: stack,
-        data: {
-          'actionId': response.actionId,
-          'payload': response.payload,
-        },
+        data: {'actionId': response.actionId, 'payload': response.payload},
       );
     }
   }

@@ -119,7 +119,9 @@ class _DraggableNoteItemState extends ConsumerState<DraggableNoteItem>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    widget.note.title.isEmpty ? 'Untitled Note' : widget.note.title,
+                    widget.note.title.isEmpty
+                        ? 'Untitled Note'
+                        : widget.note.title,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -325,7 +327,8 @@ class BatchNoteDragDrop extends ConsumerStatefulWidget {
 
   final List<domain.Note> selectedNotes;
   final Widget child;
-  final void Function(List<domain.Note> notes, LocalFolder? folder)? onNotesDropped;
+  final void Function(List<domain.Note> notes, LocalFolder? folder)?
+  onNotesDropped;
   final bool enabled;
 
   @override
@@ -485,7 +488,8 @@ class _BatchNoteDragDropState extends ConsumerState<BatchNoteDragDrop>
                           Text(
                             note.body,
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.7),
                               fontSize: 10,
                             ),
                             maxLines: 2,
@@ -559,7 +563,7 @@ class BatchFolderDropTarget extends FolderDropTarget {
   }) : super(onNoteDropped: null);
 
   final void Function(List<domain.Note> notes, domain.Folder? folder)?
-      onBatchNotesDropped;
+  onBatchNotesDropped;
 
   @override
   ConsumerState<FolderDropTarget> createState() =>
@@ -582,9 +586,9 @@ class _BatchFolderDropTargetState extends _FolderDropTargetState {
           onAcceptWithDetails: (details) {
             HapticFeedback.lightImpact();
             (widget as BatchFolderDropTarget).onBatchNotesDropped?.call(
-                  details.data,
-                  widget.folder,
-                );
+              details.data,
+              widget.folder,
+            );
             _animationController.reverse();
           },
           onMove: (_) {

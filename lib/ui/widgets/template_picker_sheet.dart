@@ -15,10 +15,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Template picker sheet for selecting templates
 class TemplatePickerSheet extends ConsumerStatefulWidget {
-  const TemplatePickerSheet({
-    super.key,
-    required this.onTemplateSelected,
-  });
+  const TemplatePickerSheet({super.key, required this.onTemplateSelected});
 
   final void Function(String?) onTemplateSelected;
 
@@ -113,8 +110,9 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                           context: context,
                           icon: Icons.note_add_rounded,
                           title: AppLocalizations.of(context).blankNoteOption,
-                          description:
-                              AppLocalizations.of(context).blankNoteDescription,
+                          description: AppLocalizations.of(
+                            context,
+                          ).blankNoteDescription,
                           color: colorScheme.primary,
                           onTap: () => widget.onTemplateSelected(null),
                           template: null,
@@ -141,14 +139,14 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                               context: context,
                               icon: isDefault
                                   ? Icons
-                                      .auto_awesome_rounded // Special icon for system
+                                        .auto_awesome_rounded // Special icon for system
                                   : Icons
-                                      .dashboard_customize_rounded, // Custom template icon
+                                        .dashboard_customize_rounded, // Custom template icon
                               title: template.title,
                               description: template.description,
                               color: isDefault
                                   ? colorScheme
-                                      .primary // Primary color for system
+                                        .primary // Primary color for system
                                   : colorScheme.tertiary, // Tertiary for custom
                               onTap: () =>
                                   widget.onTemplateSelected(template.id),
@@ -176,8 +174,9 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  AppLocalizations.of(context)
-                                      .noTemplatesDescription,
+                                  AppLocalizations.of(
+                                    context,
+                                  ).noTemplatesDescription,
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurfaceVariant
@@ -205,12 +204,16 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                         error: error,
                         stackTrace: stackTrace,
                       );
-                      unawaited(Sentry.captureException(error, stackTrace: stackTrace));
+                      unawaited(
+                        Sentry.captureException(error, stackTrace: stackTrace),
+                      );
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: const Text('Unable to load templates. Please try again.'),
+                              content: const Text(
+                                'Unable to load templates. Please try again.',
+                              ),
                               backgroundColor: colorScheme.error,
                               action: SnackBarAction(
                                 label: 'Retry',
@@ -312,11 +315,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
                   color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
+                child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(width: 16),
               // Content
@@ -348,8 +347,10 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
               if (isDefault) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
@@ -382,7 +383,10 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
   // instead of generating a preview from the body content
 
   void _showTemplateOptions(
-      BuildContext context, LocalTemplate template, bool isDefault) {
+    BuildContext context,
+    LocalTemplate template,
+    bool isDefault,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
@@ -519,7 +523,9 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
   }
 
   Future<void> _deleteTemplate(
-      BuildContext context, LocalTemplate template) async {
+    BuildContext context,
+    LocalTemplate template,
+  ) async {
     final templateRepository = ref.read(templateCoreRepositoryProvider);
     final l10n = AppLocalizations.of(context);
     final logger = ref.read(loggerProvider);
@@ -559,8 +565,7 @@ class _TemplatePickerSheetState extends ConsumerState<TemplatePickerSheet> {
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
             label: l10n.retry,
-            onPressed: () =>
-                unawaited(_deleteTemplate(context, template)),
+            onPressed: () => unawaited(_deleteTemplate(context, template)),
           ),
         ),
       );
@@ -577,8 +582,7 @@ Future<void> showTemplatePickerSheet({
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (BuildContext context) => TemplatePickerSheet(
-      onTemplateSelected: onTemplateSelected,
-    ),
+    builder: (BuildContext context) =>
+        TemplatePickerSheet(onTemplateSelected: onTemplateSelected),
   );
 }

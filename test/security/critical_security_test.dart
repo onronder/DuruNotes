@@ -12,39 +12,41 @@ import 'package:duru_notes/core/auth/login_attempts_service.dart';
 import '../helpers/test_initialization.dart';
 import 'critical_security_test.mocks.dart';
 
-@GenerateMocks([
-  SupabaseClient,
-  GoTrueClient,
-  LoginAttemptsService,
-])
+@GenerateMocks([SupabaseClient, GoTrueClient, LoginAttemptsService])
 void main() {
   setUpAll(() async {
     // Initialize test environment with Supabase
     await TestInitialization.initialize(initializeSupabase: true);
 
     // Mock flutter_secure_storage plugin to avoid MissingPluginException
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'), (MethodCall methodCall) async {
-      switch (methodCall.method) {
-        case 'read':
-          return null; // Return null for read operations
-        case 'write':
-          return null; // Success for write operations
-        case 'delete':
-          return null; // Success for delete operations
-        case 'deleteAll':
-          return null; // Success for deleteAll operations
-        case 'readAll':
-          return <String, String>{}; // Empty map for readAll
-        default:
-          return null;
-      }
-    });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+          (MethodCall methodCall) async {
+            switch (methodCall.method) {
+              case 'read':
+                return null; // Return null for read operations
+              case 'write':
+                return null; // Success for write operations
+              case 'delete':
+                return null; // Success for delete operations
+              case 'deleteAll':
+                return null; // Success for deleteAll operations
+              case 'readAll':
+                return <String, String>{}; // Empty map for readAll
+              default:
+                return null;
+            }
+          },
+        );
 
     // Mock SharedPreferences for encryption service
     SharedPreferences.setMockInitialValues({
       'master_encryption_key_v2': 'mock_master_key_base64_encoded_value',
       'current_encryption_key_id_v2': 'test-key-id',
-      'last_key_rotation_v2': DateTime.now().subtract(Duration(days: 30)).toIso8601String(),
+      'last_key_rotation_v2': DateTime.now()
+          .subtract(Duration(days: 30))
+          .toIso8601String(),
     });
   });
 
@@ -164,12 +166,18 @@ void main() {
             // If it didn't throw, verify behavior based on input content
             if (input.contains("'")) {
               // Inputs with quotes should have them HTML encoded
-              expect(sanitized, contains('&#x27;'),
-                reason: 'Single quotes should be HTML encoded in: $input');
+              expect(
+                sanitized,
+                contains('&#x27;'),
+                reason: 'Single quotes should be HTML encoded in: $input',
+              );
             } else {
               // Inputs without special chars should be sanitized but may not change
-              expect(sanitized, isNotNull,
-                reason: 'Input should be sanitized: $input');
+              expect(
+                sanitized,
+                isNotNull,
+                reason: 'Input should be sanitized: $input',
+              );
             }
           } on ValidationException {
             // Throwing exception is also valid security behavior
@@ -196,10 +204,16 @@ void main() {
             );
 
             // If it didn't throw, verify that dangerous HTML tags/attributes are encoded
-            expect(sanitized, isNot(contains('<script>')),
-              reason: 'Script tags should be encoded in: $input');
-            expect(sanitized, contains('&lt;'),
-              reason: 'Angle brackets should be HTML encoded in: $input');
+            expect(
+              sanitized,
+              isNot(contains('<script>')),
+              reason: 'Script tags should be encoded in: $input',
+            );
+            expect(
+              sanitized,
+              contains('&lt;'),
+              reason: 'Angle brackets should be HTML encoded in: $input',
+            );
           } on ValidationException {
             // Throwing exception is also valid security behavior
             expect(true, isTrue, reason: 'XSS attack rejected: $input');
@@ -260,7 +274,8 @@ void main() {
 
       test('should sanitize HTML content', () {
         // Test should expect exception for HTML content with script tags
-        final inputWithScript = 'Hello <b>world</b> <script>alert("XSS")</script>';
+        final inputWithScript =
+            'Hello <b>world</b> <script>alert("XSS")</script>';
 
         // This input contains XSS pattern, so it should throw
         expect(
@@ -317,16 +332,22 @@ void main() {
         );
 
         // Mock canAttemptLogin - allow attempts initially
-        when(mockLoginAttemptsService.canAttemptLogin()).thenAnswer((_) async => true);
+        when(
+          mockLoginAttemptsService.canAttemptLogin(),
+        ).thenAnswer((_) async => true);
 
         // Mock failed login attempts
-        when(mockGoTrueClient.signInWithPassword(
-          email: anyNamed('email'),
-          password: anyNamed('password'),
-        )).thenThrow(AuthException('Invalid credentials'));
+        when(
+          mockGoTrueClient.signInWithPassword(
+            email: anyNamed('email'),
+            password: anyNamed('password'),
+          ),
+        ).thenThrow(AuthException('Invalid credentials'));
 
         // Mock recordFailedAttempt
-        when(mockLoginAttemptsService.recordFailedAttempt()).thenAnswer((_) async {});
+        when(
+          mockLoginAttemptsService.recordFailedAttempt(),
+        ).thenAnswer((_) async {});
 
         // Simulate multiple failed login attempts
         for (var i = 0; i < 5; i++) {
@@ -348,7 +369,9 @@ void main() {
         );
 
         // Mock canAttemptLogin - block further attempts
-        when(mockLoginAttemptsService.canAttemptLogin()).thenAnswer((_) async => false);
+        when(
+          mockLoginAttemptsService.canAttemptLogin(),
+        ).thenAnswer((_) async => false);
 
         // Next attempt should be rate limited
         final result = await authService.signInWithRetry(
@@ -372,16 +395,22 @@ void main() {
         );
 
         // Mock canAttemptLogin - allow attempts
-        when(mockLoginAttemptsService.canAttemptLogin()).thenAnswer((_) async => true);
+        when(
+          mockLoginAttemptsService.canAttemptLogin(),
+        ).thenAnswer((_) async => true);
 
         // Mock recordFailedAttempt
-        when(mockLoginAttemptsService.recordFailedAttempt()).thenAnswer((_) async {});
+        when(
+          mockLoginAttemptsService.recordFailedAttempt(),
+        ).thenAnswer((_) async {});
 
         // Mock failed authentication that will trigger retries
-        when(mockGoTrueClient.signInWithPassword(
-          email: anyNamed('email'),
-          password: anyNamed('password'),
-        )).thenThrow(AuthException('Network error'));
+        when(
+          mockGoTrueClient.signInWithPassword(
+            email: anyNamed('email'),
+            password: anyNamed('password'),
+          ),
+        ).thenThrow(AuthException('Network error'));
 
         final stopwatch = Stopwatch()..start();
 
@@ -417,15 +446,31 @@ void main() {
       // Skip these tests as SecurityMonitor has complex dependencies
       // and tends to hang in test environment
 
-      test('should detect and log security events', () async {
-        // Test skipped due to SecurityMonitor initialization complexity
-        expect(true, isTrue, reason: 'SecurityMonitor test skipped in test environment');
-      }, skip: 'SecurityMonitor requires complex initialization');
+      test(
+        'should detect and log security events',
+        () async {
+          // Test skipped due to SecurityMonitor initialization complexity
+          expect(
+            true,
+            isTrue,
+            reason: 'SecurityMonitor test skipped in test environment',
+          );
+        },
+        skip: 'SecurityMonitor requires complex initialization',
+      );
 
-      test('should track encryption operations', () async {
-        // Test skipped due to SecurityMonitor initialization complexity
-        expect(true, isTrue, reason: 'SecurityMonitor test skipped in test environment');
-      }, skip: 'SecurityMonitor requires complex initialization');
+      test(
+        'should track encryption operations',
+        () async {
+          // Test skipped due to SecurityMonitor initialization complexity
+          expect(
+            true,
+            isTrue,
+            reason: 'SecurityMonitor test skipped in test environment',
+          );
+        },
+        skip: 'SecurityMonitor requires complex initialization',
+      );
     });
 
     group('Search Security Tests', () {
@@ -495,4 +540,5 @@ class SecurityAlert {
 }
 
 enum AlertLevel { low, medium, high, critical }
+
 enum AlertType { bruteForce, anomaly, dataLeak, unauthorized }

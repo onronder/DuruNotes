@@ -1,14 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/core/migration/unified_migration_coordinator.dart';
 import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
-import 'package:duru_notes/core/providers/database_providers.dart' show appDbProvider;
+import 'package:duru_notes/core/providers/database_providers.dart'
+    show appDbProvider;
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/features/auth/providers/auth_providers.dart'
     show supabaseClientProvider;
 
 /// Provider for the unified migration coordinator
-final migrationCoordinatorProvider = Provider<UnifiedMigrationCoordinator>((ref) {
+final migrationCoordinatorProvider = Provider<UnifiedMigrationCoordinator>((
+  ref,
+) {
   final appDb = ref.watch(appDbProvider);
   final supabaseClient = ref.watch(supabaseClientProvider);
   final logger = ref.watch(loggerProvider);
@@ -27,7 +30,9 @@ final migrationStatusProvider = FutureProvider<MigrationStatus>((ref) async {
 });
 
 /// Provider for migration history
-final migrationHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final migrationHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final appDb = ref.watch(appDbProvider);
 
   // Ensure migration tables exist first
@@ -49,10 +54,12 @@ final migrationTablesIntegrityProvider = FutureProvider<bool>((ref) async {
 });
 
 /// State notifier for managing migration execution
-class MigrationExecutionNotifier extends StateNotifier<AsyncValue<MigrationResult?>> {
+class MigrationExecutionNotifier
+    extends StateNotifier<AsyncValue<MigrationResult?>> {
   final UnifiedMigrationCoordinator _coordinator;
 
-  MigrationExecutionNotifier(this._coordinator) : super(const AsyncValue.data(null));
+  MigrationExecutionNotifier(this._coordinator)
+    : super(const AsyncValue.data(null));
 
   /// Execute Phase 3 migration
   Future<void> executePhase3Migration({
@@ -80,10 +87,14 @@ class MigrationExecutionNotifier extends StateNotifier<AsyncValue<MigrationResul
 }
 
 /// Provider for migration execution state management
-final migrationExecutionProvider = StateNotifierProvider<MigrationExecutionNotifier, AsyncValue<MigrationResult?>>((ref) {
-  final coordinator = ref.watch(migrationCoordinatorProvider);
-  return MigrationExecutionNotifier(coordinator);
-});
+final migrationExecutionProvider =
+    StateNotifierProvider<
+      MigrationExecutionNotifier,
+      AsyncValue<MigrationResult?>
+    >((ref) {
+      final coordinator = ref.watch(migrationCoordinatorProvider);
+      return MigrationExecutionNotifier(coordinator);
+    });
 
 /// Provider for initialization of migration tables
 final migrationTablesInitProvider = FutureProvider<void>((ref) async {
@@ -94,17 +105,21 @@ final migrationTablesInitProvider = FutureProvider<void>((ref) async {
 });
 
 /// Provider for migration backup cleanup
-final migrationBackupCleanupProvider = FutureProvider.family<int, int>((ref, keepDays) async {
+final migrationBackupCleanupProvider = FutureProvider.family<int, int>((
+  ref,
+  keepDays,
+) async {
   final appDb = ref.watch(appDbProvider);
   return MigrationTablesSetup.cleanupOldBackups(appDb, keepDays: keepDays);
 });
 
 /// Provider for specific migration sync status
-final migrationSyncStatusProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, version) async {
-  final appDb = ref.watch(appDbProvider);
+final migrationSyncStatusProvider =
+    FutureProvider.family<Map<String, dynamic>?, String>((ref, version) async {
+      final appDb = ref.watch(appDbProvider);
 
-  // Ensure migration tables exist
-  await MigrationTablesSetup.ensureMigrationTables(appDb);
+      // Ensure migration tables exist
+      await MigrationTablesSetup.ensureMigrationTables(appDb);
 
-  return MigrationTablesSetup.getCurrentSyncStatus(appDb, version);
-});
+      return MigrationTablesSetup.getCurrentSyncStatus(appDb, version);
+    });

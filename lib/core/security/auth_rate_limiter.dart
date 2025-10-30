@@ -106,7 +106,8 @@ class AuthRateLimiter {
     }
 
     final now = DateTime.now();
-    final isLockedOut = state.lockoutUntil != null && now.isBefore(state.lockoutUntil!);
+    final isLockedOut =
+        state.lockoutUntil != null && now.isBefore(state.lockoutUntil!);
     final delay = _calculateDelay(state.attemptCount);
     final nextAllowed = state.lastAttempt.add(delay);
 

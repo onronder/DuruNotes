@@ -1,4 +1,3 @@
-
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/security/authorization_service.dart';
@@ -6,7 +5,6 @@ import 'package:duru_notes/data/remote/supabase_note_api.dart';
 import 'package:duru_notes/services/fts_service.dart';
 import 'package:mockito/annotations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 
 @GenerateNiceMocks([
   MockSpec<AppDb>(),

@@ -8,13 +8,15 @@ import 'package:duru_notes/domain/entities/task.dart' as domain;
 /// encryption/decryption at the repository layer.
 ///
 /// This file should not be used in new code and will be removed after migration.
-@Deprecated('Use infrastructure/mappers/task_mapper.dart instead. This converter no longer supports encrypted fields after encryption migration.')
+@Deprecated(
+  'Use infrastructure/mappers/task_mapper.dart instead. This converter no longer supports encrypted fields after encryption migration.',
+)
 class TaskConverter {
   /// Convert NoteTask (infrastructure) to domain.Task
   static domain.Task fromLocal(NoteTask local, {List<String>? tags}) {
     throw UnsupportedError(
       'TaskConverter.fromLocal is deprecated and no longer supported after encryption migration. '
-      'Use infrastructure/mappers/task_mapper.dart instead, which properly handles encryption/decryption.'
+      'Use infrastructure/mappers/task_mapper.dart instead, which properly handles encryption/decryption.',
     );
   }
 
@@ -22,16 +24,18 @@ class TaskConverter {
   static NoteTask toLocal(domain.Task task) {
     throw UnsupportedError(
       'TaskConverter.toLocal is deprecated and no longer supported after encryption migration. '
-      'Use infrastructure/mappers/task_mapper.dart instead, which properly handles encryption/decryption.'
+      'Use infrastructure/mappers/task_mapper.dart instead, which properly handles encryption/decryption.',
     );
   }
 
   /// Convert `List<NoteTask>` to `List<domain.Task>`
-  static List<domain.Task> fromLocalList(List<NoteTask> localTasks, {Map<String, List<String>>? tagsMap}) {
-    return localTasks.map((local) => fromLocal(
-      local,
-      tags: tagsMap?[local.id],
-    )).toList();
+  static List<domain.Task> fromLocalList(
+    List<NoteTask> localTasks, {
+    Map<String, List<String>>? tagsMap,
+  }) {
+    return localTasks
+        .map((local) => fromLocal(local, tags: tagsMap?[local.id]))
+        .toList();
   }
 
   /// Convert `List<domain.Task>` to `List<NoteTask>`
@@ -76,7 +80,7 @@ class TaskConverter {
   static String getTaskTitle(dynamic task) {
     throw UnsupportedError(
       'TaskConverter.getTaskTitle is deprecated. NoteTask now uses encrypted fields. '
-      'Use infrastructure/mappers/task_mapper.dart with encryption service instead.'
+      'Use infrastructure/mappers/task_mapper.dart with encryption service instead.',
     );
   }
 

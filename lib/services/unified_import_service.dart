@@ -79,8 +79,8 @@ class ImportOptions {
 enum MergeStrategy {
   create, // Always create new notes
   update, // Update existing notes with same title
-  skip,   // Skip if note exists
-  merge,  // Merge content
+  skip, // Skip if note exists
+  merge, // Merge content
 }
 
 /// Result of an import operation
@@ -105,7 +105,8 @@ class ImportResult {
   final int importedFolders;
   final Duration? duration;
 
-  String get summary => 'Imported $importedNotes of $totalNotes notes'
+  String get summary =>
+      'Imported $importedNotes of $totalNotes notes'
       '${skippedNotes > 0 ? ', skipped $skippedNotes' : ''}'
       '${failedNotes > 0 ? ', failed $failedNotes' : ''}';
 }
@@ -117,8 +118,8 @@ class UnifiedImportService {
     required this.notesRepository,
     required this.folderRepository,
     required this.migrationConfig,
-  })  : _logger = LoggerFactory.instance,
-        _uuid = const Uuid();
+  }) : _logger = LoggerFactory.instance,
+       _uuid = const Uuid();
 
   final Ref ref;
   final INotesRepository notesRepository;
@@ -153,7 +154,10 @@ class UnifiedImportService {
       }
 
       // Parse file based on format
-      final List<Map<String, dynamic>> notesData = await _parseFile(file, format);
+      final List<Map<String, dynamic>> notesData = await _parseFile(
+        file,
+        format,
+      );
 
       if (notesData.isEmpty) {
         return ImportResult(
@@ -183,7 +187,11 @@ class UnifiedImportService {
         duration: stopwatch.elapsed,
       );
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Import failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Import failed',
+        error: e,
+        stackTrace: stack,
+      );
       stopwatch.stop();
       return ImportResult(
         success: false,
@@ -236,8 +244,15 @@ class UnifiedImportService {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: [
-          'md', 'markdown', 'json', 'csv', 'txt',
-          'enex', 'bearnote', 'one', 'zip',
+          'md',
+          'markdown',
+          'json',
+          'csv',
+          'txt',
+          'enex',
+          'bearnote',
+          'one',
+          'zip',
         ],
         allowMultiple: allowMultiple,
       );
@@ -261,7 +276,11 @@ class UnifiedImportService {
         return importFromFiles(files: files, options: options);
       }
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to pick files', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to pick files',
+        error: e,
+        stackTrace: stack,
+      );
       return null;
     }
   }
@@ -269,7 +288,10 @@ class UnifiedImportService {
   // ========== PRIVATE HELPER METHODS ==========
 
   /// Parse file based on format
-  Future<List<Map<String, dynamic>>> _parseFile(File file, ImportFormat format) async {
+  Future<List<Map<String, dynamic>>> _parseFile(
+    File file,
+    ImportFormat format,
+  ) async {
     switch (format) {
       case ImportFormat.markdown:
       case ImportFormat.obsidian:
@@ -350,7 +372,11 @@ class UnifiedImportService {
 
       return notes;
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to parse markdown file', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to parse markdown file',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -391,7 +417,11 @@ class UnifiedImportService {
 
       return notes;
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to parse JSON file', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to parse JSON file',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -405,7 +435,9 @@ class UnifiedImportService {
       if (rows.isEmpty) return [];
 
       // First row should be headers
-      final headers = rows.first.map((e) => e.toString().toLowerCase()).toList();
+      final headers = rows.first
+          .map((e) => e.toString().toLowerCase())
+          .toList();
       final notes = <Map<String, dynamic>>[];
 
       // Process data rows
@@ -420,10 +452,16 @@ class UnifiedImportService {
           // Map common CSV headers to note properties
           if (header.contains('title') || header.contains('name')) {
             noteData['title'] = value.toString();
-          } else if (header.contains('content') || header.contains('body') || header.contains('text')) {
+          } else if (header.contains('content') ||
+              header.contains('body') ||
+              header.contains('text')) {
             noteData['body'] = value.toString();
           } else if (header.contains('tag')) {
-            final tags = value.toString().split(',').map((t) => t.trim()).toList();
+            final tags = value
+                .toString()
+                .split(',')
+                .map((t) => t.trim())
+                .toList();
             noteData['tags'] = tags;
           } else if (header.contains('folder') || header.contains('category')) {
             noteData['folder'] = value.toString();
@@ -443,7 +481,11 @@ class UnifiedImportService {
 
       return notes;
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to parse CSV file', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to parse CSV file',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -487,14 +529,20 @@ class UnifiedImportService {
       }
 
       // Single note
-      return [{
-        'title': fileName,
-        'body': content,
-        'tags': <String>[],
-        'format': 'text',
-      }];
+      return [
+        {
+          'title': fileName,
+          'body': content,
+          'tags': <String>[],
+          'format': 'text',
+        },
+      ];
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to parse text file', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to parse text file',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -509,8 +557,11 @@ class UnifiedImportService {
       final noteElements = document.findAllElements('note');
 
       for (final noteElement in noteElements) {
-        final title = noteElement.findElements('title').firstOrNull?.innerText ?? 'Untitled';
-        final content = noteElement.findElements('content').firstOrNull?.innerText ?? '';
+        final title =
+            noteElement.findElements('title').firstOrNull?.innerText ??
+            'Untitled';
+        final content =
+            noteElement.findElements('content').firstOrNull?.innerText ?? '';
 
         // Parse content from ENML to plain text/markdown
         final body = _convertEnmlToMarkdown(content);
@@ -523,13 +574,27 @@ class UnifiedImportService {
         }
 
         // Extract dates
-        final created = noteElement.findElements('created').firstOrNull?.innerText;
-        final updated = noteElement.findElements('updated').firstOrNull?.innerText;
+        final created = noteElement
+            .findElements('created')
+            .firstOrNull
+            ?.innerText;
+        final updated = noteElement
+            .findElements('updated')
+            .firstOrNull
+            ?.innerText;
 
         // Extract attributes
-        final attributes = noteElement.findElements('note-attributes').firstOrNull;
-        final source = attributes?.findElements('source').firstOrNull?.innerText;
-        final sourceUrl = attributes?.findElements('source-url').firstOrNull?.innerText;
+        final attributes = noteElement
+            .findElements('note-attributes')
+            .firstOrNull;
+        final source = attributes
+            ?.findElements('source')
+            .firstOrNull
+            ?.innerText;
+        final sourceUrl = attributes
+            ?.findElements('source-url')
+            .firstOrNull
+            ?.innerText;
 
         notes.add({
           'title': title,
@@ -547,7 +612,11 @@ class UnifiedImportService {
 
       return notes;
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to parse Evernote file', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to parse Evernote file',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -579,7 +648,11 @@ class UnifiedImportService {
 
       return notes;
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to parse Bear file', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to parse Bear file',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -595,9 +668,8 @@ class UnifiedImportService {
     final notes = <Map<String, dynamic>>[];
 
     void parseNode(Map<String, dynamic> node, {String? parentTitle}) {
-      final title = node['title'] as String? ??
-                   node['string'] as String? ??
-                   'Untitled';
+      final title =
+          node['title'] as String? ?? node['string'] as String? ?? 'Untitled';
 
       final children = node['children'] as List? ?? [];
       final body = StringBuffer();
@@ -669,27 +741,25 @@ class UnifiedImportService {
   /// Normalize note data from various formats
   Map<String, dynamic> _normalizeNoteData(Map<String, dynamic> data) {
     return {
-      'title': data['title'] ??
-               data['name'] ??
-               data['subject'] ??
-               'Untitled',
-      'body': data['body'] ??
-              data['content'] ??
-              data['text'] ??
-              data['description'] ??
-              '',
+      'title': data['title'] ?? data['name'] ?? data['subject'] ?? 'Untitled',
+      'body':
+          data['body'] ??
+          data['content'] ??
+          data['text'] ??
+          data['description'] ??
+          '',
       'tags': _extractTags(data),
-      'folder': data['folder'] ??
-                data['category'] ??
-                data['notebook'],
-      'createdAt': data['createdAt'] ??
-                   data['created'] ??
-                   data['created_at'] ??
-                   data['date'],
-      'updatedAt': data['updatedAt'] ??
-                   data['updated'] ??
-                   data['updated_at'] ??
-                   data['modified'],
+      'folder': data['folder'] ?? data['category'] ?? data['notebook'],
+      'createdAt':
+          data['createdAt'] ??
+          data['created'] ??
+          data['created_at'] ??
+          data['date'],
+      'updatedAt':
+          data['updatedAt'] ??
+          data['updated'] ??
+          data['updated_at'] ??
+          data['modified'],
       'metadata': data['metadata'] ?? <String, dynamic>{},
       'format': data['format'] ?? 'unknown',
     };
@@ -750,7 +820,10 @@ class UnifiedImportService {
             if (options.preserveFolders && noteData['folder'] != null) {
               final folderName = noteData['folder'] as String;
               if (!folderMap.containsKey(folderName)) {
-                folderId = await _createOrGetFolder(folderName, options.targetFolderId);
+                folderId = await _createOrGetFolder(
+                  folderName,
+                  options.targetFolderId,
+                );
                 folderMap[folderName] = folderId;
               } else {
                 folderId = folderMap[folderName];
@@ -760,7 +833,8 @@ class UnifiedImportService {
             // Process tags
             final tags = <String>[];
             if (options.preserveTags) {
-              final noteTags = (noteData['tags'] as List?)?.cast<String>() ?? [];
+              final noteTags =
+                  (noteData['tags'] as List?)?.cast<String>() ?? [];
               tags.addAll(noteTags);
             }
             if (options.tagPrefix != null) {
@@ -775,8 +849,12 @@ class UnifiedImportService {
               tags: tags,
               folderId: folderId,
               metadata: noteData['metadata'] as Map<String, dynamic>? ?? {},
-              createdAt: options.preserveTimestamps ? _parseDate(noteData['createdAt']) : null,
-              updatedAt: options.preserveTimestamps ? _parseDate(noteData['updatedAt']) : null,
+              createdAt: options.preserveTimestamps
+                  ? _parseDate(noteData['createdAt'])
+                  : null,
+              updatedAt: options.preserveTimestamps
+                  ? _parseDate(noteData['updatedAt'])
+                  : null,
             );
 
             imported++;
@@ -798,7 +876,11 @@ class UnifiedImportService {
         importedFolders: folderMap.length,
       );
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Import batch failed', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Import batch failed',
+        error: e,
+        stackTrace: stack,
+      );
       return ImportResult(
         success: false,
         totalNotes: notesData.length,
@@ -858,7 +940,11 @@ class UnifiedImportService {
 
       return newFolder.id;
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to create folder: $name', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to create folder: $name',
+        error: e,
+        stackTrace: stack,
+      );
       return _uuid.v4(); // Return a new ID anyway
     }
   }
@@ -882,7 +968,11 @@ class UnifiedImportService {
         isPinned: false,
       );
     } catch (e, stack) {
-      _logger.error('[UnifiedImport] Failed to create note: $title', error: e, stackTrace: stack);
+      _logger.error(
+        '[UnifiedImport] Failed to create note: $title',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -916,15 +1006,18 @@ class UnifiedImportService {
   Future<void> _trackImport(ImportFormat format, ImportResult result) async {
     try {
       final analytics = ref.read(analyticsProvider);
-      analytics.event('notes_imported', properties: {
-        'format': format.displayName,
-        'total': result.totalNotes,
-        'imported': result.importedNotes,
-        'skipped': result.skippedNotes,
-        'failed': result.failedNotes,
-        'folders': result.importedFolders,
-        'duration': result.duration?.inSeconds,
-      });
+      analytics.event(
+        'notes_imported',
+        properties: {
+          'format': format.displayName,
+          'total': result.totalNotes,
+          'imported': result.importedNotes,
+          'skipped': result.skippedNotes,
+          'failed': result.failedNotes,
+          'folders': result.importedFolders,
+          'duration': result.duration?.inSeconds,
+        },
+      );
     } catch (e) {
       _logger.warning('[UnifiedImport] Failed to track import analytics');
     }

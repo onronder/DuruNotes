@@ -12,23 +12,10 @@ import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/domain/repositories/i_task_repository.dart';
 
 /// Reminder types
-enum ReminderType {
-  task,
-  note,
-  recurring,
-  location,
-  smart,
-}
+enum ReminderType { task, note, recurring, location, smart }
 
 /// Reminder frequency for recurring reminders
-enum ReminderFrequency {
-  once,
-  daily,
-  weekly,
-  monthly,
-  yearly,
-  custom,
-}
+enum ReminderFrequency { once, daily, weekly, monthly, yearly, custom }
 
 /// Unified reminder model
 class UnifiedReminder {
@@ -103,7 +90,8 @@ class UnifiedReminder {
 
 /// Unified reminder service supporting both domain and legacy models
 class UnifiedReminderService {
-  static final UnifiedReminderService _instance = UnifiedReminderService._internal();
+  static final UnifiedReminderService _instance =
+      UnifiedReminderService._internal();
   factory UnifiedReminderService() => _instance;
   UnifiedReminderService._internal();
 
@@ -120,9 +108,11 @@ class UnifiedReminderService {
   final Map<String, Timer> _activeTimers = {};
 
   // Stream controllers
-  final _reminderStreamController = StreamController<List<UnifiedReminder>>.broadcast();
+  final _reminderStreamController =
+      StreamController<List<UnifiedReminder>>.broadcast();
 
-  Stream<List<UnifiedReminder>> get remindersStream => _reminderStreamController.stream;
+  Stream<List<UnifiedReminder>> get remindersStream =>
+      _reminderStreamController.stream;
 
   Future<void> initialize({
     required MigrationConfig migrationConfig,
@@ -164,10 +154,7 @@ class UnifiedReminderService {
         message: customMessage ?? 'Task due: $taskTitle',
         scheduledAt: scheduledAt,
         frequency: frequency,
-        metadata: {
-          'taskTitle': taskTitle,
-          'noteId': _getTaskNoteId(task),
-        },
+        metadata: {'taskTitle': taskTitle, 'noteId': _getTaskNoteId(task)},
       );
 
       await _saveReminder(reminder);
@@ -175,9 +162,12 @@ class UnifiedReminderService {
 
       _logger.info('Created task reminder: ${reminder.id}');
       return reminder;
-
     } catch (e, stack) {
-      _logger.error('Failed to create task reminder', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create task reminder',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -202,9 +192,7 @@ class UnifiedReminderService {
         message: customMessage ?? 'Review note: $noteTitle',
         scheduledAt: scheduledAt,
         frequency: frequency,
-        metadata: {
-          'noteTitle': noteTitle,
-        },
+        metadata: {'noteTitle': noteTitle},
       );
 
       await _saveReminder(reminder);
@@ -212,9 +200,12 @@ class UnifiedReminderService {
 
       _logger.info('Created note reminder: ${reminder.id}');
       return reminder;
-
     } catch (e, stack) {
-      _logger.error('Failed to create note reminder', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create note reminder',
+        error: e,
+        stackTrace: stack,
+      );
       rethrow;
     }
   }
@@ -245,7 +236,13 @@ class UnifiedReminderService {
             final day = int.tryParse(parts[1]) ?? 1;
             final year = int.tryParse(parts[2]) ?? DateTime.now().year;
 
-            final scheduledDate = DateTime(year, month, day, 9, 0); // Default to 9 AM
+            final scheduledDate = DateTime(
+              year,
+              month,
+              day,
+              9,
+              0,
+            ); // Default to 9 AM
 
             if (scheduledDate.isAfter(DateTime.now())) {
               final reminder = UnifiedReminder(
@@ -255,10 +252,7 @@ class UnifiedReminderService {
                 title: 'Smart Reminder',
                 message: 'Date mentioned in note: $dateStr',
                 scheduledAt: scheduledDate,
-                metadata: {
-                  'extractedDate': dateStr,
-                  'noteId': noteId,
-                },
+                metadata: {'extractedDate': dateStr, 'noteId': noteId},
               );
 
               reminders.add(reminder);
@@ -275,11 +269,16 @@ class UnifiedReminderService {
         await _scheduleNotification(reminder);
       }
 
-      _logger.info('Created ${reminders.length} smart reminders for note: $noteId');
+      _logger.info(
+        'Created ${reminders.length} smart reminders for note: $noteId',
+      );
       return reminders;
-
     } catch (e, stack) {
-      _logger.error('Failed to create smart reminders', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to create smart reminders',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -306,11 +305,13 @@ class UnifiedReminderService {
     final cutoff = now.add(within);
 
     return _reminders.values
-        .where((r) =>
-            r.isActive &&
-            r.completedAt == null &&
-            r.scheduledAt.isAfter(now) &&
-            r.scheduledAt.isBefore(cutoff))
+        .where(
+          (r) =>
+              r.isActive &&
+              r.completedAt == null &&
+              r.scheduledAt.isAfter(now) &&
+              r.scheduledAt.isBefore(cutoff),
+        )
         .toList()
       ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
   }
@@ -335,8 +336,9 @@ class UnifiedReminderService {
       await _cancelNotification(reminder);
       await _scheduleNotification(snoozedReminder);
 
-      _logger.info('Snoozed reminder: $reminderId for ${snoozeDuration.inMinutes} minutes');
-
+      _logger.info(
+        'Snoozed reminder: $reminderId for ${snoozeDuration.inMinutes} minutes',
+      );
     } catch (e, stack) {
       _logger.error('Failed to snooze reminder', error: e, stackTrace: stack);
       rethrow;
@@ -365,7 +367,6 @@ class UnifiedReminderService {
       }
 
       _logger.info('Completed reminder: $reminderId');
-
     } catch (e, stack) {
       _logger.error('Failed to complete reminder', error: e, stackTrace: stack);
       rethrow;
@@ -383,7 +384,6 @@ class UnifiedReminderService {
       }
 
       _logger.info('Deleted reminder: $reminderId');
-
     } catch (e, stack) {
       _logger.error('Failed to delete reminder', error: e, stackTrace: stack);
       rethrow;
@@ -405,33 +405,38 @@ class UnifiedReminderService {
         if (dueDate != null && dueDate.isAfter(DateTime.now())) {
           // Check if reminder already exists
           final existingReminders = await getRemindersForEntity(taskId);
-          final hasReminder = existingReminders.any((r) =>
-              r.type == ReminderType.task &&
-              r.scheduledAt.difference(dueDate).abs() < const Duration(minutes: 1));
+          final hasReminder = existingReminders.any(
+            (r) =>
+                r.type == ReminderType.task &&
+                r.scheduledAt.difference(dueDate).abs() <
+                    const Duration(minutes: 1),
+          );
 
           if (!hasReminder && !_isTaskCompleted(task)) {
             // Create reminder 1 hour before due date
             final reminderTime = dueDate.subtract(const Duration(hours: 1));
             if (reminderTime.isAfter(DateTime.now())) {
-              await createTaskReminder(
-                task: task,
-                scheduledAt: reminderTime,
-              );
+              await createTaskReminder(task: task, scheduledAt: reminderTime);
             }
           }
         }
       }
 
       _logger.info('Task reminder sync completed');
-
     } catch (e, stack) {
-      _logger.error('Failed to sync task reminders', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to sync task reminders',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
   // Private helper methods
   Future<void> _initializeNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -512,7 +517,11 @@ class UnifiedReminderService {
         _logger.debug('Scheduled notification for reminder: ${reminder.id}');
       }
     } catch (e, stack) {
-      _logger.error('Failed to schedule notification', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to schedule notification',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -569,7 +578,7 @@ class UnifiedReminderService {
     await _scheduleNotification(nextReminder);
 
     _logger.info('Scheduled next occurrence for recurring reminder');
-    }
+  }
 
   Future<void> _saveReminder(UnifiedReminder reminder) async {
     _reminders[reminder.id] = reminder;
@@ -603,7 +612,8 @@ class UnifiedReminderService {
 
   void _notifyListeners() {
     _reminderStreamController.add(
-      _reminders.values.toList()..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt)),
+      _reminders.values.toList()
+        ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt)),
     );
   }
 

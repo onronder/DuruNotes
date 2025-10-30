@@ -12,7 +12,8 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// Production-grade Encryption Service with actual AES-256-GCM encryption
 /// This implementation properly encrypts data at rest using industry-standard algorithms
 class ProperEncryptionService {
-  static final ProperEncryptionService _instance = ProperEncryptionService._internal();
+  static final ProperEncryptionService _instance =
+      ProperEncryptionService._internal();
   factory ProperEncryptionService() => _instance;
   ProperEncryptionService._internal();
 
@@ -53,7 +54,8 @@ class ProperEncryptionService {
         withScope: (scope) {
           scope.level = level;
           scope.setTag('service', 'ProperEncryptionService');
-          scope.setTag('operation', operation);        },
+          scope.setTag('operation', operation);
+        },
       ),
     );
   }
@@ -162,7 +164,10 @@ class ProperEncryptionService {
         'Proper encryption failed',
         error: error,
         stackTrace: stack,
-        data: {'keyId': keyId ?? _currentKeyId, 'dataType': data.runtimeType.toString()},
+        data: {
+          'keyId': keyId ?? _currentKeyId,
+          'dataType': data.runtimeType.toString(),
+        },
       );
       _captureProperEncryptionException(
         operation: 'encryptData',
@@ -184,7 +189,9 @@ class ProperEncryptionService {
       // Get encryption key
       final key = await _getKey(encryptedData.keyId);
       if (key == null) {
-        throw EncryptionException('Encryption key not found for keyId: ${encryptedData.keyId}');
+        throw EncryptionException(
+          'Encryption key not found for keyId: ${encryptedData.keyId}',
+        );
       }
 
       // Reconstruct SecretBox
@@ -270,7 +277,9 @@ class ProperEncryptionService {
     for (final field in sensitiveFields) {
       if (result.containsKey(field) && result[field] != null) {
         if (result[field] is Map<String, dynamic>) {
-          final encryptedData = EncryptedData.fromJson(result[field] as Map<String, dynamic>);
+          final encryptedData = EncryptedData.fromJson(
+            result[field] as Map<String, dynamic>,
+          );
           result[field] = await decryptData(encryptedData);
         }
       }
@@ -337,7 +346,6 @@ class ProperEncryptionService {
     }
   }
 
-
   // Private helper methods
 
   Future<void> _loadOrGenerateMasterKey() async {
@@ -391,7 +399,10 @@ class ProperEncryptionService {
     }
 
     if (_lastKeyRotation != null) {
-      await prefs.setString(_keyRotationStorageKey, _lastKeyRotation!.toIso8601String());
+      await prefs.setString(
+        _keyRotationStorageKey,
+        _lastKeyRotation!.toIso8601String(),
+      );
     }
   }
 
@@ -452,7 +463,9 @@ class ProperEncryptionService {
 
   bool _shouldRotateKeys() {
     if (_lastKeyRotation == null) return true;
-    final daysSinceRotation = DateTime.now().difference(_lastKeyRotation!).inDays;
+    final daysSinceRotation = DateTime.now()
+        .difference(_lastKeyRotation!)
+        .inDays;
     return daysSinceRotation >= _keyRotationDays;
   }
 
@@ -491,8 +504,8 @@ class ProperEncryptionService {
 
       // Check for required EncryptedData fields
       return json['data'] != null &&
-             json['nonce'] != null &&
-             json['mac'] != null;
+          json['nonce'] != null &&
+          json['mac'] != null;
     } catch (_) {
       return false;
     }
@@ -554,7 +567,10 @@ class ProperEncryptionService {
   }
 
   /// Re-encrypt data with a new key
-  Future<EncryptedData> reEncryptData(EncryptedData data, String newKeyId) async {
+  Future<EncryptedData> reEncryptData(
+    EncryptedData data,
+    String newKeyId,
+  ) async {
     if (!_initialized) {
       throw EncryptionException('Service not initialized');
     }
@@ -594,7 +610,10 @@ class ProperEncryptionService {
     }
 
     if (_lastKeyRotation != null) {
-      await prefs.setString(_keyRotationStorageKey, _lastKeyRotation!.toIso8601String());
+      await prefs.setString(
+        _keyRotationStorageKey,
+        _lastKeyRotation!.toIso8601String(),
+      );
     }
   }
 }
@@ -648,5 +667,6 @@ class EncryptionException implements Exception {
   EncryptionException(this.message, {this.code});
 
   @override
-  String toString() => 'EncryptionException: $message${code != null ? ' (Code: $code)' : ''}';
+  String toString() =>
+      'EncryptionException: $message${code != null ? ' (Code: $code)' : ''}';
 }

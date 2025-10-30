@@ -13,7 +13,9 @@ final bootstrapResultProvider = Provider<BootstrapResult>((ref) {
   LoggerFactory.initialize();
   AnalyticsFactory.reset();
   AnalyticsFactory.configure(
-      config: environment, logger: LoggerFactory.instance);
+    config: environment,
+    logger: LoggerFactory.instance,
+  );
   final analytics = AnalyticsFactory.instance;
 
   return BootstrapResult(

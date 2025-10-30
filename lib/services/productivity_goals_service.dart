@@ -37,12 +37,16 @@ class ProductivityGoalsService {
       final goalsList = jsonDecode(goalsJson) as List<dynamic>;
       return goalsList
           .map(
-              (json) => ProductivityGoal.fromJson(json as Map<String, dynamic>))
+            (json) => ProductivityGoal.fromJson(json as Map<String, dynamic>),
+          )
           .where((goal) => goal.isActive && !goal.isCompleted)
           .toList();
     } catch (e, stack) {
-      _logger.error('Failed to load productivity goals',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to load productivity goals',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -54,8 +58,11 @@ class ProductivityGoalsService {
       final goalsJson = jsonEncode(goals.map((g) => g.toJson()).toList());
       await prefs.setString(_goalsKey, goalsJson);
     } catch (e, stack) {
-      _logger.error('Failed to save productivity goals',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to save productivity goals',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -90,11 +97,14 @@ class ProductivityGoalsService {
     goals.add(goal);
     await saveGoals(goals);
 
-    _logger.info('Created productivity goal', data: {
-      'goalId': goal.id,
-      'type': goal.type.name,
-      'target': goal.targetValue,
-    });
+    _logger.info(
+      'Created productivity goal',
+      data: {
+        'goalId': goal.id,
+        'type': goal.type.name,
+        'target': goal.targetValue,
+      },
+    );
 
     return goal.id;
   }
@@ -122,8 +132,11 @@ class ProductivityGoalsService {
         await _recordAchievement(updatedGoal);
       }
     } catch (e, stack) {
-      _logger.error('Failed to update goal progress',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to update goal progress',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -140,54 +153,73 @@ class ProductivityGoalsService {
         await updateGoalProgress(goal.id, currentValue);
       }
     } catch (e, stack) {
-      _logger.error('Failed to update all goal progress',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to update all goal progress',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
   /// Calculate current value for a goal based on its type and period
   Future<double> _calculateCurrentGoalValue(
-      ProductivityGoal goal, DateTime now) async {
+    ProductivityGoal goal,
+    DateTime now,
+  ) async {
     final startDate = _getGoalPeriodStart(goal, now);
     final endDate = now;
 
     switch (goal.type) {
       case GoalType.tasksCompleted:
-        final stats =
-            await _analyticsService.getTaskCompletionStats(startDate, endDate);
+        final stats = await _analyticsService.getTaskCompletionStats(
+          startDate,
+          endDate,
+        );
         return stats.totalCompleted.toDouble();
 
       case GoalType.completionRate:
-        final stats =
-            await _analyticsService.getTaskCompletionStats(startDate, endDate);
+        final stats = await _analyticsService.getTaskCompletionStats(
+          startDate,
+          endDate,
+        );
         return stats.completionRate * 100; // Convert to percentage
 
       case GoalType.timeAccuracy:
         final accuracy = await _analyticsService.getTimeEstimationAccuracy(
-            startDate, endDate);
+          startDate,
+          endDate,
+        );
         return accuracy.overallAccuracy * 100; // Convert to percentage
 
       case GoalType.dailyStreak:
-        final stats =
-            await _analyticsService.getTaskCompletionStats(startDate, endDate);
+        final stats = await _analyticsService.getTaskCompletionStats(
+          startDate,
+          endDate,
+        );
         return stats.currentStreak.toDouble();
 
       case GoalType.deadlineAdherence:
         final metrics = await _analyticsService.getDeadlineAdherenceMetrics(
-            startDate, endDate);
+          startDate,
+          endDate,
+        );
         return metrics.adherenceRate * 100; // Convert to percentage
 
       case GoalType.timeSpent:
-        final trends =
-            await _analyticsService.getProductivityTrends(startDate, endDate);
+        final trends = await _analyticsService.getProductivityTrends(
+          startDate,
+          endDate,
+        );
         return trends.dailyTrends
             .map((d) => d.totalMinutesSpent)
             .fold(0, (a, b) => a + b)
             .toDouble();
 
       case GoalType.averageTasksPerDay:
-        final trends =
-            await _analyticsService.getProductivityTrends(startDate, endDate);
+        final trends = await _analyticsService.getProductivityTrends(
+          startDate,
+          endDate,
+        );
         return trends.averageTasksPerDay;
     }
   }
@@ -227,8 +259,10 @@ class ProductivityGoalsService {
       final prefs = await SharedPreferences.getInstance();
       final achievementsJson = prefs.getString(_achievementsKey) ?? '[]';
       final achievements = (jsonDecode(achievementsJson) as List<dynamic>)
-          .map((json) =>
-              ProductivityAchievement.fromJson(json as Map<String, dynamic>))
+          .map(
+            (json) =>
+                ProductivityAchievement.fromJson(json as Map<String, dynamic>),
+          )
           .toList();
 
       achievements.add(achievement);
@@ -236,17 +270,21 @@ class ProductivityGoalsService {
       // Send achievement notification
       await _sendAchievementNotification(goal);
 
-      final updatedJson =
-          jsonEncode(achievements.map((a) => a.toJson()).toList());
+      final updatedJson = jsonEncode(
+        achievements.map((a) => a.toJson()).toList(),
+      );
       await prefs.setString(_achievementsKey, updatedJson);
 
-      _logger.info('Recorded productivity achievement', data: {
-        'goalId': goal.id,
-        'achievementId': achievement.id,
-      });
+      _logger.info(
+        'Recorded productivity achievement',
+        data: {'goalId': goal.id, 'achievementId': achievement.id},
+      );
     } catch (e, stack) {
-      _logger.error('Failed to record achievement',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to record achievement',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -258,8 +296,10 @@ class ProductivityGoalsService {
 
       final achievementsList = jsonDecode(achievementsJson) as List<dynamic>;
       return achievementsList
-          .map((json) =>
-              ProductivityAchievement.fromJson(json as Map<String, dynamic>))
+          .map(
+            (json) =>
+                ProductivityAchievement.fromJson(json as Map<String, dynamic>),
+          )
           .toList()
         ..sort((a, b) => b.achievedAt.compareTo(a.achievedAt));
     } catch (e, stack) {
@@ -292,65 +332,74 @@ class ProductivityGoalsService {
 
       // Suggest completion rate improvement
       if (analytics.completionStats.completionRate < 0.8) {
-        suggestions.add(ProductivityGoal(
-          id: 'suggested_completion_rate',
-          title: 'Improve Completion Rate',
-          description: 'Achieve 80% task completion rate',
-          type: GoalType.completionRate,
-          period: GoalPeriod.monthly,
-          targetValue: 80.0,
-          currentValue: analytics.completionStats.completionRate * 100,
-          startDate: now,
-          isActive: false,
-          isCompleted: false,
-          metadata: {'suggested': true},
-          createdAt: now,
-          updatedAt: now,
-        ));
+        suggestions.add(
+          ProductivityGoal(
+            id: 'suggested_completion_rate',
+            title: 'Improve Completion Rate',
+            description: 'Achieve 80% task completion rate',
+            type: GoalType.completionRate,
+            period: GoalPeriod.monthly,
+            targetValue: 80.0,
+            currentValue: analytics.completionStats.completionRate * 100,
+            startDate: now,
+            isActive: false,
+            isCompleted: false,
+            metadata: {'suggested': true},
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
       }
 
       // Suggest daily task goal
       if (analytics.completionStats.averagePerDay < 3) {
-        suggestions.add(ProductivityGoal(
-          id: 'suggested_daily_tasks',
-          title: 'Daily Task Goal',
-          description: 'Complete 5 tasks per day',
-          type: GoalType.averageTasksPerDay,
-          period: GoalPeriod.daily,
-          targetValue: 5.0,
-          currentValue: analytics.completionStats.averagePerDay,
-          startDate: now,
-          isActive: false,
-          isCompleted: false,
-          metadata: {'suggested': true},
-          createdAt: now,
-          updatedAt: now,
-        ));
+        suggestions.add(
+          ProductivityGoal(
+            id: 'suggested_daily_tasks',
+            title: 'Daily Task Goal',
+            description: 'Complete 5 tasks per day',
+            type: GoalType.averageTasksPerDay,
+            period: GoalPeriod.daily,
+            targetValue: 5.0,
+            currentValue: analytics.completionStats.averagePerDay,
+            startDate: now,
+            isActive: false,
+            isCompleted: false,
+            metadata: {'suggested': true},
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
       }
 
       // Suggest time accuracy improvement
       if (analytics.timeAccuracyStats.overallAccuracy < 0.9) {
-        suggestions.add(ProductivityGoal(
-          id: 'suggested_time_accuracy',
-          title: 'Better Time Estimates',
-          description: 'Achieve 90% time estimation accuracy',
-          type: GoalType.timeAccuracy,
-          period: GoalPeriod.monthly,
-          targetValue: 90.0,
-          currentValue: analytics.timeAccuracyStats.overallAccuracy * 100,
-          startDate: now,
-          isActive: false,
-          isCompleted: false,
-          metadata: {'suggested': true},
-          createdAt: now,
-          updatedAt: now,
-        ));
+        suggestions.add(
+          ProductivityGoal(
+            id: 'suggested_time_accuracy',
+            title: 'Better Time Estimates',
+            description: 'Achieve 90% time estimation accuracy',
+            type: GoalType.timeAccuracy,
+            period: GoalPeriod.monthly,
+            targetValue: 90.0,
+            currentValue: analytics.timeAccuracyStats.overallAccuracy * 100,
+            startDate: now,
+            isActive: false,
+            isCompleted: false,
+            metadata: {'suggested': true},
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
       }
 
       return suggestions;
     } catch (e, stack) {
-      _logger.error('Failed to generate suggested goals',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to generate suggested goals',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -402,14 +451,20 @@ class ProductivityGoalsService {
       );
 
       // Log analytics event
-      AnalyticsFactory.instance.event('goal.achieved', properties: {
-        'goal_type': goal.type.toString(),
-        'target_value': goal.targetValue,
-        'period': goal.period.toString(),
-      });
+      AnalyticsFactory.instance.event(
+        'goal.achieved',
+        properties: {
+          'goal_type': goal.type.toString(),
+          'target_value': goal.targetValue,
+          'period': goal.period.toString(),
+        },
+      );
     } catch (e, stack) {
-      _logger.error('Failed to send achievement notification',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to send achievement notification',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -418,8 +473,11 @@ class ProductivityGoalsService {
     try {
       await updateAllGoalProgress();
     } catch (e, stack) {
-      _logger.error('Failed to check achievements',
-          error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to check achievements',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 
@@ -684,13 +742,7 @@ enum GoalType {
 }
 
 /// Goal time periods
-enum GoalPeriod {
-  daily,
-  weekly,
-  monthly,
-  yearly,
-  custom,
-}
+enum GoalPeriod { daily, weekly, monthly, yearly, custom }
 
 /// Goal progress tracking data
 class GoalProgress {

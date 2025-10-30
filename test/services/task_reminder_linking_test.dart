@@ -32,11 +32,15 @@ final _dbProvider = Provider<AppDb>((ref) {
   throw UnimplementedError('Override in tests');
 });
 
-final _reminderCoordinatorTestProvider = Provider<_FakeReminderCoordinator>((ref) {
+final _reminderCoordinatorTestProvider = Provider<_FakeReminderCoordinator>((
+  ref,
+) {
   throw UnimplementedError('Override in tests');
 });
 
-final _advancedReminderServiceProvider = Provider<AdvancedReminderService>((ref) {
+final _advancedReminderServiceProvider = Provider<AdvancedReminderService>((
+  ref,
+) {
   throw UnimplementedError('Override in tests');
 });
 
@@ -59,7 +63,6 @@ final _taskReminderBridgeProvider = Provider<TaskReminderBridge>((ref) {
     taskRepository: ref.watch(_taskRepositoryProvider),
   );
 });
-
 
 class _FakeReminderCoordinator {
   _FakeReminderCoordinator(this.snoozeService);
@@ -109,7 +112,6 @@ class _FakeTaskRepository extends Fake implements ITaskRepository {
     required String title,
     String? description,
   }) => throw UnimplementedError();
-
 }
 
 @GenerateNiceMocks([
@@ -131,15 +133,12 @@ void main() {
 
   const MethodChannel timezoneChannel = MethodChannel('flutter_timezone');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-    timezoneChannel,
-    (call) async {
-      if (call.method == 'getLocalTimezone') {
-        return 'UTC';
-      }
-      return null;
-    },
-  );
+      .setMockMethodCallHandler(timezoneChannel, (call) async {
+        if (call.method == 'getLocalTimezone') {
+          return 'UTC';
+        }
+        return null;
+      });
 
   late ProviderContainer container;
   late TaskReminderBridge bridge;
@@ -265,46 +264,56 @@ void main() {
 
     when(mockPlugin.initialize(any)).thenAnswer((_) async => true);
     when(
-      mockPlugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-      >(),
+      mockPlugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >(),
     ).thenReturn(mockAndroidPlugin);
-    when(mockAndroidPlugin.createNotificationChannel(any))
-        .thenAnswer((_) async {});
-    when(mockPlugin.zonedSchedule(
-      any,
-      any,
-      any,
-      any,
-      any,
-      androidScheduleMode: anyNamed('androidScheduleMode'),
-      payload: anyNamed('payload'),
-    )).thenAnswer((_) async {});
+    when(
+      mockAndroidPlugin.createNotificationChannel(any),
+    ).thenAnswer((_) async {});
+    when(
+      mockPlugin.zonedSchedule(
+        any,
+        any,
+        any,
+        any,
+        any,
+        androidScheduleMode: anyNamed('androidScheduleMode'),
+        payload: anyNamed('payload'),
+      ),
+    ).thenAnswer((_) async {});
     when(mockPlugin.cancel(any)).thenAnswer((_) async {});
     when(mockPlugin.show(any, any, any, any)).thenAnswer((_) async {});
 
     when(mockSupabaseClient.auth).thenReturn(mockAuth);
     when(mockAuth.currentUser).thenReturn(mockUser);
     when(mockUser.id).thenReturn('user-123');
-    when(mockAnalytics.event(any, properties: anyNamed('properties')))
-        .thenReturn(null);
-    when(mockAnalytics.featureUsed(any, properties: anyNamed('properties')))
-        .thenReturn(null);
+    when(
+      mockAnalytics.event(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
+    when(
+      mockAnalytics.featureUsed(any, properties: anyNamed('properties')),
+    ).thenReturn(null);
 
     when(mockLogger.info(any, data: anyNamed('data'))).thenReturn(null);
     when(mockLogger.warning(any, data: anyNamed('data'))).thenReturn(null);
-    when(mockLogger.error(
-      any,
-      error: anyNamed('error'),
-      stackTrace: anyNamed('stackTrace'),
-      data: anyNamed('data'),
-    )).thenReturn(null);
+    when(
+      mockLogger.error(
+        any,
+        error: anyNamed('error'),
+        stackTrace: anyNamed('stackTrace'),
+        data: anyNamed('data'),
+      ),
+    ).thenReturn(null);
 
-    when(mockCryptoBox.decryptStringForNote(
-      userId: anyNamed('userId'),
-      noteId: anyNamed('noteId'),
-      data: anyNamed('data'),
-    )).thenAnswer((_) async => 'Review architecture');
+    when(
+      mockCryptoBox.decryptStringForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        data: anyNamed('data'),
+      ),
+    ).thenAnswer((_) async => 'Review architecture');
 
     container = ProviderContainer(
       overrides: [
@@ -332,8 +341,8 @@ void main() {
     test('links reminder id to task and returns id', () async {
       NoteTasksCompanion? capturedUpdate;
       when(mockDb.updateTask(any, any, any)).thenAnswer((invocation) async {
-        capturedUpdate = invocation.positionalArguments[2]
-            as NoteTasksCompanion;
+        capturedUpdate =
+            invocation.positionalArguments[2] as NoteTasksCompanion;
       });
 
       final result = await bridge.createTaskReminder(
@@ -357,18 +366,15 @@ void main() {
       await bridge.cancelTaskReminder(noteTask(reminderId: 321));
 
       verify(mockAdvancedService.deleteReminder(321)).called(1);
-      verify(mockDb.updateTask(
-        'task-1',
-        'user-123',
-        any,
-      )).called(1);
+      verify(mockDb.updateTask('task-1', 'user-123', any)).called(1);
     });
   });
 
   group('snoozeTaskReminder', () {
     test('delegates to snooze service and syncs updated reminder', () async {
-      when(mockSnoozeService.snoozeReminder(321, any))
-          .thenAnswer((_) async => true);
+      when(
+        mockSnoozeService.snoozeReminder(321, any),
+      ).thenAnswer((_) async => true);
 
       int getReminderCall = 0;
       when(mockDb.getReminderById(321, 'user-123')).thenAnswer((_) async {
@@ -390,9 +396,12 @@ void main() {
         snoozeDuration: const Duration(minutes: 15),
       );
 
-      verify(mockSnoozeService.snoozeReminder(321, SnoozeDuration.fifteenMinutes))
-          .called(1);
-      verify(mockDb.getReminderById(321, 'user-123')).called(greaterThanOrEqualTo(2));
+      verify(
+        mockSnoozeService.snoozeReminder(321, SnoozeDuration.fifteenMinutes),
+      ).called(1);
+      verify(
+        mockDb.getReminderById(321, 'user-123'),
+      ).called(greaterThanOrEqualTo(2));
     });
   });
 }

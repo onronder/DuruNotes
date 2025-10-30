@@ -92,8 +92,9 @@ class SentryConfig {
 
         // Debug options
         options.debug = kDebugMode;
-        options.diagnosticLevel =
-            kDebugMode ? SentryLevel.debug : SentryLevel.error;
+        options.diagnosticLevel = kDebugMode
+            ? SentryLevel.debug
+            : SentryLevel.error;
 
         // Before send callback for filtering
         options.beforeSend = (event, hint) async {
@@ -168,11 +169,7 @@ class SentryConfig {
         Sentry.captureMessage('Sentry initialized successfully');
       }
     } catch (e, stack) {
-      logger.error(
-        'Failed to initialize Sentry',
-        error: e,
-        stackTrace: stack,
-      );
+      logger.error('Failed to initialize Sentry', error: e, stackTrace: stack);
     }
   }
 

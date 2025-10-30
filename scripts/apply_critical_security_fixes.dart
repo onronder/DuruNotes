@@ -11,7 +11,9 @@ void main() async {
   // Step 1: Backup existing encryption service
   print('\n1. Backing up existing encryption service...');
   final encryptionFile = File('lib/services/security/encryption_service.dart');
-  final backupFile = File('lib/services/security/encryption_service.dart.backup');
+  final backupFile = File(
+    'lib/services/security/encryption_service.dart.backup',
+  );
 
   if (await encryptionFile.exists()) {
     await encryptionFile.copy(backupFile.path);

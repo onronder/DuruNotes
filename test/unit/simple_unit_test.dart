@@ -1,4 +1,3 @@
-
 void main() {
   /* COMMENTED OUT - 21 errors - old unit test patterns
    * This test uses old models/APIs that no longer exist after domain migration.

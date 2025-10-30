@@ -112,7 +112,10 @@ class AuthenticationGuard {
       }
 
       // Check device trust
-      final deviceFingerprint = _generateDeviceFingerprint(deviceId, deviceInfo);
+      final deviceFingerprint = _generateDeviceFingerprint(
+        deviceId,
+        deviceInfo,
+      );
       final isTrustedDevice = _isTrustedDevice(username, deviceFingerprint);
 
       if (!isTrustedDevice && await _requiresDeviceVerification(username)) {
@@ -180,10 +183,7 @@ class AuthenticationGuard {
           'remainingAttempts': attemptTracker.remainingAttempts,
         },
       );
-      return AuthResult(
-        success: false,
-        error: 'Authentication failed',
-      );
+      return AuthResult(success: false, error: 'Authentication failed');
     }
   }
 
@@ -252,7 +252,8 @@ class AuthenticationGuard {
       final exp = DateTime.fromMillisecondsSinceEpoch(
         (decodedToken['exp'] as int) * 1000,
       );
-      final needsRefresh = exp.difference(DateTime.now()) < _tokenRefreshThreshold;
+      final needsRefresh =
+          exp.difference(DateTime.now()) < _tokenRefreshThreshold;
 
       // Update last activity
       session.lastActivity = DateTime.now();
@@ -291,10 +292,7 @@ class AuthenticationGuard {
       final decodedToken = JwtDecoder.decode(refreshToken);
 
       if (JwtDecoder.isExpired(refreshToken)) {
-        return RefreshResult(
-          success: false,
-          error: 'Refresh token expired',
-        );
+        return RefreshResult(success: false, error: 'Refresh token expired');
       }
 
       // PRODUCTION FIX: Check if initialized before using secrets
@@ -307,28 +305,19 @@ class AuthenticationGuard {
 
       // Verify signature
       if (!_verifyTokenSignature(refreshToken, _jwtSecret!)) {
-        return RefreshResult(
-          success: false,
-          error: 'Invalid refresh token',
-        );
+        return RefreshResult(success: false, error: 'Invalid refresh token');
       }
 
       // Validate CSRF token
       final sessionId = decodedToken['sid'] as String?;
       if (sessionId == null || !validateCsrfToken(sessionId, csrfToken)) {
-        return RefreshResult(
-          success: false,
-          error: 'Invalid CSRF token',
-        );
+        return RefreshResult(success: false, error: 'Invalid CSRF token');
       }
 
       // Get session
       final session = _activeSessions[sessionId];
       if (session == null || !_isSessionValid(session)) {
-        return RefreshResult(
-          success: false,
-          error: 'Invalid session',
-        );
+        return RefreshResult(success: false, error: 'Invalid session');
       }
 
       // Generate new tokens
@@ -356,10 +345,7 @@ class AuthenticationGuard {
           'csrfTokenHash': _hashIdentifier(csrfToken),
         },
       );
-      return RefreshResult(
-        success: false,
-        error: 'Token refresh failed',
-      );
+      return RefreshResult(success: false, error: 'Token refresh failed');
     }
   }
 
@@ -407,11 +393,7 @@ class AuthenticationGuard {
   /// Check if route is accessible
   bool canAccessRoute(String userId, String route) {
     // Define protected routes
-    const protectedRoutes = [
-      '/admin',
-      '/settings',
-      '/billing',
-    ];
+    const protectedRoutes = ['/admin', '/settings', '/billing'];
 
     if (!protectedRoutes.contains(route)) {
       return true;
@@ -433,7 +415,9 @@ class AuthenticationGuard {
   Future<bool> _validateCredentials(String username, String password) async {
     // In production, validate against backend
     // For now, return true for demonstration
-    await Future<void>.delayed(const Duration(milliseconds: 100)); // Simulate network delay
+    await Future<void>.delayed(
+      const Duration(milliseconds: 100),
+    ); // Simulate network delay
     return true;
   }
 
@@ -452,7 +436,10 @@ class AuthenticationGuard {
     return false; // For demonstration
   }
 
-  Future<void> _sendDeviceVerification(String username, DeviceFingerprint fingerprint) async {
+  Future<void> _sendDeviceVerification(
+    String username,
+    DeviceFingerprint fingerprint,
+  ) async {
     // Send verification email/SMS
   }
 
@@ -467,11 +454,11 @@ class AuthenticationGuard {
     _persistTrustedDevices();
   }
 
-  DeviceFingerprint _generateDeviceFingerprint(String deviceId, Map<String, dynamic>? deviceInfo) {
-    final data = {
-      'deviceId': deviceId,
-      ...?deviceInfo,
-    };
+  DeviceFingerprint _generateDeviceFingerprint(
+    String deviceId,
+    Map<String, dynamic>? deviceInfo,
+  ) {
+    final data = {'deviceId': deviceId, ...?deviceInfo};
 
     final bytes = utf8.encode(jsonEncode(data));
     final hash = sha256.convert(bytes).toString();
@@ -511,7 +498,10 @@ class AuthenticationGuard {
   }
 
   String _generateSessionId() {
-    final bytes = List<int>.generate(32, (i) => DateTime.now().microsecondsSinceEpoch * i % 256);
+    final bytes = List<int>.generate(
+      32,
+      (i) => DateTime.now().microsecondsSinceEpoch * i % 256,
+    );
     return base64Url.encode(bytes);
   }
 
@@ -557,7 +547,9 @@ class AuthenticationGuard {
   String _createJwt(Map<String, dynamic> payload, String secret) {
     // In production, use proper JWT library
     // This is a simplified implementation
-    final header = base64Url.encode(utf8.encode(jsonEncode({'alg': 'HS256', 'typ': 'JWT'})));
+    final header = base64Url.encode(
+      utf8.encode(jsonEncode({'alg': 'HS256', 'typ': 'JWT'})),
+    );
     final payloadEncoded = base64Url.encode(utf8.encode(jsonEncode(payload)));
     final data = '$header.$payloadEncoded';
     final hmac = Hmac(sha256, utf8.encode(secret));
@@ -573,7 +565,9 @@ class AuthenticationGuard {
       final data = '${parts[0]}.${parts[1]}';
       final signature = parts[2];
       final hmac = Hmac(sha256, utf8.encode(secret));
-      final expectedSignature = base64Url.encode(hmac.convert(utf8.encode(data)).bytes);
+      final expectedSignature = base64Url.encode(
+        hmac.convert(utf8.encode(data)).bytes,
+      );
 
       return signature == expectedSignature;
     } catch (e, stack) {
@@ -606,7 +600,9 @@ class AuthenticationGuard {
     final sessions = prefs.getStringList('active_sessions') ?? [];
 
     for (final sessionJson in sessions) {
-      final session = SessionInfo.fromJson(jsonDecode(sessionJson) as Map<String, dynamic>);
+      final session = SessionInfo.fromJson(
+        jsonDecode(sessionJson) as Map<String, dynamic>,
+      );
       if (session.sessionId == sessionId) {
         return session;
       }
@@ -620,7 +616,9 @@ class AuthenticationGuard {
     final sessions = prefs.getStringList('active_sessions') ?? [];
 
     for (final sessionJson in sessions) {
-      final session = SessionInfo.fromJson(jsonDecode(sessionJson) as Map<String, dynamic>);
+      final session = SessionInfo.fromJson(
+        jsonDecode(sessionJson) as Map<String, dynamic>,
+      );
       if (_isSessionValid(session)) {
         _activeSessions[session.sessionId] = session;
       }
@@ -631,7 +629,9 @@ class AuthenticationGuard {
     final prefs = await SharedPreferences.getInstance();
     final sessions = prefs.getStringList('active_sessions') ?? [];
     sessions.removeWhere((s) {
-      final session = SessionInfo.fromJson(jsonDecode(s) as Map<String, dynamic>);
+      final session = SessionInfo.fromJson(
+        jsonDecode(s) as Map<String, dynamic>,
+      );
       return session.sessionId == sessionId;
     });
     await prefs.setStringList('active_sessions', sessions);
@@ -642,7 +642,9 @@ class AuthenticationGuard {
     final devices = prefs.getStringList('trusted_devices') ?? [];
 
     for (final deviceJson in devices) {
-      final device = DeviceFingerprint.fromJson(jsonDecode(deviceJson) as Map<String, dynamic>);
+      final device = DeviceFingerprint.fromJson(
+        jsonDecode(deviceJson) as Map<String, dynamic>,
+      );
       final key = device.hash;
       _trustedDevices[key] = device;
     }
@@ -762,11 +764,12 @@ class DeviceFingerprint {
     'info': info,
   };
 
-  factory DeviceFingerprint.fromJson(Map<String, dynamic> json) => DeviceFingerprint(
-    deviceId: json['deviceId'] as String,
-    hash: json['hash'] as String,
-    info: json['info'] as Map<String, dynamic>,
-  );
+  factory DeviceFingerprint.fromJson(Map<String, dynamic> json) =>
+      DeviceFingerprint(
+        deviceId: json['deviceId'] as String,
+        hash: json['hash'] as String,
+        info: json['info'] as Map<String, dynamic>,
+      );
 }
 
 /// Login attempt tracker

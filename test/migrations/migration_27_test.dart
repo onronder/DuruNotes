@@ -48,8 +48,11 @@ void main() {
       }
 
       // All expected indexes should be present
-      expect(result.isComplete, true,
-          reason: 'Missing indexes: ${result.missingIndexes}');
+      expect(
+        result.isComplete,
+        true,
+        reason: 'Missing indexes: ${result.missingIndexes}',
+      );
       expect(result.totalFound, result.totalExpected);
       expect(result.missingIndexes, isEmpty);
     });
@@ -75,10 +78,12 @@ void main() {
       ];
 
       for (final indexName in batchIndexes) {
-        final exists = await db.customSelect(
-          "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
-          variables: [Variable.withString(indexName)],
-        ).getSingleOrNull();
+        final exists = await db
+            .customSelect(
+              "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+              variables: [Variable.withString(indexName)],
+            )
+            .getSingleOrNull();
 
         expect(exists, isNotNull, reason: 'Index $indexName should exist');
       }
@@ -97,10 +102,12 @@ void main() {
       ];
 
       for (final indexName in compositeIndexes) {
-        final exists = await db.customSelect(
-          "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
-          variables: [Variable.withString(indexName)],
-        ).getSingleOrNull();
+        final exists = await db
+            .customSelect(
+              "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+              variables: [Variable.withString(indexName)],
+            )
+            .getSingleOrNull();
 
         expect(exists, isNotNull, reason: 'Index $indexName should exist');
       }
@@ -132,9 +139,11 @@ void main() {
 
         // The migration only creates indexes, so we can't test actual queries
         // without creating the tables first. Just verify the indexes exist.
-        final indexCount = await db.customSelect(
-          "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
-        ).getSingle();
+        final indexCount = await db
+            .customSelect(
+              "SELECT COUNT(*) as count FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'",
+            )
+            .getSingle();
 
         final count = indexCount.read<int>('count');
         expect(count, greaterThan(0));
@@ -162,10 +171,11 @@ void main() {
       await Migration27PerformanceIndexes.apply(migrator);
 
       // Analyze a simple query
-      final analysis = await Migration27PerformanceIndexes.analyzeQueryPerformance(
-        db,
-        "SELECT * FROM sqlite_master WHERE type='index'",
-      );
+      final analysis =
+          await Migration27PerformanceIndexes.analyzeQueryPerformance(
+            db,
+            "SELECT * FROM sqlite_master WHERE type='index'",
+          );
 
       expect(analysis, isNotNull);
       expect(analysis['query_plan'], isNotNull);
@@ -214,7 +224,9 @@ void main() {
       final migrator = oldDb.createMigrator();
       await Migration27PerformanceIndexes.apply(migrator);
 
-      final hasCriticalIndexes = await Migration27PerformanceIndexes.verify(oldDb);
+      final hasCriticalIndexes = await Migration27PerformanceIndexes.verify(
+        oldDb,
+      );
       expect(hasCriticalIndexes, true);
 
       await oldDb.close();
@@ -240,8 +252,7 @@ void main() {
 
       expect(result.isComplete, false);
       expect(result.missingIndexes, isNotEmpty);
-      expect(result.missingIndexes,
-          contains('idx_note_tags_batch_load'));
+      expect(result.missingIndexes, contains('idx_note_tags_batch_load'));
       expect(result.isComplete, false);
     });
 
@@ -251,7 +262,10 @@ void main() {
 
       final result = await verifier.verifyAll();
 
-      expect(result.successIndexes.length, IndexVerifier.expectedIndexes.length);
+      expect(
+        result.successIndexes.length,
+        IndexVerifier.expectedIndexes.length,
+      );
       expect(result.missingIndexes, isEmpty);
       expect(result.isComplete, true);
     });

@@ -144,7 +144,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
     });
 
     try {
-      final success = await ref.read(folderProvider.notifier).updateFolder(
+      final success = await ref
+          .read(folderProvider.notifier)
+          .updateFolder(
             id: widget.folder.id,
             name: _nameController.text.trim(),
             parentId: _selectedParent?.id,
@@ -248,11 +250,11 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
       child: SlideTransition(
         position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
             .animate(
-          CurvedAnimation(
-            parent: _slideController,
-            curve: Curves.easeOutCubic,
-          ),
-        ),
+              CurvedAnimation(
+                parent: _slideController,
+                curve: Curves.easeOutCubic,
+              ),
+            ),
         child: AlertDialog(
           backgroundColor: colorScheme.surface,
           surfaceTintColor: colorScheme.surfaceTint,
@@ -401,10 +403,10 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
                     child: GridView.builder(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 8,
-                        mainAxisSpacing: 8,
-                        crossAxisSpacing: 8,
-                      ),
+                            crossAxisCount: 8,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
                       itemCount: _folderIcons.length,
                       itemBuilder: (context, index) {
                         final icon = _folderIcons[index];
@@ -490,8 +492,9 @@ class _EditFolderDialogState extends ConsumerState<EditFolderDialog>
           ),
           actions: [
             TextButton(
-              onPressed:
-                  _isUpdating ? null : () => Navigator.of(context).pop(false),
+              onPressed: _isUpdating
+                  ? null
+                  : () => Navigator.of(context).pop(false),
               child: Text(l10n.cancel),
             ),
             FilledButton(

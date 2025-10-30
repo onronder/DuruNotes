@@ -41,8 +41,9 @@ class FolderIconHelpers {
 
     try {
       // Remove any leading # if present
-      final cleanColor =
-          colorString.startsWith('#') ? colorString.substring(1) : colorString;
+      final cleanColor = colorString.startsWith('#')
+          ? colorString.substring(1)
+          : colorString;
 
       // Ensure the color string is valid hex
       if (cleanColor.length != 6 && cleanColor.length != 8) {

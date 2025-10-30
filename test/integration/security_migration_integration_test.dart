@@ -9,7 +9,6 @@
 /// 5. Test authorization
 library;
 
-
 const testUserId = 'production-user-uuid-12345';
 
 void main() {

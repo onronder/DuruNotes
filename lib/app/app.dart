@@ -17,10 +17,7 @@ import 'package:duru_notes/core/providers/security_providers.dart'
 import 'package:duru_notes/core/providers/search_providers.dart'
     show noteIndexerProvider;
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
-    show
-        folderHierarchyProvider,
-        folderListProvider,
-        noteFolderProvider;
+    show folderHierarchyProvider, folderListProvider, noteFolderProvider;
 import 'package:duru_notes/features/notes/providers/notes_state_providers.dart'
     show
         notesPageProvider,
@@ -367,15 +364,21 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
                           try {
                             final db = ref.read(appDbProvider);
                             await db.clearAll();
-                            debugPrint('[UnlockView] ✅ Local database cleared on sign-out');
+                            debugPrint(
+                              '[UnlockView] ✅ Local database cleared on sign-out',
+                            );
                           } catch (dbError) {
-                            debugPrint('[UnlockView] ❌ Failed to clear database: $dbError');
+                            debugPrint(
+                              '[UnlockView] ❌ Failed to clear database: $dbError',
+                            );
                             // Continue with sign-out even if clear fails
                           }
 
                           // Reset security initialization
                           SecurityInitialization.reset();
-                          debugPrint('[UnlockView] ✅ Security initialization reset');
+                          debugPrint(
+                            '[UnlockView] ✅ Security initialization reset',
+                          );
 
                           await Supabase.instance.client.auth.signOut();
                         },
@@ -430,7 +433,9 @@ class _NewUserEncryptionSetupGateState
     _launchedDialog = true;
 
     final logger = ref.read(loggerProvider);
-    logger.info('[EncryptionSetupGate] Launching initial encryption setup dialog');
+    logger.info(
+      '[EncryptionSetupGate] Launching initial encryption setup dialog',
+    );
 
     final result = await showEncryptionSetupDialog(
       context,
@@ -441,13 +446,17 @@ class _NewUserEncryptionSetupGateState
     if (!mounted) return;
 
     if (result == true) {
-      logger.info('[EncryptionSetupGate] Encryption setup completed successfully');
+      logger.info(
+        '[EncryptionSetupGate] Encryption setup completed successfully',
+      );
       setState(() {
         _finalizing = true;
       });
       widget.onSetupComplete();
     } else {
-      logger.warning('[EncryptionSetupGate] Encryption setup dismissed or failed; initiating cancellation flow');
+      logger.warning(
+        '[EncryptionSetupGate] Encryption setup dismissed or failed; initiating cancellation flow',
+      );
       // User cancelled or dialog closed - return to auth screen
       await widget.onSetupCancelled();
     }
@@ -539,7 +548,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     switch (uri.host) {
       case 'note':
         // Open specific note: durunotes://note/[id]
-        final noteId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+        final noteId = uri.pathSegments.isNotEmpty
+            ? uri.pathSegments.first
+            : null;
         if (noteId != null) {
           _openNote(noteId);
         }
@@ -767,8 +778,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                 );
               }
 
-              final gateState =
-                  amkSnap.data ?? EncryptionGateState.needsSetup;
+              final gateState = amkSnap.data ?? EncryptionGateState.needsSetup;
 
               if (gateState == EncryptionGateState.needsSetup) {
                 return NewUserEncryptionSetupGate(
@@ -803,7 +813,8 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
               return FutureBuilder<void>(
                 future: _ensureSecurityServicesInitialized(),
                 builder: (context, securitySnapshot) {
-                  if (securitySnapshot.connectionState != ConnectionState.done) {
+                  if (securitySnapshot.connectionState !=
+                      ConnectionState.done) {
                     return Scaffold(
                       backgroundColor: Theme.of(context).colorScheme.surface,
                       body: const Center(
@@ -891,14 +902,20 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
             try {
               final db = ref.read(appDbProvider);
               await db.clearAll();
-              debugPrint('[AuthWrapper] ✅ Database cleared on logout - preventing data leakage');
+              debugPrint(
+                '[AuthWrapper] ✅ Database cleared on logout - preventing data leakage',
+              );
 
               // CRITICAL: Invalidate all providers to clear cached user data
               // This prevents User B from seeing User A's cached data in Riverpod state
               _invalidateAllProviders(ref);
-              debugPrint('[AuthWrapper] ✅ All providers invalidated - cached state cleared');
+              debugPrint(
+                '[AuthWrapper] ✅ All providers invalidated - cached state cleared',
+              );
             } catch (e) {
-              debugPrint('[AuthWrapper] ⚠️ Error clearing database on logout: $e');
+              debugPrint(
+                '[AuthWrapper] ⚠️ Error clearing database on logout: $e',
+              );
               // Continue - this is a safety measure, not critical path
             }
           });
@@ -937,27 +954,36 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           final currentUserId = Supabase.instance.client.auth.currentUser?.id;
           if (currentUserId != null) {
             final db = ref.read(appDbProvider);
-            final localNotes = await (db.select(db.localNotes)
-                  ..where((t) => t.userId.isNotNull())
-                  ..limit(1))
-                .get();
+            final localNotes =
+                await (db.select(db.localNotes)
+                      ..where((t) => t.userId.isNotNull())
+                      ..limit(1))
+                    .get();
 
             if (localNotes.isNotEmpty) {
               final firstNoteUserId = localNotes.first.userId;
               if (firstNoteUserId != null && firstNoteUserId != currentUserId) {
-                debugPrint('[AuthWrapper] 🚨 CRITICAL: Data from different user detected!');
+                debugPrint(
+                  '[AuthWrapper] 🚨 CRITICAL: Data from different user detected!',
+                );
                 debugPrint('[AuthWrapper] Current user: $currentUserId');
                 debugPrint('[AuthWrapper] Local data user: $firstNoteUserId');
-                debugPrint('[AuthWrapper] 🧹 Clearing database to prevent data leakage...');
+                debugPrint(
+                  '[AuthWrapper] 🧹 Clearing database to prevent data leakage...',
+                );
 
                 await db.clearAll();
 
-                debugPrint('[AuthWrapper] ✅ Database cleared - data leakage prevented');
+                debugPrint(
+                  '[AuthWrapper] ✅ Database cleared - data leakage prevented',
+                );
               }
             }
           }
         } catch (e, stack) {
-          debugPrint('[AuthWrapper] ⚠️ Error checking for data leakage: $e\n$stack');
+          debugPrint(
+            '[AuthWrapper] ⚠️ Error checking for data leakage: $e\n$stack',
+          );
           // Continue - this is a safety check, not critical path
         }
 
@@ -1173,8 +1199,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
     // Legacy device-specific AMK
     try {
-      final localLegacyAmk =
-          await ref.read(accountKeyServiceProvider).getLocalAmk();
+      final localLegacyAmk = await ref
+          .read(accountKeyServiceProvider)
+          .getLocalAmk();
       return localLegacyAmk != null;
     } catch (e) {
       if (kDebugMode) {
@@ -1285,7 +1312,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       final Uint8List? amk = await encryptionSync.getLocalAmk();
       if (amk != null && amk.isNotEmpty) {
         await ref.read(accountKeyServiceProvider).setLocalAmk(amk);
-        debugPrint('[AuthWrapper] 🔐 Mirrored cross-device AMK into AccountKeyService');
+        debugPrint(
+          '[AuthWrapper] 🔐 Mirrored cross-device AMK into AccountKeyService',
+        );
       }
     } catch (error, stack) {
       debugPrint(
@@ -1362,22 +1391,30 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     }
 
     if (!SecurityInitialization.isInitialized) {
-      debugPrint('📱 Awaiting security services before share extension init...');
+      debugPrint(
+        '📱 Awaiting security services before share extension init...',
+      );
       try {
         await _ensureSecurityServicesInitialized();
       } catch (e, stack) {
-        debugPrint('❌ Share extension init blocked - security initialization failed: $e');
+        debugPrint(
+          '❌ Share extension init blocked - security initialization failed: $e',
+        );
         debugPrint('Stack trace: $stack');
         return;
       }
 
       if (!mounted || client.auth.currentUser == null) {
-        debugPrint('📱 Share extension init cancelled - widget disposed or user signed out');
+        debugPrint(
+          '📱 Share extension init cancelled - widget disposed or user signed out',
+        );
         return;
       }
 
       if (!SecurityInitialization.isInitialized) {
-        debugPrint('❌ Share extension init aborted - security services still unavailable');
+        debugPrint(
+          '❌ Share extension init aborted - security services still unavailable',
+        );
         return;
       }
     }
@@ -1420,18 +1457,24 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       try {
         await _ensureSecurityServicesInitialized();
       } catch (e, stack) {
-        debugPrint('❌ Widget cache sync blocked - security initialization failed: $e');
+        debugPrint(
+          '❌ Widget cache sync blocked - security initialization failed: $e',
+        );
         debugPrint('Stack trace: $stack');
         return;
       }
 
       if (!mounted || client.auth.currentUser == null) {
-        debugPrint('📱 Widget cache sync cancelled - widget disposed or user signed out');
+        debugPrint(
+          '📱 Widget cache sync cancelled - widget disposed or user signed out',
+        );
         return;
       }
 
       if (!SecurityInitialization.isInitialized) {
-        debugPrint('❌ Widget cache sync aborted - security services still unavailable');
+        debugPrint(
+          '❌ Widget cache sync aborted - security services still unavailable',
+        );
         return;
       }
     }
@@ -1596,7 +1639,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       ref.invalidate(hasMoreNotesProvider);
       ref.invalidate(notesLoadingProvider);
 
-      debugPrint('[AuthWrapper] 🧹 Invalidated all providers - fresh state for new user');
+      debugPrint(
+        '[AuthWrapper] 🧹 Invalidated all providers - fresh state for new user',
+      );
     } catch (e) {
       debugPrint('[AuthWrapper] ⚠️ Error invalidating providers: $e');
       // Continue - this is a safety measure, not critical path

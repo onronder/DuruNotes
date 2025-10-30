@@ -24,17 +24,21 @@ void main() {
       bool deleted = false,
     }) async {
       final timestamp = DateTime.now();
-      await db.into(db.localNotes).insert(LocalNotesCompanion.insert(
-            id: id,
-            userId: Value(userId),
-            titleEncrypted: const Value('Encrypted Title'),
-            bodyEncrypted: const Value('Encrypted Body'),
-            encryptionVersion: const Value(1),
-            noteType: Value(NoteKind.note),
-            deleted: Value(deleted),
-            createdAt: timestamp,
-            updatedAt: timestamp,
-          ));
+      await db
+          .into(db.localNotes)
+          .insert(
+            LocalNotesCompanion.insert(
+              id: id,
+              userId: Value(userId),
+              titleEncrypted: const Value('Encrypted Title'),
+              bodyEncrypted: const Value('Encrypted Body'),
+              encryptionVersion: const Value(1),
+              noteType: Value(NoteKind.note),
+              deleted: Value(deleted),
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            ),
+          );
     }
 
     Future<void> seedTask({
@@ -43,20 +47,22 @@ void main() {
       required String userId,
       TaskStatus status = TaskStatus.open,
     }) async {
-      await db.into(db.noteTasks).insert(
-        NoteTasksCompanion.insert(
-          id: id,
-          noteId: noteId,
-          userId: userId,
-          contentEncrypted: 'Encrypted $id',
-          contentHash: 'hash-$id',
-          status: Value(status),
-          position: const Value(0),
-          priority: const Value(TaskPriority.medium),
-          createdAt: Value(DateTime.now()),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
+      await db
+          .into(db.noteTasks)
+          .insert(
+            NoteTasksCompanion.insert(
+              id: id,
+              noteId: noteId,
+              userId: userId,
+              contentEncrypted: 'Encrypted $id',
+              contentHash: 'hash-$id',
+              status: Value(status),
+              position: const Value(0),
+              priority: const Value(TaskPriority.medium),
+              createdAt: Value(DateTime.now()),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
     }
 
     Future<void> seedReminder({
@@ -64,14 +70,16 @@ void main() {
       required String noteId,
       required String userId,
     }) async {
-      await db.into(db.noteReminders).insert(
-        NoteRemindersCompanion.insert(
-          id: Value(id),
-          noteId: noteId,
-          userId: userId,
-          type: ReminderType.time,
-        ),
-      );
+      await db
+          .into(db.noteReminders)
+          .insert(
+            NoteRemindersCompanion.insert(
+              id: Value(id),
+              noteId: noteId,
+              userId: userId,
+              type: ReminderType.time,
+            ),
+          );
     }
 
     test('getAllTasks returns tasks only for the requesting user', () async {
@@ -93,12 +101,14 @@ void main() {
       await seedTask(id: 'task-a-1', noteId: 'note-a', userId: 'user-a');
 
       final owned = await db.getTaskById('task-a-1', userId: 'user-a');
-      expect(owned, isNotNull,
-          reason: 'Owner should retrieve their task');
+      expect(owned, isNotNull, reason: 'Owner should retrieve their task');
 
       final unauthorized = await db.getTaskById('task-a-1', userId: 'user-b');
-      expect(unauthorized, isNull,
-          reason: 'Foreign users must not retrieve another user task');
+      expect(
+        unauthorized,
+        isNull,
+        reason: 'Foreign users must not retrieve another user task',
+      );
     });
 
     test('updateTask refuses cross-user modifications', () async {
@@ -113,8 +123,11 @@ void main() {
       );
 
       final task = await db.getTaskById('task-a-1', userId: 'user-a');
-      expect(task!.priority, TaskPriority.medium,
-          reason: 'Cross-user update must be ignored');
+      expect(
+        task!.priority,
+        TaskPriority.medium,
+        reason: 'Cross-user update must be ignored',
+      );
 
       // Owner update should succeed
       await db.updateTask(
@@ -137,8 +150,11 @@ void main() {
       await db.deleteTasksForNote('note-a', 'user-b');
 
       final remainingForA = await db.getAllTasks('user-a');
-      expect(remainingForA.length, 2,
-          reason: 'Foreign delete must not remove owner tasks');
+      expect(
+        remainingForA.length,
+        2,
+        reason: 'Foreign delete must not remove owner tasks',
+      );
 
       await db.deleteTasksForNote('note-a', 'user-a');
       final afterOwnerDelete = await db.getAllTasks('user-a');
@@ -153,12 +169,12 @@ void main() {
       await seedReminder(id: 1, noteId: 'note-a', userId: 'user-a');
       await seedReminder(id: 2, noteId: 'note-b', userId: 'user-b');
 
-      final userAReminders = await (db.select(db.noteReminders)
-            ..where((r) => r.userId.equals('user-a')))
-          .get();
-      final userBReminders = await (db.select(db.noteReminders)
-            ..where((r) => r.userId.equals('user-b')))
-          .get();
+      final userAReminders = await (db.select(
+        db.noteReminders,
+      )..where((r) => r.userId.equals('user-a'))).get();
+      final userBReminders = await (db.select(
+        db.noteReminders,
+      )..where((r) => r.userId.equals('user-b'))).get();
 
       expect(userAReminders.map((r) => r.id), [1]);
       expect(userBReminders.map((r) => r.id), [2]);

@@ -117,7 +117,9 @@ class _DomainTaskItemWithActionsState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Could not update task status. Please try again.'),
+            content: const Text(
+              'Could not update task status. Please try again.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -165,9 +167,9 @@ class _DomainTaskItemWithActionsState
       widget.onTaskUpdated?.call();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Task updated')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Task updated')));
       }
     } catch (error, stackTrace) {
       _logger.error(
@@ -205,9 +207,7 @@ class _DomainTaskItemWithActionsState
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -223,9 +223,9 @@ class _DomainTaskItemWithActionsState
         widget.onTaskUpdated?.call();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Task deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Task deleted')));
         }
       } catch (error, stackTrace) {
         _logger.error(
@@ -254,7 +254,8 @@ class _DomainTaskItemWithActionsState
     final task = _task;
 
     final isCompleted = task.status == domain.TaskStatus.completed;
-    final isOverdue = task.dueDate != null &&
+    final isOverdue =
+        task.dueDate != null &&
         task.dueDate!.isBefore(DateTime.now()) &&
         !isCompleted;
 
@@ -320,7 +321,9 @@ class _DomainTaskItemWithActionsState
                     if (task.priority != domain.TaskPriority.medium)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: priorityColor?.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -328,11 +331,7 @@ class _DomainTaskItemWithActionsState
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              priorityIcon,
-                              size: 12,
-                              color: priorityColor,
-                            ),
+                            Icon(priorityIcon, size: 12, color: priorityColor),
                             const SizedBox(width: 4),
                             Text(
                               task.priority.name.toUpperCase(),
@@ -349,7 +348,9 @@ class _DomainTaskItemWithActionsState
                     if (task.dueDate != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: isOverdue
                               ? Colors.red.withValues(alpha: 0.1)
@@ -384,7 +385,9 @@ class _DomainTaskItemWithActionsState
                     if (task.metadata['reminderId'] != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -415,8 +418,10 @@ class _DomainTaskItemWithActionsState
                     // Tags
                     ...task.tags.map(
                       (tag) => Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: colorScheme.secondaryContainer,
                           borderRadius: BorderRadius.circular(8),
@@ -437,8 +442,9 @@ class _DomainTaskItemWithActionsState
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  icon:
-                      Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+                  icon: Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                  ),
                   onPressed: () => setState(() => _isExpanded = !_isExpanded),
                   tooltip: _isExpanded ? 'Collapse' : 'Expand',
                 ),
