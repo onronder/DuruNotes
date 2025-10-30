@@ -278,7 +278,7 @@ List<String> _generateBasicNextSteps(
 /// Save baseline report to file
 Future<void> _saveBaselineReport(Map<String, dynamic> results) async {
   final reportFile = File(
-    '/Users/onronder/duru-notes/docs/simple_deployment_baseline_report.json',
+    'docs/simple_deployment_baseline_report.json',
   );
 
   // Ensure directory exists

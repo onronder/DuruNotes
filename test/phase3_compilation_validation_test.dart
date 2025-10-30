@@ -905,7 +905,7 @@ Future<void> _saveTestResults(
   };
 
   final reportFile = File(
-    '/Users/onronder/duru-notes/docs/test_reports/phase3_compilation_${testName}_${DateTime.now().millisecondsSinceEpoch}.json',
+    'docs/test_reports/phase3_compilation_${testName}_${DateTime.now().millisecondsSinceEpoch}.json',
   );
 
   // Ensure directory exists

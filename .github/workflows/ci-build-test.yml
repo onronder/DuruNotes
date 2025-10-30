@@ -107,6 +107,12 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: 'gradle'
 
+      - name: Setup CMake for argon2_ffi
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake
+          cmake --version
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
