@@ -1,5 +1,8 @@
 #include "Generated.xcconfig"
 
+FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*] = $(inherited) "$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64"
+FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*] = $(inherited) "$(FLUTTER_ROOT)/bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64_x86_64-simulator"
+
 // Production Environment Configuration
 FLUTTER_FLAVOR = prod
 PRODUCT_BUNDLE_IDENTIFIER = com.example.duru_notes_app
