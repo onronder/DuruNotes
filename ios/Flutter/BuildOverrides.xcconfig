@@ -1,0 +1,2 @@
+// Shared overrides for all Flutter flavors.
+FLUTTER_BUILD_DIR = $(PROJECT_DIR)/FlutterBuild

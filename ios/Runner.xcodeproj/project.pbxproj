@@ -11,15 +11,24 @@
 		20D10D588FDC455588D6E49B /* QuickCaptureSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B0090D2EAFDAC200229396 /* QuickCaptureSharedStore.swift */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		4064DF53B2A8F3F27C6DAE1F /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDF93FB4FD51A2204BCD72A5 /* ShareViewController.swift */; };
+		4A45EA0D31CA243EEBB239F6 /* ShareExtensionSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02415584240C74CB18820FF4 /* ShareExtensionSharedStore.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		8D06CA2CAFBE8B5DAC956DF6 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D48032DC64EC3DD12A052F0 /* Pods_RunnerTests.framework */; };
 		90B6526D0B54346792421364 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A88721DEBB477C4539073E36 /* Pods_Runner.framework */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		ABAB44DB49D14088588F1B62 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 385BD9ED47B9D2B96A2FD55D /* MainInterface.storyboard */; };
+		B328F2B72FB7A5DD0046929F /* ShareExtensionSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B328F2B62FB7A5DD0046929F /* ShareExtensionSharedStore.swift */; };
 		B3B008A52EAFB3F400229396 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3B008A42EAFB3F400229396 /* WidgetKit.framework */; };
 		B3B008A72EAFB3F400229396 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3B008A62EAFB3F400229396 /* SwiftUI.framework */; };
 		B3B008B42EAFB3F600229396 /* QuickCaptureWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B3B008A32EAFB3F400229396 /* QuickCaptureWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B3B0090E2EAFDAC200229396 /* QuickCaptureSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3B0090D2EAFDAC200229396 /* QuickCaptureSharedStore.swift */; };
+		B3F1E8972FC10F2C00C5BE4B /* FirebaseBootstrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3F1E8982FC10F2C00C5BE4B /* FirebaseBootstrapper.swift */; };
+		B3F1E89B2FC10F2C00C5BE4B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = B3F1E8992FC10F2C00C5BE4B /* GoogleService-Info.plist */; };
+		B3F1E89C2FC10F2C00C5BE4B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = B3F1E8992FC10F2C00C5BE4B /* GoogleService-Info.plist */; };
+		D4CA10D529D163466889582E /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 23B212471D2CB19FA83BB29F /* ShareExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		EACB95C32266658DC661FEB8 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = B3F1E8992FC10F2C00C5BE4B /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,6 +38,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
+		};
+		948D54FAD12650893E40AD69 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 99C4A143D24DDD96070AC202;
+			remoteInfo = ShareExtension;
 		};
 		B3B008B22EAFB3F600229396 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -57,6 +73,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				B3B008B42EAFB3F600229396 /* QuickCaptureWidgetExtensionExtension.appex in Embed Foundation Extensions */,
+				D4CA10D529D163466889582E /* ShareExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -64,18 +81,22 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		02415584240C74CB18820FF4 /* ShareExtensionSharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionSharedStore.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1924CA38CFFD84A26E3A958C /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
+		23B212471D2CB19FA83BB29F /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C1667EE9FCF7F24A402C941 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
+		6874ADD2899A134066CB8248 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/MainInterface.storyboard; sourceTree = "<group>"; };
 		740130C415E6F66E5FFF8F86 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		8D48032DC64EC3DD12A052F0 /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		8FB164734C57F4DDBBF959E3 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		93FD73C27C02F4B97878620E /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
@@ -83,13 +104,18 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A4B386C329D492EF5E6B3B35 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A831B185404C8EB0D5524F34 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		A88721DEBB477C4539073E36 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B328F2B62FB7A5DD0046929F /* ShareExtensionSharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionSharedStore.swift; sourceTree = "<group>"; };
 		B3B008A32EAFB3F400229396 /* QuickCaptureWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickCaptureWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B3B008A42EAFB3F400229396 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		B3B008A62EAFB3F400229396 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		B3B0090D2EAFDAC200229396 /* QuickCaptureSharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickCaptureSharedStore.swift; sourceTree = "<group>"; };
+		B3F1E8982FC10F2C00C5BE4B /* FirebaseBootstrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseBootstrapper.swift; sourceTree = "<group>"; };
+		B3F1E8992FC10F2C00C5BE4B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		B792D79976C606305365EC5F /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
+		EDF93FB4FD51A2204BCD72A5 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -118,6 +144,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		88173EC41AD289214D6141CC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EB1CF9000F007C117D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -178,6 +211,18 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		4DCC667369641066FDB48033 /* ShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				EDF93FB4FD51A2204BCD72A5 /* ShareViewController.swift */,
+				02415584240C74CB18820FF4 /* ShareExtensionSharedStore.swift */,
+				385BD9ED47B9D2B96A2FD55D /* MainInterface.storyboard */,
+				A4B386C329D492EF5E6B3B35 /* Info.plist */,
+				8FB164734C57F4DDBBF959E3 /* ShareExtension.entitlements */,
+			);
+			path = ShareExtension;
+			sourceTree = "<group>";
+		};
 		9740EEB11CF90186004384FC /* Flutter */ = {
 			isa = PBXGroup;
 			children = (
@@ -195,6 +240,7 @@
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				B3B008A82EAFB3F400229396 /* QuickCaptureWidgetExtension */,
+				4DCC667369641066FDB48033 /* ShareExtension */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				2556E7F42A6A47D20AB3A726 /* Pods */,
@@ -208,6 +254,7 @@
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 				B3B008A32EAFB3F400229396 /* QuickCaptureWidgetExtensionExtension.appex */,
+				23B212471D2CB19FA83BB29F /* ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -216,9 +263,12 @@
 			isa = PBXGroup;
 			children = (
 				B3B0090D2EAFDAC200229396 /* QuickCaptureSharedStore.swift */,
+				B328F2B62FB7A5DD0046929F /* ShareExtensionSharedStore.swift */,
+				B3F1E8982FC10F2C00C5BE4B /* FirebaseBootstrapper.swift */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
+				B3F1E8992FC10F2C00C5BE4B /* GoogleService-Info.plist */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
@@ -268,11 +318,29 @@
 			);
 			dependencies = (
 				B3B008B32EAFB3F600229396 /* PBXTargetDependency */,
+				0D0D87B67603F8C582929FF3 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
+		};
+		99C4A143D24DDD96070AC202 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DB629149B7661DFBB39A7940 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				7997F65F70E0135BB7CC8BCF /* Sources */,
+				88173EC41AD289214D6141CC /* Frameworks */,
+				3687EAECE04C99E877254AB7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExtension;
+			productName = ShareExtension;
+			productReference = 23B212471D2CB19FA83BB29F /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		B3B008A22EAFB3F400229396 /* QuickCaptureWidgetExtensionExtension */ = {
 			isa = PBXNativeTarget;
@@ -313,6 +381,9 @@
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
 					};
+					99C4A143D24DDD96070AC202 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					B3B008A22EAFB3F400229396 = {
 						CreatedOnToolsVersion = 16.4;
 					};
@@ -334,6 +405,7 @@
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
 				B3B008A22EAFB3F400229396 /* QuickCaptureWidgetExtensionExtension */,
+				99C4A143D24DDD96070AC202 /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -346,6 +418,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3687EAECE04C99E877254AB7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ABAB44DB49D14088588F1B62 /* MainInterface.storyboard in Resources */,
+				EACB95C32266658DC661FEB8 /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EC1CF9000F007C117D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -353,6 +434,7 @@
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
+				B3F1E89B2FC10F2C00C5BE4B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -360,6 +442,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B3F1E89C2FC10F2C00C5BE4B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -486,13 +569,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7997F65F70E0135BB7CC8BCF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4064DF53B2A8F3F27C6DAE1F /* ShareViewController.swift in Sources */,
+				4A45EA0D31CA243EEBB239F6 /* ShareExtensionSharedStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EA1CF9000F007C117D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
+				B3F1E8972FC10F2C00C5BE4B /* FirebaseBootstrapper.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				B3B0090E2EAFDAC200229396 /* QuickCaptureSharedStore.swift in Sources */,
+				B328F2B72FB7A5DD0046929F /* ShareExtensionSharedStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -507,6 +601,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0D0D87B67603F8C582929FF3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 99C4A143D24DDD96070AC202 /* ShareExtension */;
+			targetProxy = 948D54FAD12650893E40AD69 /* PBXContainerItemProxy */;
+		};
 		331C8086294A63A400263BE5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
@@ -520,6 +619,14 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
+		385BD9ED47B9D2B96A2FD55D /* MainInterface.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				6874ADD2899A134066CB8248 /* Base */,
+			);
+			name = MainInterface.storyboard;
+			sourceTree = "<group>";
+		};
 		97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -618,6 +725,38 @@
 			};
 			name = Profile;
 		};
+		27E09DF7E1E9D1440B374C04 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 3CBK9E82BZ;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = "$(inherited)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fittechs.duruNotesApp.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
 		331C8088294A63A400263BE5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 2C1667EE9FCF7F24A402C941 /* Pods-RunnerTests.debug.xcconfig */;
@@ -704,6 +843,38 @@
 				VALID_ARCHS = "arm64 x86_64";
 			};
 			name = Profile;
+		};
+		93A44BAED9B4EC15ABF4F270 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 3CBK9E82BZ;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = "$(inherited)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fittechs.duruNotesApp.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING = NO;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
 		};
 		97C147031CF9000F007C117D /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -921,6 +1092,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = NO;
@@ -971,6 +1143,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = (
@@ -1023,6 +1196,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = (
@@ -1040,6 +1214,38 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = "arm64 x86_64";
+			};
+			name = Profile;
+		};
+		BC785DF083BE21CC6F40CE9F /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 3CBK9E82BZ;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				INFOPLIST_FILE = ShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = "$(inherited)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fittechs.duruNotesApp.ShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_UPCOMING_FEATURE_CONCURRENCY_CHECKING = NO;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Profile;
 		};
@@ -1082,6 +1288,16 @@
 				B3B008B62EAFB3F600229396 /* Debug */,
 				B3B008B72EAFB3F600229396 /* Release */,
 				B3B008B82EAFB3F600229396 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DB629149B7661DFBB39A7940 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				27E09DF7E1E9D1440B374C04 /* Debug */,
+				93A44BAED9B4EC15ABF4F270 /* Release */,
+				BC785DF083BE21CC6F40CE9F /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

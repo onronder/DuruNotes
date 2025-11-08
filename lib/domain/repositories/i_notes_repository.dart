@@ -38,6 +38,15 @@ abstract class INotesRepository {
   /// Delete a note
   Future<void> deleteNote(String id);
 
+  /// Restore a soft-deleted note
+  Future<void> restoreNote(String id);
+
+  /// Permanently delete a note (hard delete, cannot be undone)
+  Future<void> permanentlyDeleteNote(String id);
+
+  /// Get all soft-deleted notes (Phase 1.1: Trash System)
+  Future<List<Note>> getDeletedNotes();
+
   /// Get all local notes for sync (includes system notes like standalone task container)
   Future<List<Note>> localNotesForSync();
 

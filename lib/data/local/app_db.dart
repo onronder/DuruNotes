@@ -18,6 +18,8 @@ import 'package:duru_notes/data/migrations/migration_33_pending_ops_userid.dart'
 import 'package:duru_notes/data/migrations/migration_34_note_tasks_userid.dart';
 import 'package:duru_notes/data/migrations/migration_37_note_tags_links_userid.dart';
 import 'package:duru_notes/data/migrations/migration_38_note_folders_userid.dart';
+import 'package:duru_notes/data/migrations/migration_39_soft_delete_indexes.dart';
+import 'package:duru_notes/data/migrations/migration_40_soft_delete_timestamps.dart';
 import 'package:duru_notes/models/note_kind.dart';
 
 part 'app_db.g.dart';
@@ -43,6 +45,11 @@ class LocalNotes extends Table {
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+
+  // Soft delete timestamps (Migration 40)
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  DateTimeColumn get scheduledPurgeAt => dateTime().nullable()();
+
   TextColumn get encryptedMetadata => text().nullable()();
   BoolColumn get isPinned => boolean().withDefault(
     const Constant(false),
@@ -237,6 +244,10 @@ class NoteTasks extends Table {
   /// Soft delete flag
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
 
+  /// Soft delete timestamps (Migration 40)
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  DateTimeColumn get scheduledPurgeAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -308,6 +319,10 @@ class LocalFolders extends Table {
 
   /// Soft delete flag
   BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+
+  /// Soft delete timestamps (Migration 40)
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  DateTimeColumn get scheduledPurgeAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -567,7 +582,7 @@ class AppDb extends _$AppDb {
   AppDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 38; // Migration 38: note_tags/links/folders user isolation
+  int get schemaVersion => 40; // Migration 40: soft delete timestamps for Trash system
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -595,6 +610,8 @@ class AppDb extends _$AppDb {
       await _createInboxIndexes();
       await _createQuickCaptureIndexes();
       await Migration32Phase1PerformanceIndexes.apply(this);
+      await Migration39SoftDeleteIndexes.apply(this);
+      await Migration40SoftDeleteTimestamps.apply(this);
 
       // FTS seed removed – index is populated from the application after
       // notes are decrypted (see FTSIndexingService).
@@ -874,6 +891,16 @@ class AppDb extends _$AppDb {
 
       if (from < 38) {
         await Migration38NoteFoldersUserId.run(this);
+      }
+
+      if (from < 39) {
+        // Migration 39: Add soft delete indexes for Phase 1.1 Trash system
+        await Migration39SoftDeleteIndexes.apply(this);
+      }
+
+      if (from < 40) {
+        // Migration 40: Add soft delete timestamps for Phase 1.1 Trash system
+        await Migration40SoftDeleteTimestamps.apply(this);
       }
 
       // Always attempt Migration 12 (idempotent) to handle edge cases where
@@ -2115,13 +2142,16 @@ class AppDb extends _$AppDb {
   Future<List<NoteTask>> getTasksForNote(
     String noteId, {
     required String userId,
+    bool includeDeleted = false,
   }) =>
       (select(noteTasks)
             ..where(
               (t) =>
                   t.noteId.equals(noteId) &
                   t.userId.equals(userId) &
-                  t.deleted.equals(false),
+                  (includeDeleted
+                      ? const Constant(true)
+                      : t.deleted.equals(false)),
             )
             ..orderBy([(t) => OrderingTerm.asc(t.position)]))
           .get();
@@ -2778,6 +2808,17 @@ class AppDb extends _$AppDb {
   Future<List<LocalFolder>> getChildFolders(String parentId) {
     return (select(localFolders)
           ..where((f) => f.deleted.equals(false) & f.parentId.equals(parentId))
+          ..orderBy([
+            (f) => OrderingTerm.asc(f.sortOrder),
+            (f) => OrderingTerm.asc(f.name),
+          ]))
+        .get();
+  }
+
+  /// Get child folders of a parent including deleted ones (for trash restore)
+  Future<List<LocalFolder>> getChildFoldersIncludingDeleted(String parentId) {
+    return (select(localFolders)
+          ..where((f) => f.parentId.equals(parentId))
           ..orderBy([
             (f) => OrderingTerm.asc(f.sortOrder),
             (f) => OrderingTerm.asc(f.name),

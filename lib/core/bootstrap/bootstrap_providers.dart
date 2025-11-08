@@ -29,6 +29,7 @@ final bootstrapResultProvider = Provider<BootstrapResult>((ref) {
     adaptyEnabled: false,
     warnings: const [],
     environmentSource: 'fallback',
+    stageDurations: const {},
   );
 });
 

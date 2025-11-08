@@ -40,6 +40,8 @@ class FolderMapper {
       sortOrder: localFolder.sortOrder,
       createdAt: localFolder.createdAt,
       updatedAt: localFolder.updatedAt,
+      deletedAt: localFolder.deletedAt,
+      scheduledPurgeAt: localFolder.scheduledPurgeAt,
       userId: userId,
     );
   }
@@ -58,7 +60,9 @@ class FolderMapper {
       sortOrder: folder.sortOrder,
       createdAt: folder.createdAt,
       updatedAt: folder.updatedAt,
-      deleted: false,
+      deleted: folder.deletedAt != null,
+      deletedAt: folder.deletedAt,
+      scheduledPurgeAt: folder.scheduledPurgeAt,
     );
   }
 

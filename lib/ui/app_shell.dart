@@ -66,7 +66,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       onDestinationSelected: (value) {
         setState(() => _selectedIndex = value);
       },
-      body: IndexedStack(index: _selectedIndex, children: _screens),
+      body: _screens[_selectedIndex],
     );
   }
 }

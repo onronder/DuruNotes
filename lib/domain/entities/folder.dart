@@ -10,6 +10,8 @@ class Folder {
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final DateTime? scheduledPurgeAt;
   final String userId;
 
   const Folder({
@@ -22,6 +24,8 @@ class Folder {
     required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
+    this.scheduledPurgeAt,
     required this.userId,
   });
 
@@ -35,6 +39,8 @@ class Folder {
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? deletedAt,
+    DateTime? scheduledPurgeAt,
     String? userId,
   }) {
     return Folder(
@@ -47,6 +53,8 @@ class Folder {
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduledPurgeAt: scheduledPurgeAt ?? this.scheduledPurgeAt,
       userId: userId ?? this.userId,
     );
   }

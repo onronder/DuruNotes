@@ -63,6 +63,12 @@ class _CapturingNotesRepository implements INotesRepository {
   }
 
   @override
+  Future<void> deleteNote(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteNote(String id) async {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

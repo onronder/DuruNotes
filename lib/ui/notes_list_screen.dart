@@ -13,6 +13,7 @@ import 'package:duru_notes/features/folders/folder_icon_helpers.dart';
 import 'package:duru_notes/features/folders/enhanced_move_to_folder_dialog.dart';
 import 'package:duru_notes/features/folders/folder_management_screen.dart';
 import 'package:duru_notes/features/templates/template_gallery_screen.dart';
+import 'package:duru_notes/ui/trash_screen.dart';
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart'
     show folderCoreRepositoryProvider;
 import 'package:duru_notes/features/templates/providers/templates_providers.dart'
@@ -386,6 +387,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                     child: ListTile(
                       leading: Icon(Icons.description_rounded),
                       title: Text('Template Gallery'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'trash',
+                    child: ListTile(
+                      leading: Icon(CupertinoIcons.trash),
+                      title: Text('Trash'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -2598,6 +2607,16 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
         ref
             .read(analyticsProvider)
             .event('template_gallery_opened', properties: {'source': 'menu'});
+      case 'trash':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (context) => const TrashScreen(),
+          ),
+        );
+        // Track analytics
+        ref
+            .read(analyticsProvider)
+            .event('trash_opened', properties: {'source': 'menu'});
       case 'settings':
         _showSettingsDialog(context);
       case 'help':
@@ -3009,6 +3028,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
     if (confirmed ?? false) {
       final repo = ref.read(notesCoreRepositoryProvider);
+      final deletedIds = List<String>.from(_selectedNoteIds); // Store for undo
+
       for (final id in _selectedNoteIds) {
         await repo.deleteNote(id);
       }
@@ -3020,6 +3041,27 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
           SnackBar(
             content: Text('Deleted $count notes'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Undo',
+              textColor: Colors.white,
+              onPressed: () async {
+                // Restore all deleted notes
+                for (final id in deletedIds) {
+                  await repo.restoreNote(id);
+                }
+                await ref.read(notesPageProvider.notifier).refresh();
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Restored $count notes'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+            ),
           ),
         );
       }

@@ -1,8 +1,10 @@
 import 'package:duru_notes/domain/entities/folder.dart' as domain_folder;
+import 'package:duru_notes/domain/entities/task.dart' as domain_task;
 import 'package:duru_notes/core/events/mutation_event_bus.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/features/folders/folder_notifiers.dart';
 import 'package:duru_notes/features/folders/providers/folders_repository_providers.dart';
+import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart';
 import 'package:duru_notes/features/notes/pagination_notifier.dart';
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
@@ -194,4 +196,52 @@ final hasMoreNotesProvider = Provider<bool>((ref) {
 final notesLoadingProvider = Provider<bool>((ref) {
   final notifier = ref.watch(notesPageProvider.notifier);
   return notifier.isLoadingMore;
+});
+
+/// Trash providers for Phase 1.1 soft delete functionality
+
+/// Provider for deleted notes
+///
+/// Fetches all soft-deleted notes from the repository for display in the Trash screen.
+/// Notes are ordered by updated_at (deletion time) in descending order.
+final deletedNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((ref) async {
+  final repo = ref.watch(notesCoreRepositoryProvider);
+  return repo.getDeletedNotes();
+});
+
+/// Provider for deleted folders
+///
+/// Fetches all soft-deleted folders from the repository for display in the Trash screen.
+final deletedFoldersProvider = FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
+  final repo = ref.watch(folderCoreRepositoryProvider);
+  return repo.getDeletedFolders();
+});
+
+/// Provider for deleted tasks
+///
+/// Fetches all soft-deleted tasks from the repository for display in the Trash screen.
+final deletedTasksProvider = FutureProvider.autoDispose<List<domain_task.Task>>((ref) async {
+  final repo = ref.watch(taskCoreRepositoryProvider);
+  if (repo == null) {
+    return <domain_task.Task>[];
+  }
+  return repo.getDeletedTasks();
+});
+
+/// Provider for total count of deleted items across all types
+///
+/// Returns the sum of deleted notes, folders, and tasks for display in UI.
+final deletedItemsCountProvider = Provider.autoDispose<AsyncValue<int>>((ref) {
+  final notesAsync = ref.watch(deletedNotesProvider);
+  final foldersAsync = ref.watch(deletedFoldersProvider);
+  final tasksAsync = ref.watch(deletedTasksProvider);
+
+  // Wait for all providers to load
+  return notesAsync.whenData((notes) {
+    return foldersAsync.whenData((folders) {
+      return tasksAsync.whenData((tasks) {
+        return notes.length + folders.length + tasks.length;
+      }).valueOrNull ?? 0;
+    }).valueOrNull ?? 0;
+  });
 });

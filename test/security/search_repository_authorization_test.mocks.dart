@@ -1561,6 +1561,42 @@ class MockIFolderRepository extends _i1.Mock implements _i8.IFolderRepository {
           as _i5.Future<void>);
 
   @override
+  _i5.Future<List<_i4.Folder>> getDeletedFolders() =>
+      (super.noSuchMethod(
+            Invocation.method(#getDeletedFolders, []),
+            returnValue: _i5.Future<List<_i4.Folder>>.value(<_i4.Folder>[]),
+            returnValueForMissingStub: _i5.Future<List<_i4.Folder>>.value(
+              <_i4.Folder>[],
+            ),
+          )
+          as _i5.Future<List<_i4.Folder>>);
+
+  @override
+  _i5.Future<void> restoreFolder(
+    String? folderId, {
+    bool? restoreContents = false,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #restoreFolder,
+              [folderId],
+              {#restoreContents: restoreContents},
+            ),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> permanentlyDeleteFolder(String? folderId) =>
+      (super.noSuchMethod(
+            Invocation.method(#permanentlyDeleteFolder, [folderId]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
   _i5.Future<List<_i9.Note>> getNotesInFolder(String? folderId) =>
       (super.noSuchMethod(
             Invocation.method(#getNotesInFolder, [folderId]),

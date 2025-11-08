@@ -2303,6 +2303,22 @@ class MockPostgrestFilterBuilder extends _i1.Mock
           >);
 
   @override
+  _i2.PostgrestTransformBuilder<dynamic> maxAffected(int? value) =>
+      (super.noSuchMethod(
+            Invocation.method(#maxAffected, [value]),
+            returnValue: _FakePostgrestTransformBuilder_22<dynamic>(
+              this,
+              Invocation.method(#maxAffected, [value]),
+            ),
+            returnValueForMissingStub:
+                _FakePostgrestTransformBuilder_22<dynamic>(
+                  this,
+                  Invocation.method(#maxAffected, [value]),
+                ),
+          )
+          as _i2.PostgrestTransformBuilder<dynamic>);
+
+  @override
   _i2.PostgrestBuilder<String, String, String> explain({
     bool? analyze = false,
     bool? verbose = false,
@@ -3322,6 +3338,25 @@ class SelectFilterBuilderMock extends _i1.Mock
           >);
 
   @override
+  _i2.PostgrestTransformBuilder<List<Map<String, dynamic>>> maxAffected(
+    int? value,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#maxAffected, [value]),
+            returnValue:
+                _FakePostgrestTransformBuilder_22<List<Map<String, dynamic>>>(
+                  this,
+                  Invocation.method(#maxAffected, [value]),
+                ),
+            returnValueForMissingStub:
+                _FakePostgrestTransformBuilder_22<List<Map<String, dynamic>>>(
+                  this,
+                  Invocation.method(#maxAffected, [value]),
+                ),
+          )
+          as _i2.PostgrestTransformBuilder<List<Map<String, dynamic>>>);
+
+  @override
   _i2.PostgrestBuilder<String, String, String> explain({
     bool? analyze = false,
     bool? verbose = false,
@@ -3798,6 +3833,25 @@ class SingleResultBuilderMock extends _i1.Mock
             Map<String, dynamic>,
             Map<String, dynamic>
           >);
+
+  @override
+  _i2.PostgrestTransformBuilder<Map<String, dynamic>?> maxAffected(
+    int? value,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#maxAffected, [value]),
+            returnValue:
+                _FakePostgrestTransformBuilder_22<Map<String, dynamic>?>(
+                  this,
+                  Invocation.method(#maxAffected, [value]),
+                ),
+            returnValueForMissingStub:
+                _FakePostgrestTransformBuilder_22<Map<String, dynamic>?>(
+                  this,
+                  Invocation.method(#maxAffected, [value]),
+                ),
+          )
+          as _i2.PostgrestTransformBuilder<Map<String, dynamic>?>);
 
   @override
   _i2.PostgrestBuilder<String, String, String> explain({

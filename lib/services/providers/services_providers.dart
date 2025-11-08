@@ -37,6 +37,8 @@ import 'package:duru_notes/services/quick_capture_service.dart';
 import 'package:duru_notes/services/share_extension_service.dart';
 import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:duru_notes/services/unified_export_service.dart';
+import 'package:duru_notes/services/purge_scheduler_service.dart';
+import 'package:duru_notes/services/trash_service.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart' show LoggerFactory;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,7 +56,7 @@ final exportServiceProvider = Provider<ExportService>((ref) {
 final pushNotificationServiceProvider = Provider<PushNotificationService>((
   ref,
 ) {
-  final service = PushNotificationService(ref);
+  final service = PushNotificationService(logger: ref.read(loggerProvider));
 
   // REMOVED AUTO-INITIALIZATION - permission request blocks unlock screen!
   // Services that need push notifications must call initialize() explicitly
@@ -310,4 +312,15 @@ final quickCaptureServiceProvider = Provider<QuickCaptureService>((ref) {
     supabaseClient: client,
     attachmentService: attachmentService,
   );
+});
+
+/// TrashService provider
+final trashServiceProvider = Provider<TrashService>((ref) {
+  return TrashService(ref);
+});
+
+/// PurgeSchedulerService provider
+final purgeSchedulerServiceProvider = Provider<PurgeSchedulerService>((ref) {
+  final trashService = ref.watch(trashServiceProvider);
+  return PurgeSchedulerService(ref, trashService: trashService);
 });

@@ -9,6 +9,8 @@ class Note {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool deleted;
+  final DateTime? deletedAt;
+  final DateTime? scheduledPurgeAt;
   final String? encryptedMetadata;
   final bool isPinned;
   final NoteKind noteType;
@@ -27,6 +29,8 @@ class Note {
     required this.createdAt,
     required this.updatedAt,
     required this.deleted,
+    this.deletedAt,
+    this.scheduledPurgeAt,
     this.encryptedMetadata,
     required this.isPinned,
     required this.noteType,
@@ -46,6 +50,8 @@ class Note {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? deleted,
+    DateTime? deletedAt,
+    DateTime? scheduledPurgeAt,
     String? encryptedMetadata,
     bool? isPinned,
     NoteKind? noteType,
@@ -64,6 +70,8 @@ class Note {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deleted: deleted ?? this.deleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduledPurgeAt: scheduledPurgeAt ?? this.scheduledPurgeAt,
       encryptedMetadata: encryptedMetadata ?? this.encryptedMetadata,
       isPinned: isPinned ?? this.isPinned,
       noteType: noteType ?? this.noteType,

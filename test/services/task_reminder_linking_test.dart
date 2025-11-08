@@ -106,6 +106,9 @@ class _FakeTaskRepository extends Fake implements ITaskRepository {
   @override
   Future<domain.Task?> getTaskById(String id) async => task;
 
+  @override
+  Future<void> permanentlyDeleteTask(String id) async {}
+
   // Unused interface members
   @override
   Future<domain.Task> createSubtask({

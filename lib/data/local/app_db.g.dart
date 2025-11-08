@@ -103,6 +103,29 @@ class $LocalNotesTable extends LocalNotes
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduledPurgeAtMeta = const VerificationMeta(
+    'scheduledPurgeAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledPurgeAt =
+      GeneratedColumn<DateTime>(
+        'scheduled_purge_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _encryptedMetadataMeta = const VerificationMeta(
     'encryptedMetadata',
   );
@@ -193,6 +216,8 @@ class $LocalNotesTable extends LocalNotes
     createdAt,
     updatedAt,
     deleted,
+    deletedAt,
+    scheduledPurgeAt,
     encryptedMetadata,
     isPinned,
     noteType,
@@ -274,6 +299,21 @@ class $LocalNotesTable extends LocalNotes
       context.handle(
         _deletedMeta,
         deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('scheduled_purge_at')) {
+      context.handle(
+        _scheduledPurgeAtMeta,
+        scheduledPurgeAt.isAcceptableOrUnknown(
+          data['scheduled_purge_at']!,
+          _scheduledPurgeAtMeta,
+        ),
       );
     }
     if (data.containsKey('encrypted_metadata')) {
@@ -359,6 +399,14 @@ class $LocalNotesTable extends LocalNotes
         DriftSqlType.bool,
         data['${effectivePrefix}deleted'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      scheduledPurgeAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_purge_at'],
+      ),
       encryptedMetadata: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}encrypted_metadata'],
@@ -410,6 +458,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool deleted;
+  final DateTime? deletedAt;
+  final DateTime? scheduledPurgeAt;
   final String? encryptedMetadata;
   final bool isPinned;
   final NoteKind noteType;
@@ -426,6 +476,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     required this.createdAt,
     required this.updatedAt,
     required this.deleted,
+    this.deletedAt,
+    this.scheduledPurgeAt,
     this.encryptedMetadata,
     required this.isPinned,
     required this.noteType,
@@ -447,6 +499,12 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    if (!nullToAbsent || scheduledPurgeAt != null) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt);
+    }
     if (!nullToAbsent || encryptedMetadata != null) {
       map['encrypted_metadata'] = Variable<String>(encryptedMetadata);
     }
@@ -481,6 +539,12 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deleted: Value(deleted),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      scheduledPurgeAt: scheduledPurgeAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledPurgeAt),
       encryptedMetadata: encryptedMetadata == null && nullToAbsent
           ? const Value.absent()
           : Value(encryptedMetadata),
@@ -515,6 +579,10 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deleted: serializer.fromJson<bool>(json['deleted']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      scheduledPurgeAt: serializer.fromJson<DateTime?>(
+        json['scheduledPurgeAt'],
+      ),
       encryptedMetadata: serializer.fromJson<String?>(
         json['encryptedMetadata'],
       ),
@@ -540,6 +608,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deleted': serializer.toJson<bool>(deleted),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'scheduledPurgeAt': serializer.toJson<DateTime?>(scheduledPurgeAt),
       'encryptedMetadata': serializer.toJson<String?>(encryptedMetadata),
       'isPinned': serializer.toJson<bool>(isPinned),
       'noteType': serializer.toJson<int>(
@@ -561,6 +631,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? deleted,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    Value<DateTime?> scheduledPurgeAt = const Value.absent(),
     Value<String?> encryptedMetadata = const Value.absent(),
     bool? isPinned,
     NoteKind? noteType,
@@ -579,6 +651,10 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deleted: deleted ?? this.deleted,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    scheduledPurgeAt: scheduledPurgeAt.present
+        ? scheduledPurgeAt.value
+        : this.scheduledPurgeAt,
     encryptedMetadata: encryptedMetadata.present
         ? encryptedMetadata.value
         : this.encryptedMetadata,
@@ -609,6 +685,10 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      scheduledPurgeAt: data.scheduledPurgeAt.present
+          ? data.scheduledPurgeAt.value
+          : this.scheduledPurgeAt,
       encryptedMetadata: data.encryptedMetadata.present
           ? data.encryptedMetadata.value
           : this.encryptedMetadata,
@@ -634,6 +714,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt, ')
           ..write('encryptedMetadata: $encryptedMetadata, ')
           ..write('isPinned: $isPinned, ')
           ..write('noteType: $noteType, ')
@@ -655,6 +737,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
     createdAt,
     updatedAt,
     deleted,
+    deletedAt,
+    scheduledPurgeAt,
     encryptedMetadata,
     isPinned,
     noteType,
@@ -675,6 +759,8 @@ class LocalNote extends DataClass implements Insertable<LocalNote> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deleted == this.deleted &&
+          other.deletedAt == this.deletedAt &&
+          other.scheduledPurgeAt == this.scheduledPurgeAt &&
           other.encryptedMetadata == this.encryptedMetadata &&
           other.isPinned == this.isPinned &&
           other.noteType == this.noteType &&
@@ -693,6 +779,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<bool> deleted;
+  final Value<DateTime?> deletedAt;
+  final Value<DateTime?> scheduledPurgeAt;
   final Value<String?> encryptedMetadata;
   final Value<bool> isPinned;
   final Value<NoteKind> noteType;
@@ -710,6 +798,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.encryptedMetadata = const Value.absent(),
     this.isPinned = const Value.absent(),
     this.noteType = const Value.absent(),
@@ -728,6 +818,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.encryptedMetadata = const Value.absent(),
     this.isPinned = const Value.absent(),
     this.noteType = const Value.absent(),
@@ -748,6 +840,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? deleted,
+    Expression<DateTime>? deletedAt,
+    Expression<DateTime>? scheduledPurgeAt,
     Expression<String>? encryptedMetadata,
     Expression<bool>? isPinned,
     Expression<int>? noteType,
@@ -766,6 +860,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deleted != null) 'deleted': deleted,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (scheduledPurgeAt != null) 'scheduled_purge_at': scheduledPurgeAt,
       if (encryptedMetadata != null) 'encrypted_metadata': encryptedMetadata,
       if (isPinned != null) 'is_pinned': isPinned,
       if (noteType != null) 'note_type': noteType,
@@ -786,6 +882,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<bool>? deleted,
+    Value<DateTime?>? deletedAt,
+    Value<DateTime?>? scheduledPurgeAt,
     Value<String?>? encryptedMetadata,
     Value<bool>? isPinned,
     Value<NoteKind>? noteType,
@@ -804,6 +902,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deleted: deleted ?? this.deleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduledPurgeAt: scheduledPurgeAt ?? this.scheduledPurgeAt,
       encryptedMetadata: encryptedMetadata ?? this.encryptedMetadata,
       isPinned: isPinned ?? this.isPinned,
       noteType: noteType ?? this.noteType,
@@ -841,6 +941,12 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
     }
     if (deleted.present) {
       map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (scheduledPurgeAt.present) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt.value);
     }
     if (encryptedMetadata.present) {
       map['encrypted_metadata'] = Variable<String>(encryptedMetadata.value);
@@ -882,6 +988,8 @@ class LocalNotesCompanion extends UpdateCompanion<LocalNote> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt, ')
           ..write('encryptedMetadata: $encryptedMetadata, ')
           ..write('isPinned: $isPinned, ')
           ..write('noteType: $noteType, ')
@@ -3463,6 +3571,29 @@ class $NoteTasksTable extends NoteTasks
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduledPurgeAtMeta = const VerificationMeta(
+    'scheduledPurgeAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledPurgeAt =
+      GeneratedColumn<DateTime>(
+        'scheduled_purge_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3486,6 +3617,8 @@ class $NoteTasksTable extends NoteTasks
     createdAt,
     updatedAt,
     deleted,
+    deletedAt,
+    scheduledPurgeAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3650,6 +3783,21 @@ class $NoteTasksTable extends NoteTasks
         deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
       );
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('scheduled_purge_at')) {
+      context.handle(
+        _scheduledPurgeAtMeta,
+        scheduledPurgeAt.isAcceptableOrUnknown(
+          data['scheduled_purge_at']!,
+          _scheduledPurgeAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3747,6 +3895,14 @@ class $NoteTasksTable extends NoteTasks
         DriftSqlType.bool,
         data['${effectivePrefix}deleted'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      scheduledPurgeAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_purge_at'],
+      ),
     );
   }
 
@@ -3816,6 +3972,10 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
 
   /// Soft delete flag
   final bool deleted;
+
+  /// Soft delete timestamps (Migration 40)
+  final DateTime? deletedAt;
+  final DateTime? scheduledPurgeAt;
   const NoteTask({
     required this.id,
     required this.noteId,
@@ -3838,6 +3998,8 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
     required this.createdAt,
     required this.updatedAt,
     required this.deleted,
+    this.deletedAt,
+    this.scheduledPurgeAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3889,6 +4051,12 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    if (!nullToAbsent || scheduledPurgeAt != null) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt);
+    }
     return map;
   }
 
@@ -3933,6 +4101,12 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deleted: Value(deleted),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      scheduledPurgeAt: scheduledPurgeAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledPurgeAt),
     );
   }
 
@@ -3967,6 +4141,10 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deleted: serializer.fromJson<bool>(json['deleted']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      scheduledPurgeAt: serializer.fromJson<DateTime?>(
+        json['scheduledPurgeAt'],
+      ),
     );
   }
   @override
@@ -3998,6 +4176,8 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deleted': serializer.toJson<bool>(deleted),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'scheduledPurgeAt': serializer.toJson<DateTime?>(scheduledPurgeAt),
     };
   }
 
@@ -4023,6 +4203,8 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? deleted,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    Value<DateTime?> scheduledPurgeAt = const Value.absent(),
   }) => NoteTask(
     id: id ?? this.id,
     noteId: noteId ?? this.noteId,
@@ -4053,6 +4235,10 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deleted: deleted ?? this.deleted,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    scheduledPurgeAt: scheduledPurgeAt.present
+        ? scheduledPurgeAt.value
+        : this.scheduledPurgeAt,
   );
   NoteTask copyWithCompanion(NoteTasksCompanion data) {
     return NoteTask(
@@ -4099,6 +4285,10 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      scheduledPurgeAt: data.scheduledPurgeAt.present
+          ? data.scheduledPurgeAt.value
+          : this.scheduledPurgeAt,
     );
   }
 
@@ -4125,7 +4315,9 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
           ..write('parentTaskId: $parentTaskId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('deleted: $deleted')
+          ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt')
           ..write(')'))
         .toString();
   }
@@ -4153,6 +4345,8 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
     createdAt,
     updatedAt,
     deleted,
+    deletedAt,
+    scheduledPurgeAt,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -4178,7 +4372,9 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
           other.parentTaskId == this.parentTaskId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.deleted == this.deleted);
+          other.deleted == this.deleted &&
+          other.deletedAt == this.deletedAt &&
+          other.scheduledPurgeAt == this.scheduledPurgeAt);
 }
 
 class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
@@ -4203,6 +4399,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<bool> deleted;
+  final Value<DateTime?> deletedAt;
+  final Value<DateTime?> scheduledPurgeAt;
   final Value<int> rowid;
   const NoteTasksCompanion({
     this.id = const Value.absent(),
@@ -4226,6 +4424,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   NoteTasksCompanion.insert({
@@ -4250,6 +4450,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        noteId = Value(noteId),
@@ -4278,6 +4480,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? deleted,
+    Expression<DateTime>? deletedAt,
+    Expression<DateTime>? scheduledPurgeAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4302,6 +4506,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deleted != null) 'deleted': deleted,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (scheduledPurgeAt != null) 'scheduled_purge_at': scheduledPurgeAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4328,6 +4534,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<bool>? deleted,
+    Value<DateTime?>? deletedAt,
+    Value<DateTime?>? scheduledPurgeAt,
     Value<int>? rowid,
   }) {
     return NoteTasksCompanion(
@@ -4352,6 +4560,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deleted: deleted ?? this.deleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduledPurgeAt: scheduledPurgeAt ?? this.scheduledPurgeAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4426,6 +4636,12 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
     if (deleted.present) {
       map['deleted'] = Variable<bool>(deleted.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (scheduledPurgeAt.present) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4456,6 +4672,8 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4594,6 +4812,29 @@ class $LocalFoldersTable extends LocalFolders
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduledPurgeAtMeta = const VerificationMeta(
+    'scheduledPurgeAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledPurgeAt =
+      GeneratedColumn<DateTime>(
+        'scheduled_purge_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4608,6 +4849,8 @@ class $LocalFoldersTable extends LocalFolders
     createdAt,
     updatedAt,
     deleted,
+    deletedAt,
+    scheduledPurgeAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4705,6 +4948,21 @@ class $LocalFoldersTable extends LocalFolders
         deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
       );
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('scheduled_purge_at')) {
+      context.handle(
+        _scheduledPurgeAtMeta,
+        scheduledPurgeAt.isAcceptableOrUnknown(
+          data['scheduled_purge_at']!,
+          _scheduledPurgeAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4762,6 +5020,14 @@ class $LocalFoldersTable extends LocalFolders
         DriftSqlType.bool,
         data['${effectivePrefix}deleted'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      scheduledPurgeAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_purge_at'],
+      ),
     );
   }
 
@@ -4807,6 +5073,10 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
 
   /// Soft delete flag
   final bool deleted;
+
+  /// Soft delete timestamps (Migration 40)
+  final DateTime? deletedAt;
+  final DateTime? scheduledPurgeAt;
   const LocalFolder({
     required this.id,
     required this.userId,
@@ -4820,6 +5090,8 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
     required this.createdAt,
     required this.updatedAt,
     required this.deleted,
+    this.deletedAt,
+    this.scheduledPurgeAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4842,6 +5114,12 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['deleted'] = Variable<bool>(deleted);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    if (!nullToAbsent || scheduledPurgeAt != null) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt);
+    }
     return map;
   }
 
@@ -4863,6 +5141,12 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       deleted: Value(deleted),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      scheduledPurgeAt: scheduledPurgeAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledPurgeAt),
     );
   }
 
@@ -4884,6 +5168,10 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       deleted: serializer.fromJson<bool>(json['deleted']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      scheduledPurgeAt: serializer.fromJson<DateTime?>(
+        json['scheduledPurgeAt'],
+      ),
     );
   }
   @override
@@ -4902,6 +5190,8 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'deleted': serializer.toJson<bool>(deleted),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'scheduledPurgeAt': serializer.toJson<DateTime?>(scheduledPurgeAt),
     };
   }
 
@@ -4918,6 +5208,8 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? deleted,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    Value<DateTime?> scheduledPurgeAt = const Value.absent(),
   }) => LocalFolder(
     id: id ?? this.id,
     userId: userId ?? this.userId,
@@ -4931,6 +5223,10 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deleted: deleted ?? this.deleted,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    scheduledPurgeAt: scheduledPurgeAt.present
+        ? scheduledPurgeAt.value
+        : this.scheduledPurgeAt,
   );
   LocalFolder copyWithCompanion(LocalFoldersCompanion data) {
     return LocalFolder(
@@ -4948,6 +5244,10 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      scheduledPurgeAt: data.scheduledPurgeAt.present
+          ? data.scheduledPurgeAt.value
+          : this.scheduledPurgeAt,
     );
   }
 
@@ -4965,7 +5265,9 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
           ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('deleted: $deleted')
+          ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt')
           ..write(')'))
         .toString();
   }
@@ -4984,6 +5286,8 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
     createdAt,
     updatedAt,
     deleted,
+    deletedAt,
+    scheduledPurgeAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -5000,7 +5304,9 @@ class LocalFolder extends DataClass implements Insertable<LocalFolder> {
           other.description == this.description &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.deleted == this.deleted);
+          other.deleted == this.deleted &&
+          other.deletedAt == this.deletedAt &&
+          other.scheduledPurgeAt == this.scheduledPurgeAt);
 }
 
 class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
@@ -5016,6 +5322,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<bool> deleted;
+  final Value<DateTime?> deletedAt;
+  final Value<DateTime?> scheduledPurgeAt;
   final Value<int> rowid;
   const LocalFoldersCompanion({
     this.id = const Value.absent(),
@@ -5030,6 +5338,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LocalFoldersCompanion.insert({
@@ -5045,6 +5355,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
     required DateTime createdAt,
     required DateTime updatedAt,
     this.deleted = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        userId = Value(userId),
@@ -5065,6 +5377,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? deleted,
+    Expression<DateTime>? deletedAt,
+    Expression<DateTime>? scheduledPurgeAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5080,6 +5394,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deleted != null) 'deleted': deleted,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (scheduledPurgeAt != null) 'scheduled_purge_at': scheduledPurgeAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5097,6 +5413,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<bool>? deleted,
+    Value<DateTime?>? deletedAt,
+    Value<DateTime?>? scheduledPurgeAt,
     Value<int>? rowid,
   }) {
     return LocalFoldersCompanion(
@@ -5112,6 +5430,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deleted: deleted ?? this.deleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduledPurgeAt: scheduledPurgeAt ?? this.scheduledPurgeAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5155,6 +5475,12 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
     if (deleted.present) {
       map['deleted'] = Variable<bool>(deleted.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (scheduledPurgeAt.present) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5176,6 +5502,8 @@ class LocalFoldersCompanion extends UpdateCompanion<LocalFolder> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deleted: $deleted, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9280,6 +9608,8 @@ typedef $$LocalNotesTableCreateCompanionBuilder =
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<bool> deleted,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<String?> encryptedMetadata,
       Value<bool> isPinned,
       Value<NoteKind> noteType,
@@ -9299,6 +9629,8 @@ typedef $$LocalNotesTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> deleted,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<String?> encryptedMetadata,
       Value<bool> isPinned,
       Value<NoteKind> noteType,
@@ -9355,6 +9687,16 @@ class $$LocalNotesTableFilterComposer
 
   ColumnFilters<bool> get deleted => $composableBuilder(
     column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9444,6 +9786,16 @@ class $$LocalNotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get encryptedMetadata => $composableBuilder(
     column: $table.encryptedMetadata,
     builder: (column) => ColumnOrderings(column),
@@ -9521,6 +9873,14 @@ class $$LocalNotesTableAnnotationComposer
   GeneratedColumn<bool> get deleted =>
       $composableBuilder(column: $table.deleted, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get encryptedMetadata => $composableBuilder(
     column: $table.encryptedMetadata,
     builder: (column) => column,
@@ -9583,6 +9943,8 @@ class $$LocalNotesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<String?> encryptedMetadata = const Value.absent(),
                 Value<bool> isPinned = const Value.absent(),
                 Value<NoteKind> noteType = const Value.absent(),
@@ -9600,6 +9962,8 @@ class $$LocalNotesTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 encryptedMetadata: encryptedMetadata,
                 isPinned: isPinned,
                 noteType: noteType,
@@ -9619,6 +9983,8 @@ class $$LocalNotesTableTableManager
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<bool> deleted = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<String?> encryptedMetadata = const Value.absent(),
                 Value<bool> isPinned = const Value.absent(),
                 Value<NoteKind> noteType = const Value.absent(),
@@ -9636,6 +10002,8 @@ class $$LocalNotesTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 encryptedMetadata: encryptedMetadata,
                 isPinned: isPinned,
                 noteType: noteType,
@@ -10811,6 +11179,8 @@ typedef $$NoteTasksTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> deleted,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<int> rowid,
     });
 typedef $$NoteTasksTableUpdateCompanionBuilder =
@@ -10836,6 +11206,8 @@ typedef $$NoteTasksTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> deleted,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<int> rowid,
     });
 
@@ -10954,6 +11326,16 @@ class $$NoteTasksTableFilterComposer
     column: $table.deleted,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$NoteTasksTableOrderingComposer
@@ -11069,6 +11451,16 @@ class $$NoteTasksTableOrderingComposer
     column: $table.deleted,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$NoteTasksTableAnnotationComposer
@@ -11164,6 +11556,14 @@ class $$NoteTasksTableAnnotationComposer
 
   GeneratedColumn<bool> get deleted =>
       $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => column,
+  );
 }
 
 class $$NoteTasksTableTableManager
@@ -11215,6 +11615,8 @@ class $$NoteTasksTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NoteTasksCompanion(
                 id: id,
@@ -11238,6 +11640,8 @@ class $$NoteTasksTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11263,6 +11667,8 @@ class $$NoteTasksTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NoteTasksCompanion.insert(
                 id: id,
@@ -11286,6 +11692,8 @@ class $$NoteTasksTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -11324,6 +11732,8 @@ typedef $$LocalFoldersTableCreateCompanionBuilder =
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<bool> deleted,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<int> rowid,
     });
 typedef $$LocalFoldersTableUpdateCompanionBuilder =
@@ -11340,6 +11750,8 @@ typedef $$LocalFoldersTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> deleted,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<int> rowid,
     });
 
@@ -11409,6 +11821,16 @@ class $$LocalFoldersTableFilterComposer
 
   ColumnFilters<bool> get deleted => $composableBuilder(
     column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11481,6 +11903,16 @@ class $$LocalFoldersTableOrderingComposer
     column: $table.deleted,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LocalFoldersTableAnnotationComposer
@@ -11529,6 +11961,14 @@ class $$LocalFoldersTableAnnotationComposer
 
   GeneratedColumn<bool> get deleted =>
       $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => column,
+  );
 }
 
 class $$LocalFoldersTableTableManager
@@ -11574,6 +12014,8 @@ class $$LocalFoldersTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> deleted = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalFoldersCompanion(
                 id: id,
@@ -11588,6 +12030,8 @@ class $$LocalFoldersTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11604,6 +12048,8 @@ class $$LocalFoldersTableTableManager
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<bool> deleted = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LocalFoldersCompanion.insert(
                 id: id,
@@ -11618,6 +12064,8 @@ class $$LocalFoldersTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deleted: deleted,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

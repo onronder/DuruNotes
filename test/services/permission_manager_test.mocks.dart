@@ -72,6 +72,14 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
           as bool);
 
   @override
+  bool get enableAutomaticTrashPurge =>
+      (super.noSuchMethod(
+            Invocation.getter(#enableAutomaticTrashPurge),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
   bool isEnabled(String? flagName) =>
       (super.noSuchMethod(
             Invocation.method(#isEnabled, [flagName]),

@@ -169,6 +169,15 @@ class _FakeTaskRepository implements ITaskRepository {
   @override
   Future<List<domain.Task>> getSubtasks(String parentTaskId) async =>
       const <domain.Task>[];
+
+  @override
+  Future<List<domain.Task>> getDeletedTasks() async => const [];
+
+  @override
+  Future<void> restoreTask(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteTask(String id) async {}
 }
 
 class _RecordingEnhancedTaskService extends EnhancedTaskService {

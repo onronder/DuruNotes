@@ -40,6 +40,12 @@ class EnvironmentConfig {
   /// Returns true if Sentry is configured with a DSN.
   bool get isSentryConfigured => sentryDsn != null && sentryDsn!.isNotEmpty;
 
+  /// Returns true when Supabase must be available for the app to operate.
+  bool get requiresSupabase => isValid;
+
+  /// Returns true when Sentry is expected to be enabled.
+  bool get requiresSentry => crashReportingEnabled && isSentryConfigured;
+
   /// Provides a sanitized summary that avoids leaking secrets.
   String safeSummary() {
     final supabasePreview = _maskSecret(supabaseUrl);
@@ -265,6 +271,15 @@ class EnvironmentConfigLoader {
     if (usedFallback) {
       warnings.add(
         'Supabase credentials missing; falling back to empty config',
+      );
+    }
+
+    if (resolvedConfig.supabaseUrl.isEmpty) {
+      warnings.add('Supabase URL missing in $source; Supabase sync disabled.');
+    }
+    if (resolvedConfig.supabaseAnonKey.isEmpty) {
+      warnings.add(
+        'Supabase anon key missing in $source; Supabase sync disabled.',
       );
     }
 

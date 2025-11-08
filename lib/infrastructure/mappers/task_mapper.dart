@@ -28,6 +28,8 @@ class TaskMapper {
       completedAt: local.completedAt,
       createdAt: local.createdAt,
       updatedAt: local.updatedAt,
+      deletedAt: local.deletedAt,
+      scheduledPurgeAt: local.scheduledPurgeAt,
       tags: _parseLabels(labels),
       metadata: _buildMetadata(local),
     );
@@ -62,7 +64,11 @@ class TaskMapper {
       parentTaskId: _extractParentTaskId(domain.metadata),
       createdAt: domain.createdAt,
       updatedAt: domain.updatedAt,
-      deleted: false, // Tasks are not deleted by default
+      deleted: domain.deletedAt != null
+          ? true
+          : false, // derive from timestamp when available
+      deletedAt: domain.deletedAt,
+      scheduledPurgeAt: domain.scheduledPurgeAt,
       encryptionVersion: 1, // Mark as encrypted
     );
   }

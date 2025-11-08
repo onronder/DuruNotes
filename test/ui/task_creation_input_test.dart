@@ -171,6 +171,15 @@ class _FakeTaskRepository implements ITaskRepository {
 
   @override
   Future<List<domain.Task>> getSubtasks(String parentTaskId) async => const [];
+
+  @override
+  Future<List<domain.Task>> getDeletedTasks() async => const [];
+
+  @override
+  Future<void> restoreTask(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteTask(String id) async {}
 }
 
 /// Mock notes repository (minimal implementation)
@@ -209,6 +218,12 @@ class _MockNotesRepository implements INotesRepository {
       noteType: NoteKind.note,
     );
   }
+
+  @override
+  Future<void> deleteNote(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteNote(String id) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

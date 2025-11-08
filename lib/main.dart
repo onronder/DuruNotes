@@ -20,7 +20,10 @@ Future<void> main() async {
 
 /// Hosts the asynchronous bootstrap flow and wires Riverpod overrides.
 class BootstrapHost extends StatefulWidget {
-  const BootstrapHost({super.key});
+  const BootstrapHost({super.key, this.bootstrapOverride, this.appBuilder});
+
+  final AppBootstrap? bootstrapOverride;
+  final WidgetBuilder? appBuilder;
 
   @override
   State<BootstrapHost> createState() => _BootstrapHostState();
@@ -28,16 +31,18 @@ class BootstrapHost extends StatefulWidget {
 
 class _BootstrapHostState extends State<BootstrapHost> {
   late Future<BootstrapResult> _bootstrapFuture;
+  late final AppBootstrap _bootstrap;
   GlobalKey<NavigatorState>? _navigatorKey;
 
   @override
   void initState() {
     super.initState();
+    _bootstrap = widget.bootstrapOverride ?? AppBootstrap();
     _runBootstrap();
   }
 
   void _runBootstrap() {
-    _bootstrapFuture = AppBootstrap().initialize();
+    _bootstrapFuture = _bootstrap.initialize();
   }
 
   void _retryBootstrap() {
@@ -68,6 +73,7 @@ class _BootstrapHostState extends State<BootstrapHost> {
             snapshot: snapshot,
             navigatorKey: _navigatorKey,
             onRetry: _retryBootstrap,
+            appBuilder: widget.appBuilder,
           ),
         );
       },
@@ -86,6 +92,7 @@ class _BootstrapHostState extends State<BootstrapHost> {
       adaptyEnabled: false,
       warnings: const [],
       environmentSource: 'fallback-loading',
+      stageDurations: const {},
     );
   }
 }
@@ -95,11 +102,13 @@ class _BootstrapBody extends StatelessWidget {
     required this.snapshot,
     required this.navigatorKey,
     required this.onRetry,
+    required this.appBuilder,
   });
 
   final AsyncSnapshot<BootstrapResult> snapshot;
   final GlobalKey<NavigatorState>? navigatorKey;
   final VoidCallback onRetry;
+  final WidgetBuilder? appBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -118,12 +127,18 @@ class _BootstrapBody extends StatelessWidget {
         failures: [failure],
         warnings: const [],
         onRetry: onRetry,
+        stageDurations: const {},
       );
     }
 
     final result = snapshot.data!;
     final key = navigatorKey ?? GlobalKey<NavigatorState>();
-    return BootstrapShell(result: result, navigatorKey: key, onRetry: onRetry);
+    return BootstrapShell(
+      result: result,
+      navigatorKey: key,
+      onRetry: onRetry,
+      appBuilder: appBuilder,
+    );
   }
 }
 
@@ -144,12 +159,14 @@ class BootstrapShell extends StatelessWidget {
     required this.result,
     required this.navigatorKey,
     required this.onRetry,
+    this.appBuilder,
     super.key,
   });
 
   final BootstrapResult result;
   final GlobalKey<NavigatorState> navigatorKey;
   final VoidCallback onRetry;
+  final WidgetBuilder? appBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -158,6 +175,17 @@ class BootstrapShell extends StatelessWidget {
         failures: result.failures,
         warnings: result.warnings,
         onRetry: onRetry,
+        stageDurations: result.stageDurations,
+      );
+    }
+
+    final readinessFailures = _runtimeReadinessFailures(result);
+    if (readinessFailures.isNotEmpty) {
+      return BootstrapFailureApp(
+        failures: [...result.failures, ...readinessFailures],
+        warnings: result.warnings,
+        onRetry: onRetry,
+        stageDurations: result.stageDurations,
       );
     }
 
@@ -173,10 +201,42 @@ class BootstrapShell extends StatelessWidget {
           failures: result.failures,
           warnings: result.warnings,
           onRetry: onRetry,
+          stageDurations: result.stageDurations,
         ),
-        child: _AppWithShareExtension(navigatorKey: navigatorKey),
+        child: Builder(
+          builder: (context) => appBuilder != null
+              ? appBuilder!(context)
+              : _AppWithShareExtension(navigatorKey: navigatorKey),
+        ),
       ),
     );
+  }
+
+  List<BootstrapFailure> _runtimeReadinessFailures(BootstrapResult result) {
+    final issues = <BootstrapFailure>[];
+    if (result.environment.requiresSupabase && result.supabaseClient == null) {
+      issues.add(
+        BootstrapFailure(
+          stage: BootstrapStage.supabase,
+          error: StateError(
+            'Supabase credentials were provided but the client failed to initialize.',
+          ),
+          stackTrace: StackTrace.current,
+          critical: true,
+        ),
+      );
+    }
+    if (result.environment.requiresSentry && !result.sentryEnabled) {
+      issues.add(
+        BootstrapFailure(
+          stage: BootstrapStage.monitoring,
+          error: StateError('Sentry is required but initialization failed.'),
+          stackTrace: StackTrace.current,
+          critical: true,
+        ),
+      );
+    }
+    return issues;
   }
 }
 
@@ -185,12 +245,14 @@ class BootstrapFailureApp extends StatelessWidget {
     required this.failures,
     required this.warnings,
     required this.onRetry,
+    this.stageDurations = const {},
     super.key,
   });
 
   final List<BootstrapFailure> failures;
   final List<String> warnings;
   final VoidCallback onRetry;
+  final Map<BootstrapStage, Duration> stageDurations;
 
   @override
   Widget build(BuildContext context) {
@@ -200,6 +262,7 @@ class BootstrapFailureApp extends StatelessWidget {
         failures: failures,
         warnings: warnings,
         onRetry: onRetry,
+        stageDurations: stageDurations,
       ),
     );
   }
@@ -210,12 +273,14 @@ class BootstrapFailureContent extends StatelessWidget {
     required this.failures,
     required this.warnings,
     required this.onRetry,
+    this.stageDurations = const {},
     super.key,
   });
 
   final List<BootstrapFailure> failures;
   final List<String> warnings;
   final VoidCallback onRetry;
+  final Map<BootstrapStage, Duration> stageDurations;
 
   @override
   Widget build(BuildContext context) {
@@ -261,6 +326,27 @@ class BootstrapFailureContent extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             Text(failure.error.toString()),
+                            if (failure.timedOut)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 8,
+                                  bottom: 4,
+                                ),
+                                child: Text(
+                                  'Stage timed out — retried on next launch.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.tertiary,
+                                      ),
+                                ),
+                              ),
+                            if (failure.duration != null)
+                              Text(
+                                'Duration: ${_formatDuration(failure.duration!)}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
                           ],
                         ),
                       ),
@@ -286,6 +372,27 @@ class BootstrapFailureContent extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (stageDurations.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Text(
+                    'Bootstrap timings',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _sortedStageDurations()
+                        .map(
+                          (entry) => Chip(
+                            label: Text(
+                              '${entry.key.name}: ${_formatDuration(entry.value)}',
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
                 const Spacer(),
                 Align(
                   alignment: Alignment.centerRight,
@@ -300,6 +407,19 @@ class BootstrapFailureContent extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Iterable<MapEntry<BootstrapStage, Duration>> _sortedStageDurations() {
+    final entries = stageDurations.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return entries;
+  }
+
+  String _formatDuration(Duration duration) {
+    if (duration.inSeconds >= 1) {
+      return '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s';
+    }
+    return '${duration.inMilliseconds} ms';
   }
 }
 

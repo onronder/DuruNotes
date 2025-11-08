@@ -112,6 +112,7 @@ tools/web-clipper-extension/node_modules/
 ios/Pods/
 ios/Runner/*.txt
 ios/.symlinks/
+ios/FlutterBuild/
 
 # Comprehensive test reports
 docs/test_reports/*.json

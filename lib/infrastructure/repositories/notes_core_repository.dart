@@ -16,6 +16,7 @@ import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
 import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/services/performance/performance_monitor.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
+import 'package:duru_notes/services/trash_audit_logger.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -31,10 +32,12 @@ class NotesCoreRepository implements INotesRepository {
     required SupabaseClient client,
     required NoteIndexer indexer,
     SecureApiWrapper? secureApi,
+    TrashAuditLogger? trashAuditLogger,
   }) : _supabase = client,
        _indexer = indexer,
        _secureApi = secureApi ?? SecureApiWrapper(client),
-       _logger = LoggerFactory.instance;
+       _logger = LoggerFactory.instance,
+       _trashAuditLogger = trashAuditLogger ?? TrashAuditLogger(client: client);
 
   final AppDb db;
   final CryptoBox crypto;
@@ -42,6 +45,7 @@ class NotesCoreRepository implements INotesRepository {
   final NoteIndexer _indexer;
   final SecureApiWrapper _secureApi;
   final AppLogger _logger;
+  final TrashAuditLogger _trashAuditLogger;
   final PerformanceMonitor _performanceMonitor = PerformanceMonitor();
   final SecurityAuditTrail _securityAuditTrail = SecurityAuditTrail();
   final _uuid = const Uuid();
@@ -2229,9 +2233,11 @@ class NotesCoreRepository implements INotesRepository {
       }
 
       // Enqueue for sync
+      // Phase 1.1: Always use 'upsert_note' even for soft delete (deleted=true)
+      // This ensures the deleted flag syncs to Supabase instead of hard deleting
       await _enqueuePendingOp(
         entityId: id,
-        kind: deleted == true ? 'delete' : 'upsert_note',
+        kind: 'upsert_note',
       );
 
       MutationEventBus.instance.emitNote(
@@ -2280,7 +2286,287 @@ class NotesCoreRepository implements INotesRepository {
 
   @override
   Future<void> deleteNote(String id) async {
-    await updateLocalNote(id, deleted: true, updatedAt: DateTime.now().toUtc());
+    final userId = _requireUserId(method: 'deleteNote', data: {'noteId': id});
+    if (userId == null) {
+      throw StateError('Cannot delete note without authenticated user');
+    }
+
+    domain.Note? auditNote;
+    try {
+      auditNote = await getNoteById(id);
+    } catch (_) {
+      // Best-effort only
+    }
+
+    // Phase 1.1: Cascade soft-delete to all tasks in this note with timestamps
+    final tasks = await db.getTasksForNote(id, userId: userId);
+    final now = DateTime.now().toUtc();
+    final scheduledPurgeAt = now.add(const Duration(days: 30));
+
+    for (final task in tasks) {
+      await (db.update(db.noteTasks)
+            ..where((t) => t.id.equals(task.id)))
+          .write(NoteTasksCompanion(
+        deleted: Value(true),
+        deletedAt: Value(now),
+        scheduledPurgeAt: Value(scheduledPurgeAt),
+        updatedAt: Value(now),
+      ));
+
+      await _enqueuePendingOp(
+        entityId: task.id,
+        kind: 'upsert_task',
+        payload: jsonEncode({'noteId': id}),
+      );
+    }
+
+    // Soft delete the note itself with timestamps (direct Drift update)
+    await (db.update(db.localNotes)..where((n) => n.id.equals(id)))
+        .write(LocalNotesCompanion(
+      deleted: Value(true),
+      deletedAt: Value(now),
+      scheduledPurgeAt: Value(scheduledPurgeAt),
+      updatedAt: Value(now),
+    ));
+
+    // Enqueue note sync
+    await _enqueuePendingOp(entityId: id, kind: 'upsert_note');
+
+    unawaited(
+      _trashAuditLogger.logSoftDelete(
+        itemType: TrashAuditItemType.note,
+        itemId: id,
+        itemTitle: auditNote?.title,
+        scheduledPurgeAt: scheduledPurgeAt,
+        metadata: {
+          'source': 'notes.deleteNote',
+          'cascadedTaskCount': tasks.length,
+        },
+      ),
+    );
+  }
+
+  /// Restore a soft-deleted note from trash (Phase 1.1)
+  @override
+  Future<void> restoreNote(String id) async {
+    final userId = _requireUserId(method: 'restoreNote', data: {'noteId': id});
+    if (userId == null) {
+      throw StateError('Cannot restore note without authenticated user');
+    }
+
+    domain.Note? auditNote;
+    try {
+      auditNote = await getNoteById(id);
+    } catch (_) {
+      // Ignore - audit logging is best-effort
+    }
+
+    // Verify note exists and is deleted
+    final note = await (db.select(db.localNotes)
+          ..where((n) => n.id.equals(id))
+          ..where((n) => n.userId.equals(userId)))
+        .getSingleOrNull();
+
+    if (note == null) {
+      throw StateError('Note not found or does not belong to user');
+    }
+
+    if (!note.deleted) {
+      _logger.warning('Attempted to restore note that is not deleted: $id');
+      return; // Already restored, no-op
+    }
+
+    final now = DateTime.now().toUtc();
+
+    // Restore the note with timestamp clearing (direct Drift update)
+    await (db.update(db.localNotes)..where((n) => n.id.equals(id)))
+        .write(LocalNotesCompanion(
+      deleted: Value(false),
+      deletedAt: Value(null),
+      scheduledPurgeAt: Value(null),
+      updatedAt: Value(now),
+    ));
+
+    // Enqueue note sync
+    await _enqueuePendingOp(entityId: id, kind: 'upsert_note');
+
+    // Phase 1.1: Also restore all tasks for this note
+    await _restoreTasksForNote(id, userId);
+
+    _logger.info('Restored note from trash: $id');
+
+    unawaited(
+      _trashAuditLogger.logRestore(
+        itemType: TrashAuditItemType.note,
+        itemId: id,
+        itemTitle: auditNote?.title,
+        metadata: const {
+          'source': 'notes.restoreNote',
+        },
+      ),
+    );
+  }
+
+  /// Restore tasks when restoring a note (Phase 1.1)
+  Future<void> _restoreTasksForNote(String noteId, String userId) async {
+    final tasks = await db.getTasksForNote(
+      noteId,
+      userId: userId,
+      includeDeleted: true,
+    );
+
+    final now = DateTime.now().toUtc();
+
+    for (final task in tasks.where((t) => t.deleted)) {
+      await (db.update(db.noteTasks)
+            ..where((t) => t.id.equals(task.id)))
+          .write(NoteTasksCompanion(
+        deleted: Value(false),
+        deletedAt: Value(null),
+        scheduledPurgeAt: Value(null),
+        updatedAt: Value(now),
+      ));
+
+      await _enqueuePendingOp(
+        entityId: task.id,
+        kind: 'upsert_task',
+        payload: jsonEncode({'noteId': noteId}),
+      );
+    }
+  }
+
+  /// Permanently delete a note (hard delete, cannot be undone)
+  /// This removes the note from the database entirely
+  @override
+  Future<void> permanentlyDeleteNote(String id) async {
+    try {
+      final userId = _requireUserId(
+        method: 'permanentlyDeleteNote',
+        data: {'noteId': id},
+      );
+      if (userId == null) {
+        throw StateError('Cannot permanently delete note without authenticated user');
+      }
+
+      final note = await (db.select(db.localNotes)
+            ..where((n) => n.id.equals(id))
+            ..where((n) => n.userId.equals(userId)))
+          .getSingleOrNull();
+
+      if (note == null) {
+        throw StateError('Note not found or does not belong to user');
+      }
+
+      domain.Note? auditNote;
+      try {
+        auditNote = await getNoteById(id);
+      } catch (_) {
+        // Ignore logging failures
+      }
+
+      await db.transaction(() async {
+        // Use private helper to avoid re-entering public API
+        await _hardDeleteNote(noteId: id, userId: userId);
+      });
+
+      _logger.info('Permanently deleted note: $id');
+      unawaited(
+        _trashAuditLogger.logPermanentDelete(
+          itemType: TrashAuditItemType.note,
+          itemId: id,
+          itemTitle: auditNote?.title,
+          metadata: const {
+            'source': 'notes.permanentlyDeleteNote',
+          },
+        ),
+      );
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to permanently delete note: $id',
+        error: e,
+        stackTrace: stack,
+      );
+      _captureRepositoryException(
+        method: 'permanentlyDeleteNote',
+        error: e,
+        stackTrace: stack,
+        data: {'noteId': id},
+      );
+      rethrow;
+    }
+  }
+
+  /// Private helper: Hard delete note and all tasks within transaction context
+  /// Enqueues sync operations BEFORE deleting to ensure Supabase is notified
+  Future<void> _hardDeleteNote({
+    required String noteId,
+    required String userId,
+  }) async {
+    // 1. Handle all tasks in this note
+    final tasks = await db.getTasksForNote(
+      noteId,
+      userId: userId,
+      includeDeleted: true,
+    );
+
+    for (final task in tasks) {
+      // Enqueue delete operation BEFORE removing from database
+      await _enqueuePendingOp(
+        entityId: task.id,
+        kind: 'delete_task',
+        payload: jsonEncode({'noteId': noteId}),
+      );
+
+      // Hard delete the task
+      await (db.delete(db.noteTasks)..where((t) => t.id.equals(task.id))).go();
+    }
+
+    // 2. Enqueue note deletion BEFORE removing from database
+    await _enqueuePendingOp(entityId: noteId, kind: 'delete_note');
+
+    // 3. Delete note-folder relationships
+    await (db.delete(db.noteFolders)..where((nf) => nf.noteId.equals(noteId)))
+        .go();
+
+    // 4. Hard delete the note itself
+    await (db.delete(db.localNotes)..where((n) => n.id.equals(noteId))).go();
+  }
+
+  /// Get all deleted notes for Trash view (Phase 1.1)
+  @override
+  Future<List<domain.Note>> getDeletedNotes() async {
+    try {
+      final userId = _requireUserId(method: 'getDeletedNotes');
+      if (userId == null) {
+        return const <domain.Note>[];
+      }
+
+      final localNotes = await (db.select(db.localNotes)
+            ..where((n) => n.deleted.equals(true) & n.userId.equals(userId))
+            ..orderBy([(n) => OrderingTerm(expression: n.updatedAt, mode: OrderingMode.desc)]))
+          .get();
+
+      final notes = await _hydrateDomainNotes(localNotes);
+      _auditAccess(
+        'notes.getDeletedNotes',
+        granted: true,
+        reason: 'count=${notes.length}',
+      );
+      return notes;
+    } catch (e, stack) {
+      _logger.error('Failed to get deleted notes', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'getDeletedNotes',
+        error: e,
+        stackTrace: stack,
+      );
+      _auditAccess(
+        'notes.getDeletedNotes',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      return const <domain.Note>[];
+    }
   }
 
   @override

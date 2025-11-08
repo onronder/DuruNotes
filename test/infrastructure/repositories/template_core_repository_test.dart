@@ -196,6 +196,12 @@ Future<void> _seedTemplates(AppDb db) async {
 
 class _StubNotesRepository implements INotesRepository {
   @override
+  Future<void> deleteNote(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteNote(String id) async {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('Unexpected call: ${invocation.memberName}');
 }

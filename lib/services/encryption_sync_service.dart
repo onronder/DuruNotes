@@ -140,13 +140,53 @@ class EncryptionSyncService {
       // 3. Encrypt AMK with DEK
       final encryptedAmk = await _encryptData(amk, dek);
 
-      // 4. Store encrypted AMK on backend
-      await supabase.from('user_encryption_keys').insert({
-        'user_id': userId,
-        'encrypted_amk': base64Encode(encryptedAmk),
-        'amk_salt': base64Encode(salt),
-        'algorithm': 'Argon2id',
-      });
+      var remotePersisted = false;
+      try {
+        // 4. Store encrypted AMK on backend (if table exists)
+        await supabase.from('user_encryption_keys').insert({
+          'user_id': userId,
+          'encrypted_amk': base64Encode(encryptedAmk),
+          'amk_salt': base64Encode(salt),
+          'algorithm': 'Argon2id',
+        });
+        remotePersisted = true;
+      } on PostgrestException catch (error, stack) {
+        if (_isMissingKeyTable(error)) {
+          _logger.warning(
+            'user_encryption_keys table not available – falling back to local-only encryption setup',
+            data: {
+              'userId': userId,
+              'error': error.message,
+              'code': error.code,
+            },
+          );
+          _captureException(
+            operation: 'setupEncryption.missingTable',
+            error: error,
+            stackTrace: stack,
+            data: {'userId': userId},
+            level: SentryLevel.warning,
+          );
+        } else {
+          _logger.error(
+            'Failed to persist encryption key material',
+            error: error,
+            stackTrace: stack,
+            data: {'userId': userId},
+          );
+          _captureException(
+            operation: 'setupEncryption.persist',
+            error: error,
+            stackTrace: stack,
+            data: {'userId': userId},
+          );
+          throw EncryptionException(
+            'Failed to save encryption settings. Please try again.',
+            code: 'DATABASE_ERROR',
+            originalError: error,
+          );
+        }
+      }
 
       // 5. Store AMK in Keychain (compatible with AccountKeyService format)
       await secureStorage.write(
@@ -156,28 +196,12 @@ class EncryptionSyncService {
       // Also update AccountKeyService so CryptoBox derives keys from the shared AMK
       await _accountKeyService?.setLocalAmk(amk, userId: userId);
 
-      _logger.info('Encryption sync setup complete', data: {'userId': userId});
+      _logger.info(
+        'Encryption sync setup complete',
+        data: {'userId': userId, 'remotePersisted': remotePersisted},
+      );
     } on EncryptionException {
       rethrow; // Already user-friendly, pass through
-    } on PostgrestException catch (error, stack) {
-      // Database error - don't expose internal details
-      _logger.error(
-        'Failed to persist encryption key material',
-        error: error,
-        stackTrace: stack,
-        data: {'userId': userId},
-      );
-      _captureException(
-        operation: 'setupEncryption.persist',
-        error: error,
-        stackTrace: stack,
-        data: {'userId': userId},
-      );
-      throw EncryptionException(
-        'Failed to save encryption settings. Please try again.',
-        code: 'DATABASE_ERROR',
-        originalError: error,
-      );
     } catch (error, stack) {
       // Unexpected error
       _logger.error(
@@ -363,14 +387,46 @@ class EncryptionSyncService {
       final newEncryptedAmk = await _encryptData(amk, newDek);
 
       // 5. Update backend
-      await supabase
-          .from('user_encryption_keys')
-          .update({
-            'encrypted_amk': base64Encode(newEncryptedAmk),
-            'amk_salt': base64Encode(newSalt),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('user_id', userId);
+      try {
+        await supabase
+            .from('user_encryption_keys')
+            .update({
+              'encrypted_amk': base64Encode(newEncryptedAmk),
+              'amk_salt': base64Encode(newSalt),
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('user_id', userId);
+      } on PostgrestException catch (error, stack) {
+        if (_isMissingKeyTable(error)) {
+          _logger.warning(
+            'user_encryption_keys table missing during rotateKeys – continuing with local update only',
+            data: {'userId': userId, 'code': error.code},
+          );
+          _captureException(
+            operation: 'rotateKeys.missingTable',
+            error: error,
+            stackTrace: stack,
+            data: {'userId': userId},
+            level: SentryLevel.warning,
+          );
+        } else {
+          _logger.error(
+            'Failed to persist rotated encryption keys',
+            error: error,
+            stackTrace: stack,
+            data: {'userId': userId},
+          );
+          _captureException(
+            operation: 'rotateKeys.persist',
+            error: error,
+            stackTrace: stack,
+            data: {'userId': userId},
+          );
+          throw Exception(
+            'Failed to rotate encryption keys. Please try again.',
+          );
+        }
+      }
 
       // Update local storage (AMK doesn't change, just re-wrapped with new password)
       await secureStorage.write(
@@ -382,20 +438,6 @@ class EncryptionSyncService {
         'Encryption keys rotated successfully',
         data: {'userId': userId},
       );
-    } on PostgrestException catch (error, stack) {
-      _logger.error(
-        'Failed to persist rotated encryption keys',
-        error: error,
-        stackTrace: stack,
-        data: {'userId': userId},
-      );
-      _captureException(
-        operation: 'rotateKeys.persist',
-        error: error,
-        stackTrace: stack,
-        data: {'userId': userId},
-      );
-      throw Exception('Failed to rotate encryption keys. Please try again.');
     } catch (error, stack) {
       _logger.error(
         'Unexpected error rotating encryption keys',
@@ -459,6 +501,20 @@ class EncryptionSyncService {
 
       return response;
     } catch (error, stack) {
+      if (error is PostgrestException && _isMissingKeyTable(error)) {
+        _logger.warning(
+          'user_encryption_keys table not found when fetching key – treating as not provisioned',
+          data: {'userId': userId, 'code': error.code},
+        );
+        _captureException(
+          operation: 'fetchEncryptionKey.missingTable',
+          error: error,
+          stackTrace: stack,
+          data: {'userId': userId},
+          level: SentryLevel.warning,
+        );
+        return null;
+      }
       _logger.warning(
         'Failed to fetch encryption key from backend',
         data: {'userId': userId, 'error': error.toString()},
@@ -536,5 +592,15 @@ class EncryptionSyncService {
     return Uint8List.fromList(
       List<int>.generate(length, (_) => random.nextInt(256)),
     );
+  }
+
+  bool _isMissingKeyTable(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    final details = (error.details ?? '').toString().toLowerCase();
+    return error.code == '42P01' ||
+        message.contains('user_encryption_keys') &&
+            (message.contains('does not exist') ||
+                message.contains('not exist')) ||
+        details.contains('user_encryption_keys');
   }
 }
