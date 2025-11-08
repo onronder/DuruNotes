@@ -13,6 +13,7 @@ import 'package:duru_notes/infrastructure/mappers/task_mapper.dart';
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
+import 'package:duru_notes/services/trash_audit_logger.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -22,7 +23,9 @@ class TaskCoreRepository implements ITaskRepository {
     required this.db,
     required this.client,
     required this.crypto,
-  }) : _logger = LoggerFactory.instance;
+    TrashAuditLogger? trashAuditLogger,
+  }) : _logger = LoggerFactory.instance,
+       _trashAuditLogger = trashAuditLogger ?? TrashAuditLogger(client: client);
 
   final AppDb db;
   final SupabaseClient client;
@@ -30,6 +33,7 @@ class TaskCoreRepository implements ITaskRepository {
   final AppLogger _logger;
   final _uuid = const Uuid();
   final SecurityAuditTrail _securityAuditTrail = SecurityAuditTrail();
+  final TrashAuditLogger _trashAuditLogger;
 
   String? get _currentUserId => client.auth.currentUser?.id;
 
@@ -670,13 +674,31 @@ class TaskCoreRepository implements ITaskRepository {
         return;
       }
 
-      // Delete from database
-      await db.deleteTaskById(id, userId);
+      domain.Task? auditTask;
+      try {
+        auditTask = await _decryptTask(existing);
+      } catch (_) {
+        // Ignore audit failures
+      }
 
-      // Enqueue for sync deletion
+      // Phase 1.1: Soft delete implementation with timestamps
+      // Mark task as deleted instead of hard delete
+      final now = DateTime.now().toUtc();
+      final scheduledPurgeAt = now.add(const Duration(days: 30));
+
+      await (db.update(db.noteTasks)
+            ..where((t) => t.id.equals(id) & t.userId.equals(userId)))
+          .write(NoteTasksCompanion(
+        deleted: Value(true),
+        deletedAt: Value(now),
+        scheduledPurgeAt: Value(scheduledPurgeAt),
+        updatedAt: Value(now),
+      ));
+
+      // Enqueue for sync (as upsert with deleted=true)
       await _enqueuePendingOp(
         entityId: id,
-        kind: 'delete_task',
+        kind: 'upsert_task',
         payload: jsonEncode({'noteId': existing.noteId}),
       );
 
@@ -688,6 +710,19 @@ class TaskCoreRepository implements ITaskRepository {
 
       _logger.info('Deleted task: $id');
       _auditAccess('tasks.deleteTask', granted: true, reason: 'taskId=$id');
+
+      unawaited(
+        _trashAuditLogger.logSoftDelete(
+          itemType: TrashAuditItemType.task,
+          itemId: id,
+          itemTitle: auditTask?.title,
+          scheduledPurgeAt: scheduledPurgeAt,
+          metadata: {
+            'source': 'tasks.deleteTask',
+            'noteId': existing.noteId,
+          },
+        ),
+      );
     } catch (e, stack) {
       _logger.error('Failed to delete task: $id', error: e, stackTrace: stack);
       _captureRepositoryException(
@@ -702,6 +737,187 @@ class TaskCoreRepository implements ITaskRepository {
         reason: 'error=${e.runtimeType}',
       );
       rethrow;
+    }
+  }
+
+  /// Restore a soft-deleted task from trash (Phase 1.1)
+  @override
+  Future<void> restoreTask(String id) async {
+    try {
+      final userId = _requireUserId(method: 'restoreTask', data: {'taskId': id});
+
+      // Verify task exists and is deleted
+      final task = await (db.select(db.noteTasks)
+            ..where((t) => t.id.equals(id))
+            ..where((t) => t.userId.equals(userId)))
+          .getSingleOrNull();
+
+      if (task == null) {
+        throw StateError('Task not found or does not belong to user');
+      }
+
+      if (!task.deleted) {
+        _logger.warning('Attempted to restore task that is not deleted: $id');
+        return; // Already restored, no-op
+      }
+
+      domain.Task? auditTask;
+      try {
+        auditTask = await _decryptTask(task);
+      } catch (_) {
+        // Ignore audit failures
+      }
+
+      // Restore the task and clear timestamps
+      final now = DateTime.now().toUtc();
+
+      await (db.update(db.noteTasks)
+            ..where((t) => t.id.equals(id) & t.userId.equals(userId)))
+          .write(NoteTasksCompanion(
+        deleted: Value(false),
+        deletedAt: Value(null),
+        scheduledPurgeAt: Value(null),
+        updatedAt: Value(now),
+      ));
+
+      // Enqueue for sync
+      await _enqueuePendingOp(
+        entityId: id,
+        kind: 'upsert_task',
+        payload: jsonEncode({'noteId': task.noteId}),
+      );
+
+      _logger.info('Restored task from trash: $id');
+      _auditAccess('tasks.restoreTask', granted: true, reason: 'taskId=$id');
+
+      unawaited(
+        _trashAuditLogger.logRestore(
+          itemType: TrashAuditItemType.task,
+          itemId: id,
+          itemTitle: auditTask?.title,
+          metadata: {
+            'source': 'tasks.restoreTask',
+            'noteId': task.noteId,
+          },
+        ),
+      );
+    } catch (e, stack) {
+      _logger.error('Failed to restore task: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'restoreTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id},
+      );
+      _auditAccess(
+        'tasks.restoreTask',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      rethrow;
+    }
+  }
+
+  /// Permanently delete a task (hard delete, cannot be undone)
+  /// This removes the task from the database entirely
+  @override
+  Future<void> permanentlyDeleteTask(String id) async {
+    try {
+      final userId = _requireUserId(
+        method: 'permanentlyDeleteTask',
+        data: {'taskId': id},
+      );
+
+      final task = await (db.select(db.noteTasks)
+            ..where((t) => t.id.equals(id))
+            ..where((t) => t.userId.equals(userId)))
+          .getSingleOrNull();
+
+      if (task == null) {
+        throw StateError('Task not found or does not belong to user');
+      }
+
+      domain.Task? auditTask;
+      try {
+        auditTask = await _decryptTask(task);
+      } catch (_) {
+        // Ignore audit failures
+      }
+
+      await db.transaction(() async {
+        // Enqueue delete operation BEFORE removing from database
+        await _enqueuePendingOp(
+          entityId: id,
+          kind: 'delete_task',
+          payload: jsonEncode({'noteId': task.noteId}),
+        );
+
+        // Hard delete the task
+        await (db.delete(db.noteTasks)..where((t) => t.id.equals(id))).go();
+      });
+
+      _logger.info('Permanently deleted task: $id');
+      _auditAccess('tasks.permanentlyDeleteTask', granted: true, reason: 'taskId=$id');
+
+      unawaited(
+        _trashAuditLogger.logPermanentDelete(
+          itemType: TrashAuditItemType.task,
+          itemId: id,
+          itemTitle: auditTask?.title,
+          metadata: {
+            'source': 'tasks.permanentlyDeleteTask',
+            'noteId': task.noteId,
+          },
+        ),
+      );
+    } catch (e, stack) {
+      _logger.error('Failed to permanently delete task: $id', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'permanentlyDeleteTask',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': id},
+      );
+      _auditAccess(
+        'tasks.permanentlyDeleteTask',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      rethrow;
+    }
+  }
+
+  /// Get all deleted tasks for Trash view (Phase 1.1)
+  @override
+  Future<List<domain.Task>> getDeletedTasks() async {
+    try {
+      final userId = _requireUserId(method: 'getDeletedTasks');
+
+      final localTasks = await (db.select(db.noteTasks)
+            ..where((t) => t.deleted.equals(true) & t.userId.equals(userId))
+            ..orderBy([(t) => OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc)]))
+          .get();
+
+      final tasks = await _decryptTasks(localTasks);
+      _auditAccess(
+        'tasks.getDeletedTasks',
+        granted: true,
+        reason: 'count=${tasks.length}',
+      );
+      return tasks;
+    } catch (e, stack) {
+      _logger.error('Failed to get deleted tasks', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'getDeletedTasks',
+        error: e,
+        stackTrace: stack,
+      );
+      _auditAccess(
+        'tasks.getDeletedTasks',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      return const <domain.Task>[];
     }
   }
 
@@ -1092,14 +1308,37 @@ class TaskCoreRepository implements ITaskRepository {
         method: 'deleteTasksForNote',
         data: {'noteId': noteId},
       );
-      await db.deleteTasksForNote(noteId, userId);
 
-      // Note: Individual task deletions will be handled by sync mechanism
-      _logger.info('Deleted all tasks for note: $noteId');
+      // Phase 1.1: Get tasks BEFORE deleting so we can enqueue sync operations
+      final tasks = await db.getTasksForNote(noteId, userId: userId);
+
+      // Soft delete all tasks with timestamps (batch update instead of hard delete)
+      final now = DateTime.now().toUtc();
+      final scheduledPurgeAt = now.add(const Duration(days: 30));
+
+      await (db.update(db.noteTasks)
+            ..where((t) => t.noteId.equals(noteId) & t.userId.equals(userId)))
+          .write(NoteTasksCompanion(
+        deleted: Value(true),
+        deletedAt: Value(now),
+        scheduledPurgeAt: Value(scheduledPurgeAt),
+        updatedAt: Value(now),
+      ));
+
+      // Enqueue sync operation for each deleted task
+      for (final task in tasks) {
+        await _enqueuePendingOp(
+          entityId: task.id,
+          kind: 'upsert_task',
+          payload: jsonEncode({'noteId': noteId}),
+        );
+      }
+
+      _logger.info('Deleted all tasks for note: $noteId (count=${tasks.length})');
       _auditAccess(
         'tasks.deleteTasksForNote',
         granted: true,
-        reason: 'noteId=$noteId',
+        reason: 'noteId=$noteId count=${tasks.length}',
       );
 
       MutationEventBus.instance.emitNote(

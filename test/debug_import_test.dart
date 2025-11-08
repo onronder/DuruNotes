@@ -175,6 +175,9 @@ class _FakeNotesRepository implements INotesRepository {
   Future<void> deleteNote(String id) =>
       throw UnsupportedError('deleteNote not supported');
   @override
+  Future<void> restoreNote(String id) =>
+      throw UnsupportedError('restoreNote not supported');
+  @override
   Future<List<note_domain.Note>> localNotesForSync() =>
       throw UnsupportedError('localNotesForSync not supported');
   @override
@@ -221,6 +224,12 @@ class _FakeNotesRepository implements INotesRepository {
   @override
   Future<DateTime?> getLastSyncTime() =>
       throw UnsupportedError('getLastSyncTime not supported');
+
+  @override
+  Future<void> permanentlyDeleteNote(String id) async {}
+
+  @override
+  Future<List<note_domain.Note>> getDeletedNotes() async => [];
 }
 
 class _FakeFolderRepository implements IFolderRepository {
@@ -319,6 +328,15 @@ class _FakeFolderRepository implements IFolderRepository {
   @override
   Future<void> resolveFolderConflicts() =>
       throw UnsupportedError('resolveFolderConflicts not supported');
+  @override
+  Future<List<folder_domain.Folder>> getDeletedFolders() =>
+      throw UnsupportedError('getDeletedFolders not supported');
+  @override
+  Future<void> restoreFolder(String folderId, {bool restoreContents = false}) =>
+      throw UnsupportedError('restoreFolder not supported');
+  @override
+  Future<void> permanentlyDeleteFolder(String folderId) =>
+      throw UnsupportedError('permanentlyDeleteFolder not supported');
   @override
   String? getCurrentUserId() => 'user-test';
 }

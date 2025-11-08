@@ -1,0 +1,1 @@
+- For all the tasks that we are developing, when you create a new file, insturction, md file etc. never use root folder. our documentation work folder is /Users/onronder/duru-notes/MasterImplementation Phases

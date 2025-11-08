@@ -17,6 +17,8 @@ class FeatureFlags {
     'use_block_editor_for_notes':
         false, // ❌ DISABLED - Breaks regular note creation, needs proper integration
     'enable_userid_filtering': false, // SECURITY: Gradual rollout gate
+    'enable_automatic_trash_purge':
+        false, // TRASH: Auto-purge overdue items on app startup
   };
 
   // Cohort rollout percentages (0.0 → disabled, 1.0 → 100% users)
@@ -99,6 +101,11 @@ class FeatureFlags {
   /// Sprint 1: Use BlockEditor for notes instead of plain TextField
   /// When enabled, notes are parsed into blocks and todos become interactive
   bool get useBlockEditorForNotes => isEnabled('use_block_editor_for_notes');
+
+  /// Phase 1.1: Auto-purge trash items after 30-day retention period
+  /// When enabled, overdue trash items are automatically deleted on app startup
+  bool get enableAutomaticTrashPurge =>
+      isEnabled('enable_automatic_trash_purge');
 
   int _stableBucket(String userId) {
     final hash = userId.hashCode & 0x7fffffff;

@@ -151,6 +151,15 @@ class _FakeTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getSubtasks(String parentTaskId) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<List<domain.Task>> getDeletedTasks() async => const [];
+
+  @override
+  Future<void> restoreTask(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteTask(String id) async {}
 }
 
 void main() {

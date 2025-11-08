@@ -28,7 +28,7 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   intl: ^0.20.2
   file_picker: ^10.3.3   # File selection
-  crypto: ^3.0.6         # SHA-256 hesaplamak için
+  crypto: ^3.0.7         # SHA-256 hesaplamak için (FixPlan 3.3 dependency refresh)
   image_picker: ^1.2.0
   # google_mlkit_text_recognition: ^0.13.1  # OCR text recognition - temporarily disabled for Firebase compatibility
   google_fonts: ^6.2.1
@@ -49,9 +49,9 @@ dependencies:
   # sqlite3_flutter_libs: ^0.5.39  # Removed - using system SQLite instead
   supabase_flutter: ^2.9.1
   url_launcher: ^6.3.2
-  uuid: ^4.5.1
+  uuid: ^4.5.2
   visibility_detector: ^0.4.0
-  sentry_flutter: ^9.6.0
+  sentry_flutter: ^9.8.0  # FixPlan 3.3 – pull Swift 6-safe pods
   cached_network_image: ^3.3.1
   speech_to_text: ^7.3.0
   battery_plus: ^7.0.0
@@ -67,11 +67,11 @@ dependencies:
   share_plus: ^12.0.0  # Cross-platform sharing
   open_file: ^3.5.3  # Open files with system apps
   fl_chart: ^1.1.1  # Charts for analytics
-  adapty_flutter: ^3.11.1  # Subscription management and monetization
-  package_info_plus: ^8.0.2  # App version and build info
+  adapty_flutter: ^3.11.3  # Subscription management and monetization (FixPlan 3.3)
+  package_info_plus: ^8.3.1  # App version/build info
   http: ^1.5.0
-  firebase_core: ^4.1.0  # Firebase core SDK
-  firebase_messaging: ^16.0.1  # Firebase Cloud Messaging for push notifications
+  firebase_core: ^4.2.1  # Firebase core SDK (FixPlan 3.3)
+  firebase_messaging: ^16.0.4  # Firebase Cloud Messaging for push notifications (FixPlan 3.3)
   provider: ^6.1.5+1
   jwt_decoder: ^2.0.1  # JWT token validation for auth guard
 
@@ -105,9 +105,9 @@ dev_dependencies:
   matcher: ^0.12.17
   supabase: ^2.9.1
   state_notifier: ^1.0.0
-  firebase_messaging_platform_interface: ^4.7.1
+  firebase_messaging_platform_interface: ^4.7.4
   flutter_local_notifications_platform_interface: ^9.1.0
-  flutter_secure_storage_platform_interface: any
+  flutter_secure_storage_platform_interface: 1.1.2
 flutter_launcher_icons:
   android: true
   ios: true
@@ -125,6 +125,17 @@ flutter:
     - design/app_icon.png
     - design/duru_light.png
     - design/duru_dark.png
+
+dependency_overrides:
+  # FixPlan 3.3 – ensure latest iOS platform implementations are pulled in for warnings fixes.
+  url_launcher_ios: ^6.3.5
+  url_launcher_android: ^6.3.24
+  image_picker_ios: ^0.8.13+1
+  image_picker_android: ^0.8.13+7
+  shared_preferences_foundation: ^2.5.5
+  shared_preferences_android: ^2.4.15
+  path_provider_android: ^2.2.20
+  path_provider_foundation: ^2.4.3
 
 sentry:
   upload_debug_symbols: true

@@ -2,9 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -28,15 +26,33 @@ class PushTokenResult {
 
 /// Service for managing push notifications and FCM tokens
 class PushNotificationService {
-  PushNotificationService(this._ref, {SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  PushNotificationService({
+    required AppLogger logger,
+    SupabaseClient? client,
+    PushMessagingClient? messagingClient,
+    PushTokenApi? tokenApi,
+    AuthAdapter? authAdapter,
+    Future<SharedPreferences> Function()? sharedPreferencesLoader,
+    Future<bool?> Function()? physicalDeviceResolver,
+  }) : _logger = logger,
+       _tokenApi =
+           tokenApi ?? SupabasePushTokenApi(client ?? Supabase.instance.client),
+       _auth =
+           authAdapter ??
+           SupabaseAuthAdapter(client ?? Supabase.instance.client),
+       _sharedPreferencesLoader =
+           sharedPreferencesLoader ?? SharedPreferences.getInstance,
+       _physicalDeviceResolver = physicalDeviceResolver,
+       _messaging = messagingClient;
 
-  final Ref _ref;
-  final SupabaseClient _client;
-  AppLogger get _logger => _ref.read(loggerProvider);
+  final AppLogger _logger;
+  final PushTokenApi _tokenApi;
+  final AuthAdapter _auth;
+  final Future<SharedPreferences> Function() _sharedPreferencesLoader;
+  final Future<bool?> Function()? _physicalDeviceResolver;
 
-  // Firebase Messaging instance
-  FirebaseMessaging? _messaging;
+  // Messaging client
+  PushMessagingClient? _messaging;
 
   // Stream subscription for token refresh
   StreamSubscription<String>? _tokenRefreshSubscription;
@@ -48,18 +64,25 @@ class PushNotificationService {
   /// Initialize the push notification service
   Future<void> initialize() async {
     try {
-      _messaging = FirebaseMessaging.instance;
+      _messaging ??= FirebasePushMessagingClient(FirebaseMessaging.instance);
 
       try {
-        final deviceInfo = DeviceInfoPlugin();
-        if (!kIsWeb && Platform.isIOS) {
-          final ios = await deviceInfo.iosInfo;
-          _isPhysicalDevice = ios.isPhysicalDevice;
-        } else if (!kIsWeb && Platform.isAndroid) {
-          final android = await deviceInfo.androidInfo;
-          _isPhysicalDevice = android.isPhysicalDevice;
+        final resolver = _physicalDeviceResolver;
+        final resolvedPhysical = resolver != null ? await resolver() : null;
+
+        if (resolvedPhysical != null) {
+          _isPhysicalDevice = resolvedPhysical;
         } else {
-          _isPhysicalDevice = true;
+          final deviceInfo = DeviceInfoPlugin();
+          if (!kIsWeb && Platform.isIOS) {
+            final ios = await deviceInfo.iosInfo;
+            _isPhysicalDevice = ios.isPhysicalDevice;
+          } else if (!kIsWeb && Platform.isAndroid) {
+            final android = await deviceInfo.androidInfo;
+            _isPhysicalDevice = android.isPhysicalDevice;
+          } else {
+            _isPhysicalDevice = true;
+          }
         }
         _logger.debug(
           'Push notification device details',
@@ -96,11 +119,12 @@ class PushNotificationService {
 
   /// Request notification permissions from the user
   Future<NotificationSettings> requestPermission() async {
-    if (_messaging == null) {
+    final messaging = _messaging;
+    if (messaging == null) {
       throw StateError('Push notification service not initialized');
     }
 
-    final settings = await _messaging!.requestPermission();
+    final settings = await messaging.requestPermission();
 
     _logger.info(
       'Notification permission status: ${settings.authorizationStatus}',
@@ -111,18 +135,19 @@ class PushNotificationService {
 
   /// Check current notification permission status
   Future<NotificationSettings> checkPermissionStatus() async {
-    if (_messaging == null) {
+    final messaging = _messaging;
+    if (messaging == null) {
       throw StateError('Push notification service not initialized');
     }
 
-    return _messaging!.getNotificationSettings();
+    return messaging.getNotificationSettings();
   }
 
   /// Register device for push notifications and sync with backend
   Future<PushTokenResult> registerWithBackend() async {
     try {
       // Check if user is authenticated
-      final user = _client.auth.currentUser;
+      final user = _auth.currentUser;
       if (user == null) {
         return const PushTokenResult(
           success: false,
@@ -272,7 +297,8 @@ class PushNotificationService {
 
   /// Get FCM token
   Future<String?> _getToken() async {
-    if (_messaging == null) return null;
+    final messaging = _messaging;
+    if (messaging == null) return null;
 
     try {
       // On iOS, we need to get APNs token first for physical devices
@@ -284,7 +310,7 @@ class PushNotificationService {
         const retryDelay = Duration(seconds: 2);
 
         while (apnsToken == null && retries < maxRetries) {
-          apnsToken = await _messaging!.getAPNSToken();
+          apnsToken = await messaging.getAPNSToken();
           if (apnsToken == null) {
             _logger.warning(
               'APNs token not available yet, attempt ${retries + 1}/$maxRetries',
@@ -305,7 +331,7 @@ class PushNotificationService {
         }
       }
 
-      final token = await _messaging!.getToken();
+      final token = await messaging.getToken();
       if (token != null) {
         _logger.info('Retrieved FCM token: ${token.substring(0, 20)}...');
       }
@@ -321,14 +347,15 @@ class PushNotificationService {
     // Cancel existing subscription if any
     _tokenRefreshSubscription?.cancel();
 
-    if (_messaging == null) return;
+    final messaging = _messaging;
+    if (messaging == null) return;
 
-    _tokenRefreshSubscription = _messaging!.onTokenRefresh.listen(
+    _tokenRefreshSubscription = messaging.onTokenRefresh.listen(
       (newToken) async {
         _logger.info('FCM token refreshed');
 
         // Check if user is still authenticated
-        final user = _client.auth.currentUser;
+        final user = _auth.currentUser;
         if (user == null) {
           _logger.warning(
             'Token refreshed but user not authenticated, skipping sync',
@@ -371,8 +398,8 @@ class PushNotificationService {
 
     try {
       // CRITICAL: Verify auth status before calling RPC
-      final session = _client.auth.currentSession;
-      final user = _client.auth.currentUser;
+      final session = _auth.currentSession;
+      final user = _auth.currentUser;
 
       debugPrint('🔐 Auth Status Check:');
       debugPrint('  User ID: ${user?.id}');
@@ -406,14 +433,11 @@ class PushNotificationService {
 
       // Call Supabase RPC function to upsert device token
       debugPrint('🚀 Making RPC call...');
-      await _client.rpc<void>(
-        'user_devices_upsert',
-        params: {
-          '_device_id': _deviceId,
-          '_push_token': token,
-          '_platform': platform,
-          '_app_version': appVersion,
-        },
+      await _tokenApi.upsertToken(
+        deviceId: _deviceId!,
+        token: token,
+        platform: platform,
+        appVersion: appVersion,
       );
 
       debugPrint('✅ RPC call succeeded');
@@ -422,11 +446,7 @@ class PushNotificationService {
       // Verify the insert worked by querying the database
       debugPrint('🔍 Verifying token in database...');
       try {
-        final checkResult = await _client
-            .from('user_devices')
-            .select('device_id, platform, push_token')
-            .eq('device_id', _deviceId!)
-            .maybeSingle();
+        final checkResult = await _tokenApi.fetchDevice(_deviceId!);
 
         debugPrint('🔍 Query result: $checkResult');
 
@@ -454,7 +474,7 @@ class PushNotificationService {
 
   /// Get or create a unique device ID
   Future<String> _getOrCreateDeviceId() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _sharedPreferencesLoader();
     const key = 'device_id';
 
     var deviceId = prefs.getString(key);
@@ -517,12 +537,7 @@ class PushNotificationService {
     }
 
     try {
-      // Delete the device record for this user
-      await _client
-          .from('user_devices')
-          .delete()
-          .eq('device_id', _deviceId!)
-          .eq('user_id', _client.auth.currentUser?.id ?? '');
+      await _tokenApi.removeDevice(_deviceId!, userId: _auth.currentUser?.id);
 
       _logger.info('Token removed from backend');
     } catch (e) {
@@ -534,4 +549,118 @@ class PushNotificationService {
   void dispose() {
     _tokenRefreshSubscription?.cancel();
   }
+
+  @visibleForTesting
+  void debugSetOverrides({
+    String? deviceId,
+    bool? isPhysicalDevice,
+    PushMessagingClient? messagingClient,
+  }) {
+    _deviceId = deviceId ?? _deviceId;
+    _isPhysicalDevice = isPhysicalDevice ?? _isPhysicalDevice;
+    if (messagingClient != null) {
+      _messaging = messagingClient;
+    }
+  }
+}
+
+/// Lightweight adapter so we can mock FirebaseMessaging in tests.
+abstract class PushMessagingClient {
+  Future<NotificationSettings> requestPermission();
+  Future<NotificationSettings> getNotificationSettings();
+  Future<String?> getToken();
+  Future<String?> getAPNSToken();
+  Stream<String> get onTokenRefresh;
+}
+
+class FirebasePushMessagingClient implements PushMessagingClient {
+  FirebasePushMessagingClient(this._delegate);
+  final FirebaseMessaging _delegate;
+
+  @override
+  Future<String?> getAPNSToken() => _delegate.getAPNSToken();
+
+  @override
+  Future<NotificationSettings> getNotificationSettings() =>
+      _delegate.getNotificationSettings();
+
+  @override
+  Future<String?> getToken() => _delegate.getToken();
+
+  @override
+  Stream<String> get onTokenRefresh => _delegate.onTokenRefresh;
+
+  @override
+  Future<NotificationSettings> requestPermission() =>
+      _delegate.requestPermission();
+}
+
+abstract class PushTokenApi {
+  Future<void> upsertToken({
+    required String deviceId,
+    required String token,
+    required String platform,
+    required String appVersion,
+  });
+
+  Future<Map<String, dynamic>?> fetchDevice(String deviceId);
+
+  Future<void> removeDevice(String deviceId, {required String? userId});
+}
+
+class SupabasePushTokenApi implements PushTokenApi {
+  SupabasePushTokenApi(this._client);
+  final SupabaseClient _client;
+
+  @override
+  Future<Map<String, dynamic>?> fetchDevice(String deviceId) {
+    return _client
+        .from('user_devices')
+        .select('device_id, platform, push_token')
+        .eq('device_id', deviceId)
+        .maybeSingle();
+  }
+
+  @override
+  Future<void> removeDevice(String deviceId, {required String? userId}) {
+    return _client
+        .from('user_devices')
+        .delete()
+        .eq('device_id', deviceId)
+        .eq('user_id', userId ?? '');
+  }
+
+  @override
+  Future<void> upsertToken({
+    required String deviceId,
+    required String token,
+    required String platform,
+    required String appVersion,
+  }) {
+    return _client.rpc<void>(
+      'user_devices_upsert',
+      params: {
+        '_device_id': deviceId,
+        '_push_token': token,
+        '_platform': platform,
+        '_app_version': appVersion,
+      },
+    );
+  }
+}
+
+abstract class AuthAdapter {
+  User? get currentUser;
+  Session? get currentSession;
+}
+
+class SupabaseAuthAdapter implements AuthAdapter {
+  SupabaseAuthAdapter(this._client);
+  final SupabaseClient _client;
+
+  @override
+  User? get currentUser => _client.auth.currentUser;
+
+  @override
+  Session? get currentSession => _client.auth.currentSession;
 }

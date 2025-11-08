@@ -10,9 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - Local: Fast access for UI rendering
 /// - Remote: Server-side operations (push notifications, email processing)
 class LocaleNotifier extends StateNotifier<Locale?> {
-  LocaleNotifier(this._preferencesService) : super(null) {
-    _loadLocale();
-  }
+  LocaleNotifier(this._preferencesService) : super(null);
 
   final UserPreferencesService _preferencesService;
 
@@ -25,7 +23,8 @@ class LocaleNotifier extends StateNotifier<Locale?> {
   ];
 
   /// Load locale from SharedPreferences
-  Future<void> _loadLocale() async {
+  /// CRITICAL: Called after first frame to avoid blocking during widget build
+  Future<void> loadLocale() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final localeCode = prefs.getString(_localeKey);

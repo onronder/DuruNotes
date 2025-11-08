@@ -47,6 +47,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   void initState() {
     super.initState();
+    debugPrint('[AuthScreen] initState');
 
     // PRODUCTION FIX: Initialize logger early to avoid ref access after dispose
     _logger = ref.read(loggerProvider);
@@ -71,9 +72,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
         );
 
-    // Start animations
-    _fadeController.forward();
-    _slideController.forward();
+    // PRODUCTION FIX: Defer animation start to post-frame callback
+    // Starting animations in initState() can cause deadlock when main thread is blocked
+    // by platform channel calls. By deferring to post-frame, we ensure the first frame
+    // renders successfully before animation tickers start advancing.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _fadeController.forward();
+        _slideController.forward();
+      }
+    });
   }
 
   @override
@@ -266,6 +274,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[AuthScreen] build');
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 

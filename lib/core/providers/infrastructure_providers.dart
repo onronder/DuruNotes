@@ -1,6 +1,11 @@
-import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart';
+import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart'
+    show
+        bootstrapLoggerProvider,
+        bootstrapAnalyticsProvider,
+        environmentConfigProvider;
 import 'package:duru_notes/core/migration/migration_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/adapty/adapty_service.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -43,4 +48,14 @@ final migrationStatusProvider = Provider<Map<String, dynamic>>((ref) {
     'isValid': config.isValid,
     'version': config.version,
   };
+});
+
+/// Adapty service provider - handles deferred Adapty initialization
+/// CRITICAL: Adapty must be initialized AFTER first frame to prevent main thread blocking
+final adaptyServiceProvider = Provider<AdaptyService>((ref) {
+  return AdaptyService(
+    environment: ref.watch(environmentConfigProvider),
+    logger: ref.watch(loggerProvider),
+    analytics: ref.watch(analyticsProvider),
+  );
 });

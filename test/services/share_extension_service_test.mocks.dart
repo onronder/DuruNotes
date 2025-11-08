@@ -181,6 +181,35 @@ class MockNotesCoreRepository extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<void> restoreNote(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#restoreNote, [id]),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> permanentlyDeleteNote(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#permanentlyDeleteNote, [id]),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<List<_i7.Note>> getDeletedNotes() =>
+      (super.noSuchMethod(
+            Invocation.method(#getDeletedNotes, []),
+            returnValue: _i6.Future<List<_i7.Note>>.value(<_i7.Note>[]),
+            returnValueForMissingStub: _i6.Future<List<_i7.Note>>.value(
+              <_i7.Note>[],
+            ),
+          )
+          as _i6.Future<List<_i7.Note>>);
+
+  @override
   _i6.Future<List<_i7.Note>> localNotesForSync() =>
       (super.noSuchMethod(
             Invocation.method(#localNotesForSync, []),

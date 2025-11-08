@@ -9,16 +9,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - Local: Fast access for UI rendering
 /// - Remote: Future features (web dashboard, email reports matching theme)
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier(this._preferencesService) : super(ThemeMode.system) {
-    _loadThemeMode();
-  }
+  ThemeModeNotifier(this._preferencesService) : super(ThemeMode.system);
 
   final UserPreferencesService _preferencesService;
 
   static const String _themeModeKey = 'theme_mode';
 
   /// Load theme mode from SharedPreferences
-  Future<void> _loadThemeMode() async {
+  /// CRITICAL: Called after first frame to avoid blocking during widget build
+  Future<void> loadThemeMode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final modeString = prefs.getString(_themeModeKey);

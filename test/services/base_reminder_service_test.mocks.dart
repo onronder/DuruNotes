@@ -1533,9 +1533,14 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   _i5.Future<List<_i3.NoteTask>> getTasksForNote(
     String? noteId, {
     required String? userId,
+    bool? includeDeleted = false,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#getTasksForNote, [noteId], {#userId: userId}),
+            Invocation.method(
+              #getTasksForNote,
+              [noteId],
+              {#userId: userId, #includeDeleted: includeDeleted},
+            ),
             returnValue: _i5.Future<List<_i3.NoteTask>>.value(<_i3.NoteTask>[]),
             returnValueForMissingStub: _i5.Future<List<_i3.NoteTask>>.value(
               <_i3.NoteTask>[],
@@ -1876,6 +1881,21 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
   _i5.Future<List<_i3.LocalFolder>> getChildFolders(String? parentId) =>
       (super.noSuchMethod(
             Invocation.method(#getChildFolders, [parentId]),
+            returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
+              <_i3.LocalFolder>[],
+            ),
+            returnValueForMissingStub: _i5.Future<List<_i3.LocalFolder>>.value(
+              <_i3.LocalFolder>[],
+            ),
+          )
+          as _i5.Future<List<_i3.LocalFolder>>);
+
+  @override
+  _i5.Future<List<_i3.LocalFolder>> getChildFoldersIncludingDeleted(
+    String? parentId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getChildFoldersIncludingDeleted, [parentId]),
             returnValue: _i5.Future<List<_i3.LocalFolder>>.value(
               <_i3.LocalFolder>[],
             ),

@@ -9,6 +9,8 @@ class Task {
   final DateTime? completedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
+  final DateTime? scheduledPurgeAt;
   final List<String> tags;
   final Map<String, dynamic> metadata;
 
@@ -23,6 +25,8 @@ class Task {
     this.completedAt,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
+    this.scheduledPurgeAt,
     required this.tags,
     required this.metadata,
   });
@@ -38,6 +42,8 @@ class Task {
     DateTime? completedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? deletedAt,
+    DateTime? scheduledPurgeAt,
     List<String>? tags,
     Map<String, dynamic>? metadata,
   }) {
@@ -52,6 +58,8 @@ class Task {
       completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduledPurgeAt: scheduledPurgeAt ?? this.scheduledPurgeAt,
       tags: tags ?? this.tags,
       metadata: metadata ?? this.metadata,
     );

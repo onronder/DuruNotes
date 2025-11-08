@@ -353,6 +353,15 @@ class _InMemoryTaskRepository implements ITaskRepository {
         (t) => t.metadata['parentTaskId'] == true && t.noteId == parentTaskId,
       )
       .toList();
+
+  @override
+  Future<List<domain.Task>> getDeletedTasks() async => const [];
+
+  @override
+  Future<void> restoreTask(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteTask(String id) async {}
 }
 
 domain.Task _makeTask(String id, domain.TaskStatus status) {

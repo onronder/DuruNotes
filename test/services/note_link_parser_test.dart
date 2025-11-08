@@ -150,6 +150,9 @@ class InMemoryNotesRepository implements INotesRepository {
   Future<void> deleteNote(String id) => throw UnimplementedError();
 
   @override
+  Future<void> restoreNote(String id) => throw UnimplementedError();
+
+  @override
   Future<DateTime?> getLastSyncTime() => throw UnimplementedError();
 
   @override
@@ -215,6 +218,12 @@ class InMemoryNotesRepository implements INotesRepository {
     List<String>? noneTags,
     bool pinnedFirst = true,
   }) => const Stream.empty();
+
+  @override
+  Future<void> permanentlyDeleteNote(String id) async {}
+
+  @override
+  Future<List<Note>> getDeletedNotes() async => [];
 }
 
 class _NoOpLogger implements AppLogger {

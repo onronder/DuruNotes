@@ -223,6 +223,23 @@ class MockINotesRepository extends _i1.Mock implements _i4.INotesRepository {
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> permanentlyDeleteNote(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#permanentlyDeleteNote, [id]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<_i5.Note>> getDeletedNotes() =>
+      (super.noSuchMethod(
+            Invocation.method(#getDeletedNotes, []),
+            returnValue: _i3.Future<List<_i5.Note>>.value(<_i5.Note>[]),
+          )
+          as _i3.Future<List<_i5.Note>>);
+
+  @override
   _i3.Future<List<_i5.Note>> localNotesForSync() =>
       (super.noSuchMethod(
             Invocation.method(#localNotesForSync, []),

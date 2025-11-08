@@ -309,6 +309,9 @@ class InMemoryNotesRepository implements INotesRepository {
   Future<void> deleteNote(String id) => throw UnimplementedError();
 
   @override
+  Future<void> restoreNote(String id) => throw UnimplementedError();
+
+  @override
   Future<DateTime?> getLastSyncTime() => throw UnimplementedError();
 
   @override
@@ -386,6 +389,12 @@ class InMemoryNotesRepository implements INotesRepository {
     List<String>? noneTags,
     bool pinnedFirst = true,
   }) => const Stream.empty();
+
+  @override
+  Future<void> permanentlyDeleteNote(String id) async {}
+
+  @override
+  Future<List<Note>> getDeletedNotes() async => [];
 }
 
 class InMemoryTaskRepository implements ITaskRepository {
@@ -499,6 +508,15 @@ class InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Stream<List<Task>> watchTasksForNote(String noteId) => const Stream.empty();
+
+  @override
+  Future<List<Task>> getDeletedTasks() async => const [];
+
+  @override
+  Future<void> restoreTask(String id) async {}
+
+  @override
+  Future<void> permanentlyDeleteTask(String id) async {}
 }
 
 class InMemoryFolderRepository implements IFolderRepository {
@@ -531,6 +549,15 @@ class InMemoryFolderRepository implements IFolderRepository {
     String? icon,
     String? description,
   }) => throw UnimplementedError();
+
+  @override
+  Future<List<Folder>> getDeletedFolders() async => const [];
+
+  @override
+  Future<void> restoreFolder(String folderId, {bool restoreContents = false}) async {}
+
+  @override
+  Future<void> permanentlyDeleteFolder(String folderId) async {}
 
   @override
   Future<String> createOrUpdateFolder({

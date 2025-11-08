@@ -65,9 +65,12 @@ class ServiceAdapter {
         'is_pinned': note.isPinned,
         'version': note.version,
         'tags': note.tags,
+        'created_at': note.createdAt.toIso8601String(),
         'updated_at': note.updatedAt.toIso8601String(),
         'user_id': note.userId,
         'deleted': note.deleted,
+        'deleted_at': note.deletedAt?.toIso8601String(),
+        'scheduled_purge_at': note.scheduledPurgeAt?.toIso8601String(),
         'note_type': note.noteType.index,
       };
     } else if (note is LocalNote) {
@@ -88,7 +91,8 @@ class ServiceAdapter {
       final labels = _buildTaskLabels(task.tags);
       final position = _readInt(task.metadata['position']) ?? 0;
       final parentTaskId = task.metadata['parentTaskId'] as String?;
-      final deleted = _readBool(task.metadata['deleted']) ?? false;
+      final deleted =
+          task.deletedAt != null || (_readBool(task.metadata['deleted']) ?? false);
 
       // Get user ID for encryption
       final userId = client.auth.currentUser?.id;
@@ -169,6 +173,8 @@ class ServiceAdapter {
         'created_at': task.createdAt.toIso8601String(),
         'updated_at': task.updatedAt.toIso8601String(),
         'deleted': deleted,
+        'deleted_at': task.deletedAt?.toIso8601String(),
+        'scheduled_purge_at': task.scheduledPurgeAt?.toIso8601String(),
       };
     } else if (task is NoteTask) {
       throw UnsupportedError('NoteTask sync requires domain models');
@@ -189,6 +195,9 @@ class ServiceAdapter {
         'sort_order': folder.sortOrder,
         'created_at': folder.createdAt.toIso8601String(),
         'updated_at': folder.updatedAt.toIso8601String(),
+        'deleted': folder.deletedAt != null,
+        'deleted_at': folder.deletedAt?.toIso8601String(),
+        'scheduled_purge_at': folder.scheduledPurgeAt?.toIso8601String(),
       };
     } else if (folder is LocalFolder) {
       return {
@@ -201,6 +210,9 @@ class ServiceAdapter {
         'sort_order': folder.sortOrder,
         'created_at': folder.createdAt.toIso8601String(),
         'updated_at': folder.updatedAt.toIso8601String(),
+        'deleted': folder.deleted,
+        'deleted_at': folder.deletedAt?.toIso8601String(),
+        'scheduled_purge_at': folder.scheduledPurgeAt?.toIso8601String(),
       };
     }
     throw ArgumentError('Unknown folder type: ${folder.runtimeType}');
@@ -225,7 +237,14 @@ class ServiceAdapter {
             : DateTime.now().toUtc(),
         updatedAt: DateTime.parse(data['updated_at'] as String),
         userId: (data['user_id'] ?? '') as String,
-        deleted: (data['deleted'] ?? false) as bool,
+        deleted: ((data['deleted'] ?? false) as bool) ||
+            data['deleted_at'] != null,
+        deletedAt: data['deleted_at'] != null
+            ? DateTime.parse(data['deleted_at'] as String)
+            : null,
+        scheduledPurgeAt: data['scheduled_purge_at'] != null
+            ? DateTime.parse(data['scheduled_purge_at'] as String)
+            : null,
         noteType: data['note_type'] != null
             ? NoteKind.values[data['note_type'] as int]
             : NoteKind.note,
@@ -343,15 +362,18 @@ class ServiceAdapter {
       }
 
       // Populate metadata with additional fields
-      metadata
-        ..putIfAbsent('position', () => data['position'])
-        ..putIfAbsent('parentTaskId', () => data['parent_id'])
-        ..putIfAbsent('deleted', () => data['deleted'])
-        ..putIfAbsent(
-          'userId',
-          () => (data['user_id'] as String?) ?? userId ?? '',
-        )
-        ..removeWhere((key, value) => value == null);
+      metadata['position'] ??= data['position'];
+      metadata['parentTaskId'] ??= data['parent_id'];
+      final deletedFlag = _readBool(data['deleted']) ?? false;
+      metadata['deleted'] = deletedFlag || data['deleted_at'] != null;
+      if (data['deleted_at'] != null) {
+        metadata['deletedAt'] = data['deleted_at'];
+      }
+      if (data['scheduled_purge_at'] != null) {
+        metadata['scheduledPurgeAt'] = data['scheduled_purge_at'];
+      }
+      metadata['userId'] ??= (data['user_id'] as String?) ?? userId ?? '';
+      metadata.removeWhere((key, value) => value == null);
 
       // Extract description and tags if not already decrypted
       description ??= _extractDescription(metadata, data['notes']);
@@ -373,6 +395,12 @@ class ServiceAdapter {
             : null,
         createdAt: _parseTimestamp(data['created_at']),
         updatedAt: _parseTimestamp(data['updated_at']),
+        deletedAt: data['deleted_at'] != null
+            ? DateTime.parse(data['deleted_at'] as String)
+            : null,
+        scheduledPurgeAt: data['scheduled_purge_at'] != null
+            ? DateTime.parse(data['scheduled_purge_at'] as String)
+            : null,
         tags: tags ?? const <String>[],
         metadata: metadata,
       );
@@ -398,6 +426,12 @@ class ServiceAdapter {
         sortOrder: (data['sort_order'] ?? 0) as int,
         createdAt: DateTime.parse(data['created_at'] as String),
         updatedAt: DateTime.parse(data['updated_at'] as String),
+        deletedAt: data['deleted_at'] != null
+            ? DateTime.parse(data['deleted_at'] as String)
+            : null,
+        scheduledPurgeAt: data['scheduled_purge_at'] != null
+            ? DateTime.parse(data['scheduled_purge_at'] as String)
+            : null,
         userId: (data['user_id'] ?? '') as String,
       );
     } else {
@@ -462,6 +496,13 @@ class ServiceAdapter {
     final metadata = Map<String, dynamic>.from(task.metadata);
     if (task.description != null && task.description!.isNotEmpty) {
       metadata['description'] = task.description;
+    }
+    metadata['deleted'] = task.deletedAt != null;
+    if (task.deletedAt != null) {
+      metadata['deletedAt'] = task.deletedAt!.toIso8601String();
+    }
+    if (task.scheduledPurgeAt != null) {
+      metadata['scheduledPurgeAt'] = task.scheduledPurgeAt!.toIso8601String();
     }
     metadata.removeWhere((_, value) => value == null);
     return metadata;

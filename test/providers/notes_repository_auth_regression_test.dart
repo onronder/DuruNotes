@@ -137,6 +137,15 @@ class _FakeFolderRepository implements IFolderRepository {
 
   @override
   Future<List<domain_folder.Folder>> listFolders() async => const [];
+
+  @override
+  Future<List<domain_folder.Folder>> getDeletedFolders() async => const [];
+
+  @override
+  Future<void> restoreFolder(String folderId, {bool restoreContents = false}) async {}
+
+  @override
+  Future<void> permanentlyDeleteFolder(String folderId) async {}
 }
 
 class _StubGoTrueClient extends GoTrueClient {

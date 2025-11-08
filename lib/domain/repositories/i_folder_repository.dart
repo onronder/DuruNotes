@@ -41,6 +41,16 @@ abstract class IFolderRepository {
   /// Delete a folder
   Future<void> deleteFolder(String folderId);
 
+  /// Get all soft-deleted folders for Trash view (Phase 1.1)
+  Future<List<Folder>> getDeletedFolders();
+
+  /// Restore a soft-deleted folder from trash (Phase 1.1)
+  Future<void> restoreFolder(String folderId, {bool restoreContents = false});
+
+  /// Permanently delete a folder (hard delete, cannot be undone)
+  /// This removes the folder from the database entirely
+  Future<void> permanentlyDeleteFolder(String folderId);
+
   /// Get notes in a folder
   Future<List<Note>> getNotesInFolder(String folderId);
 

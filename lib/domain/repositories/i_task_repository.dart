@@ -23,6 +23,16 @@ abstract class ITaskRepository {
   /// Delete a task
   Future<void> deleteTask(String id);
 
+  /// Get all soft-deleted tasks for Trash view (Phase 1.1)
+  Future<List<Task>> getDeletedTasks();
+
+  /// Restore a soft-deleted task from trash (Phase 1.1)
+  Future<void> restoreTask(String id);
+
+  /// Permanently delete a task (hard delete, cannot be undone)
+  /// This removes the task from the database entirely
+  Future<void> permanentlyDeleteTask(String id);
+
   /// Complete a task
   Future<void> completeTask(String id);
 

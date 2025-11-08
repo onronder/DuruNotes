@@ -1157,49 +1157,53 @@ class UnifiedSyncService {
               '[DecryptDebug] note=$noteId titleType=${rawTitle.runtimeType} titleSummary=${_cipherDebugSummary(titleEnc)} propsType=${rawProps.runtimeType} propsSummary=${_cipherDebugSummary(propsEnc)}',
             );
 
-            // Decrypt title using CryptoBox (same as existing working code)
+            // Decrypt title using CryptoBox
+            // Try new string format first, fall back to legacy JSON format
             String title;
             try {
-              final titleJson = await _cryptoBox!.decryptJsonForNote(
+              title = await _cryptoBox!.decryptStringForNote(
                 userId: userId,
                 noteId: noteId,
                 data: titleEnc,
               );
-              title = titleJson['title'] as String? ?? '';
-            } catch (e) {
-              final summary = _cipherDebugSummary(titleEnc);
-              _logger.warning(
-                'Title decrypt failed; attempting fallback',
-                data: {
-                  'noteId': noteId,
-                  'cipherSummary': summary,
-                  'cipherLength': titleEnc.length,
-                  'error': e.toString(),
-                },
-              );
-              debugPrint(
-                '[DecryptDebug] note=$noteId title primary decrypt failed summary=$summary error=$e',
-              );
-              // Fallback: try as plain string
+            } on FormatException catch (_) {
+              // Legacy format: try decrypting as JSON wrapper
               try {
-                title = await _cryptoBox!.decryptStringForNote(
+                final titleJson = await _cryptoBox!.decryptJsonForNote(
                   userId: userId,
                   noteId: noteId,
                   data: titleEnc,
                 );
+                title = titleJson['title'] as String? ?? '';
               } catch (fallbackError, fallbackStack) {
+                final summary = _cipherDebugSummary(titleEnc);
                 _logger.error(
-                  'Failed to decrypt note title with fallback',
+                  'Failed to decrypt note title (both string and JSON formats)',
                   error: fallbackError,
                   stackTrace: fallbackStack,
-                  data: {'noteId': noteId, 'cipherSummary': summary},
-                );
-                debugPrint(
-                  '[DecryptDebug] note=$noteId title fallback decrypt failed summary=$summary error=$fallbackError',
+                  data: {
+                    'noteId': noteId,
+                    'cipherSummary': summary,
+                    'cipherLength': titleEnc.length,
+                  },
                 );
                 title = 'Untitled (Decryption Failed)';
                 decryptionErrors++;
               }
+            } catch (e, stack) {
+              final summary = _cipherDebugSummary(titleEnc);
+              _logger.error(
+                'Failed to decrypt note title',
+                error: e,
+                stackTrace: stack,
+                data: {
+                  'noteId': noteId,
+                  'cipherSummary': summary,
+                  'cipherLength': titleEnc.length,
+                },
+              );
+              title = 'Untitled (Decryption Failed)';
+              decryptionErrors++;
             }
 
             // Decrypt props using CryptoBox

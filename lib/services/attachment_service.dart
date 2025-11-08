@@ -54,8 +54,15 @@ class AttachmentSizeException extends AttachmentException {
   final int maxSize;
 }
 
+abstract class AttachmentUploader {
+  Future<AttachmentBlockData?> uploadFromBytes({
+    required Uint8List bytes,
+    required String filename,
+  });
+}
+
 /// Attachment service for handling file uploads and downloads
-class AttachmentService {
+class AttachmentService implements AttachmentUploader {
   AttachmentService(this._ref, {SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
 
@@ -97,6 +104,7 @@ class AttachmentService {
   }
 
   /// Upload file from bytes
+  @override
   Future<AttachmentBlockData?> uploadFromBytes({
     required Uint8List bytes,
     required String filename,

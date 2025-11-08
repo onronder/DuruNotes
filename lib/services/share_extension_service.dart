@@ -2,30 +2,28 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
+import 'package:duru_notes/domain/repositories/i_notes_repository.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/services/attachment_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
-
-// Legacy type alias for backward compatibility
-typedef NotesRepository = NotesCoreRepository;
 
 /// Service for handling shared content from iOS Share Extension and Android intents
 class ShareExtensionService {
   // static const String _appGroupId = 'group.com.fittechs.durunotes';  // Reserved for iOS app group sharing
 
   ShareExtensionService({
-    required NotesRepository notesRepository,
-    required AttachmentService attachmentService,
+    required INotesRepository notesRepository,
+    required AttachmentUploader attachmentService,
     required AppLogger logger,
     required AnalyticsService analytics,
   }) : _notesRepository = notesRepository,
        _attachmentService = attachmentService,
        _logger = logger,
        _analytics = analytics;
-  final NotesRepository _notesRepository;
-  final AttachmentService _attachmentService;
+  final INotesRepository _notesRepository;
+  final AttachmentUploader _attachmentService;
   final AppLogger _logger;
   final AnalyticsService _analytics;
 
@@ -68,6 +66,11 @@ class ShareExtensionService {
 
   /// Initialize Android sharing intent handling
   void _initializeAndroidSharing() {
+    // Only initialize Android sharing on Android platform
+    if (!Platform.isAndroid) {
+      return;
+    }
+
     // Listen for incoming media (files, images, text, etc.)
     ReceiveSharingIntent.instance.getMediaStream().listen(
       (files) {
@@ -447,13 +450,14 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
         if (tags.isNotEmpty) 'tags': tags.map((t) => t.substring(1)).toList(),
       };
 
-      final noteId = await _notesRepository.createOrUpdate(
+      final note = await _notesRepository.createOrUpdate(
         title: title,
         body: bodyWithTags,
         tags: tagSet
             .toList(), // PRODUCTION FIX: Pass tags to be stored in note_tags table
         metadataJson: metadata,
       );
+      final noteId = note?.id ?? 'unknown';
 
       _analytics.event(
         'share_extension.note_created',
@@ -474,6 +478,11 @@ ${content != url ? '\n**Additional Content**:\n$content' : ''}
       _logger.error('Failed to create note from shared content', error: e);
       rethrow;
     }
+  }
+
+  @visibleForTesting
+  Future<void> processSharedItemsForTesting(List<Map<String, dynamic>> items) {
+    return _processSharedItems(items);
   }
 
   /// Generate a meaningful title from text content

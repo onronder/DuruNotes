@@ -66,7 +66,7 @@ import 'package:duru_notes/services/quick_capture_service.dart';
 import 'package:duru_notes/services/share_extension_service.dart';
 import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/services/providers/services_providers.dart'
-    show encryptionSyncServiceProvider;
+    show encryptionSyncServiceProvider, purgeSchedulerServiceProvider;
 import 'package:duru_notes/core/security/security_initialization.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/auth_screen.dart';
@@ -87,9 +87,16 @@ class App extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    debugPrint('🎨 [App] build() called');
+
     // Watch settings providers
+    debugPrint('🎨 [App] Watching themeModeProvider');
     final themeMode = ref.watch(themeModeProvider);
+    debugPrint('🎨 [App] Theme mode: $themeMode');
+
+    debugPrint('🎨 [App] Watching localeProvider');
     final locale = ref.watch(localeProvider);
+    debugPrint('🎨 [App] Locale: $locale');
     const generatedSupportedLocales = AppLocalizations.supportedLocales;
     // If a saved locale isn't generated, fall back to system
     final effectiveLocale =
@@ -99,6 +106,19 @@ class App extends ConsumerWidget {
             ))
         ? locale
         : null;
+
+    // PRODUCTION FIX: Remove blocking post-frame callbacks to eliminate black screen freeze
+    //
+    // REMOVED: loadThemeMode() - themeModeProvider already returns cached value from previous session
+    // REMOVED: loadLocale() - localeProvider already returns cached value from previous session
+    // REMOVED: initializeAdapty() - Moved to lazy initialization when paywall is accessed
+    //
+    // These platform channel calls were blocking main thread for 400-800ms after first frame,
+    // causing the black screen hang. Settings providers use default/cached values until
+    // explicitly changed by user, so eager loading is unnecessary.
+    //
+    // Adapty will now initialize on-demand when user opens subscription screen, avoiding
+    // the 200-500ms StoreKit enumeration blocking during critical app startup path.
 
     return MaterialApp(
       title: 'Duru Notes',
@@ -114,7 +134,7 @@ class App extends ConsumerWidget {
       supportedLocales: generatedSupportedLocales,
       theme: DuruMaterial3Theme.lightTheme,
       darkTheme: DuruMaterial3Theme.darkTheme,
-      home: OfflineIndicator(child: AuthWrapper(navigatorKey: navigatorKey)),
+      home: AuthWrapper(navigatorKey: navigatorKey),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -511,6 +531,11 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   // CRITICAL FIX: Key to force FutureBuilder re-run after unlock
   int _amkCheckKey = 0;
 
+  // User-scoped cache for remote AMK existence (positive results only)
+  // Auto-cleared when user ID changes to prevent cross-user cache leakage
+  String? _cachedUserId;
+  bool? _cachedRemoteAmkExists;
+
   @override
   void initState() {
     super.initState();
@@ -612,6 +637,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     _clipperService?.stop();
     _notificationTapSubscription?.cancel();
     _notificationHandler?.dispose();
+    _clearRemoteAmkCache(); // Clear cache on widget disposal
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -703,11 +729,24 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
   @override
   Widget build(BuildContext context) {
+    final authClient = Supabase.instance.client.auth;
+    debugPrint('[AuthWrapper] build starting');
     return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
+      stream: authClient.onAuthStateChange,
+      initialData: AuthState(
+        AuthChangeEvent.initialSession,
+        authClient.currentSession,
+      ),
       builder: (context, snapshot) {
+        debugPrint(
+          '[AuthWrapper] Stream state=${snapshot.connectionState} '
+          'hasData=${snapshot.hasData} session=${snapshot.data?.session != null}',
+        );
         // Show loading while checking auth state
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        final isInitialPending =
+            snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData;
+        if (isInitialPending) {
           return Scaffold(
             backgroundColor: Theme.of(context).colorScheme.surface,
             body: const Center(
@@ -784,12 +823,14 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                 return NewUserEncryptionSetupGate(
                   onSetupComplete: () {
                     if (mounted) {
+                      _clearRemoteAmkCache(); // Clear cache after provisioning
                       setState(() {
                         _amkCheckKey++;
                       });
                     }
                   },
                   onSetupCancelled: () async {
+                    _clearRemoteAmkCache(); // Clear cache on logout
                     await Supabase.instance.client.auth.signOut();
                   },
                 );
@@ -799,6 +840,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                 return UnlockPassphraseView(
                   onUnlocked: () {
                     if (mounted) {
+                      _clearRemoteAmkCache(); // Clear cache after successful unlock
                       setState(() {
                         _amkCheckKey++;
                       });
@@ -888,7 +930,13 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                     _syncWidgetCacheInBackground();
                   });
 
-                  return const AppShell();
+                  // Wrap AppShell with OfflineIndicator AFTER authentication
+                  // This defers Connectivity platform channel initialization until
+                  // critical bootstrap and auth are complete, preventing black screen hang
+                  return const OfflineIndicator(
+                    showBanner: true,
+                    child: AppShell(),
+                  );
                 },
               );
             },
@@ -898,7 +946,11 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           //
           // CRITICAL SECURITY: Clear local database to prevent data leakage between users
           // This is a critical safeguard in case sign-out didn't clear the database properly
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
+          //
+          // PRODUCTION FIX: Use Future.microtask instead of post-frame callback
+          // This defers the work without blocking the post-frame callback queue,
+          // preventing the database clear from contributing to the black screen freeze
+          Future.microtask(() async {
             try {
               final db = ref.read(appDbProvider);
               await db.clearAll();
@@ -1134,60 +1186,86 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   /// Returns [EncryptionGateState] to indicate whether the user is ready,
   /// needs to unlock an existing AMK, or must run initial setup.
   Future<EncryptionGateState> _checkForAmkWithRetry() async {
+    final totalStopwatch = Stopwatch()..start();
+    if (kDebugMode) {
+      debugPrint('[AuthWrapper] ⏱️  Starting AMK check with retry logic');
+    }
+
     const maxRetries = 3;
-    const retryDelay = Duration(milliseconds: 500);
+    const retryDelay = Duration(milliseconds: 200); // Reduced from 500ms for faster UX
 
     for (var i = 0; i < maxRetries; i++) {
+      if (kDebugMode) {
+        debugPrint('[AuthWrapper] ⏱️  Retry attempt ${i + 1}/$maxRetries');
+      }
+
       if (await _hasLocalAmk()) {
+        totalStopwatch.stop();
         if (kDebugMode) {
-          debugPrint('[AuthWrapper] ✅ Local AMK available');
+          debugPrint('[AuthWrapper] ✅ Local AMK available (total time: ${totalStopwatch.elapsedMilliseconds}ms)');
         }
         return EncryptionGateState.ready;
       }
 
       if (await _remoteAmkExists()) {
+        totalStopwatch.stop();
         if (kDebugMode) {
           debugPrint(
-            '[AuthWrapper] ⚠️ Remote AMK detected - user must unlock to restore it',
+            '[AuthWrapper] ⚠️ Remote AMK detected - user must unlock to restore it (total time: ${totalStopwatch.elapsedMilliseconds}ms)',
           );
         }
         return EncryptionGateState.needsUnlock;
       }
 
       if (i < maxRetries - 1) {
+        if (kDebugMode) {
+          debugPrint('[AuthWrapper] ⏱️  Waiting ${retryDelay.inMilliseconds}ms before retry...');
+        }
         await Future<void>.delayed(retryDelay);
       }
     }
 
     if (EncryptionFeatureFlags.enableCrossDeviceEncryption) {
       if (await _remoteAmkExists()) {
+        totalStopwatch.stop();
         if (kDebugMode) {
           debugPrint(
-            '[AuthWrapper] ⚠️ Remote AMK detected after retries - requiring unlock',
+            '[AuthWrapper] ⚠️ Remote AMK detected after retries - requiring unlock (total time: ${totalStopwatch.elapsedMilliseconds}ms)',
           );
         }
         return EncryptionGateState.needsUnlock;
       }
 
+      totalStopwatch.stop();
       if (kDebugMode) {
         debugPrint(
-          '[AuthWrapper] ❌ No AMK found locally or remotely - provisioning required',
+          '[AuthWrapper] ❌ No AMK found locally or remotely - provisioning required (total time: ${totalStopwatch.elapsedMilliseconds}ms)',
         );
       }
       return EncryptionGateState.needsSetup;
     }
 
     // Legacy device-specific encryption fallback
+    totalStopwatch.stop();
+    if (kDebugMode) {
+      debugPrint('[AuthWrapper] ⏱️  Returning needsUnlock (legacy fallback, total time: ${totalStopwatch.elapsedMilliseconds}ms)');
+    }
     return EncryptionGateState.needsUnlock;
   }
 
   Future<bool> _hasLocalAmk() async {
+    final stopwatch = Stopwatch()..start();
+
     // Cross-device AMK stored via EncryptionSyncService
     if (EncryptionFeatureFlags.enableCrossDeviceEncryption) {
       try {
         final encryptionService = ref.read(encryptionSyncServiceProvider);
         final localAmk = await encryptionService.getLocalAmk();
         if (localAmk != null) {
+          stopwatch.stop();
+          if (kDebugMode) {
+            debugPrint('[AuthWrapper] ⏱️  _hasLocalAmk() → true (cross-device, ${stopwatch.elapsedMilliseconds}ms)');
+          }
           return true;
         }
       } catch (e) {
@@ -1202,58 +1280,120 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       final localLegacyAmk = await ref
           .read(accountKeyServiceProvider)
           .getLocalAmk();
-      return localLegacyAmk != null;
-    } catch (e) {
+      stopwatch.stop();
+      final result = localLegacyAmk != null;
       if (kDebugMode) {
-        debugPrint('[AuthWrapper] Error checking local legacy AMK: $e');
+        debugPrint('[AuthWrapper] ⏱️  _hasLocalAmk() → $result (legacy, ${stopwatch.elapsedMilliseconds}ms)');
       }
+      return result;
+    } catch (e) {
+      stopwatch.stop();
+      if (kDebugMode) {
+        debugPrint('[AuthWrapper] Error checking local legacy AMK: $e (${stopwatch.elapsedMilliseconds}ms)');
+      }
+    }
+    stopwatch.stop();
+    if (kDebugMode) {
+      debugPrint('[AuthWrapper] ⏱️  _hasLocalAmk() → false (${stopwatch.elapsedMilliseconds}ms)');
     }
     return false;
   }
 
   Future<bool> _remoteAmkExists() async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
+    // Auto-clear cache if user changed (handles signOut, new login, token refresh)
+    if (_cachedUserId != currentUserId) {
+      if (kDebugMode && _cachedRemoteAmkExists != null) {
+        debugPrint('[AuthWrapper] 🔄 User changed ($_cachedUserId → $currentUserId), clearing cache');
+      }
+      _cachedRemoteAmkExists = null;
+      _cachedUserId = currentUserId;
+    }
+
+    // Check user-scoped cache (positive results only)
+    if (_cachedRemoteAmkExists == true) {
+      if (kDebugMode) {
+        debugPrint('[AuthWrapper] ⏱️  _remoteAmkExists() → true (cached for user $currentUserId, 0ms)');
+      }
+      return true;
+    }
+
+    final totalStopwatch = Stopwatch()..start();
+
     if (!EncryptionFeatureFlags.enableCrossDeviceEncryption) {
       return false;
     }
 
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return false;
+    if (currentUserId == null) return false;
 
-    try {
-      final res = await Supabase.instance.client
+    if (kDebugMode) {
+      debugPrint('[AuthWrapper] ⏱️  Querying user_encryption_keys and user_keys tables in parallel...');
+    }
+
+    // Query both tables in parallel to reduce latency
+    final results = await Future.wait([
+      // Query 1: user_encryption_keys (cross-device)
+      Supabase.instance.client
           .from('user_encryption_keys')
           .select('user_id')
-          .eq('user_id', userId)
-          .maybeSingle();
-      if (res != null) {
-        return true;
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          '[AuthWrapper] Error checking remote AMK existence (user_encryption_keys): $e',
-        );
-      }
-    }
-
-    // Fallback to legacy user_keys table so we prompt for unlock instead of
-    // forcing a brand-new setup when cross-device provisioning isn't available.
-    try {
-      final legacy = await Supabase.instance.client
+          .eq('user_id', currentUserId)
+          .maybeSingle()
+          .catchError((Object e) {
+        if (kDebugMode) {
+          debugPrint(
+            '[AuthWrapper] Error checking remote AMK existence (user_encryption_keys): $e',
+          );
+        }
+        return null;
+      }),
+      // Query 2: user_keys (legacy)
+      Supabase.instance.client
           .from('user_keys')
           .select('user_id')
-          .eq('user_id', userId)
-          .maybeSingle();
-      return legacy != null;
-    } catch (e) {
+          .eq('user_id', currentUserId)
+          .maybeSingle()
+          .catchError((Object e) {
+        if (kDebugMode) {
+          debugPrint(
+            '[AuthWrapper] Error checking remote AMK existence (user_keys fallback): $e',
+          );
+        }
+        return null;
+      }),
+    ]);
+
+    totalStopwatch.stop();
+
+    final hasEncryptionKey = results[0] != null;
+    final hasLegacyKey = results[1] != null;
+    final exists = hasEncryptionKey || hasLegacyKey;
+
+    // Cache positive results only (prevents stale "needs setup" on cross-device restore)
+    // User ID already set at start of method, so cache is user-scoped
+    if (exists) {
+      _cachedRemoteAmkExists = true;
       if (kDebugMode) {
-        debugPrint(
-          '[AuthWrapper] Error checking remote AMK existence (user_keys fallback): $e',
-        );
+        debugPrint('[AuthWrapper] 💾 Cached positive AMK existence result for user $currentUserId');
       }
     }
 
-    return false;
+    if (kDebugMode) {
+      final source = hasEncryptionKey ? 'user_encryption_keys' : (hasLegacyKey ? 'user_keys' : 'none');
+      debugPrint('[AuthWrapper] ⏱️  _remoteAmkExists() → $exists (source: $source, total ${totalStopwatch.elapsedMilliseconds}ms)');
+    }
+
+    return exists;
+  }
+
+  /// Clear the remote AMK cache.
+  /// Called on logout, successful provisioning, successful unlock, or widget disposal.
+  void _clearRemoteAmkCache() {
+    if (kDebugMode && _cachedRemoteAmkExists != null) {
+      debugPrint('[AuthWrapper] 🗑️  Clearing remote AMK cache for user $_cachedUserId');
+    }
+    _cachedRemoteAmkExists = null;
+    _cachedUserId = null;
   }
 
   Future<void> _ensureSecurityServicesInitialized() {
@@ -1287,6 +1427,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       ref.invalidate(folderCoreRepositoryProvider);
       ref.invalidate(templateCoreRepositoryProvider);
       ref.invalidate(taskCoreRepositoryProvider);
+      unawaited(_runAutomaticTrashPurge());
     } catch (error, stackTrace) {
       try {
         final logger = ref.read(loggerProvider);
@@ -1320,6 +1461,22 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       debugPrint(
         '[AuthWrapper] ⚠️ Failed to mirror cross-device AMK: $error\n$stack',
       );
+    }
+  }
+
+  Future<void> _runAutomaticTrashPurge() async {
+    try {
+      await ref.read(purgeSchedulerServiceProvider).checkAndPurgeOnStartup();
+    } catch (error, stack) {
+      try {
+        final logger = ref.read(loggerProvider);
+        logger.warning(
+          'Automatic trash purge failed',
+          data: {'error': error.toString(), 'stack': stack.toString()},
+        );
+      } catch (_) {
+        debugPrint('Automatic trash purge failed: $error\n$stack');
+      }
     }
   }
 

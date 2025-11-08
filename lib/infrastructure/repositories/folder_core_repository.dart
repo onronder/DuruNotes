@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
@@ -11,6 +12,7 @@ import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
 import 'package:duru_notes/infrastructure/cache/batch_loader.dart';
 import 'package:duru_notes/infrastructure/cache/decryption_cache.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
+import 'package:duru_notes/services/trash_audit_logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -23,9 +25,11 @@ class FolderCoreRepository implements IFolderRepository {
     required CryptoBox crypto,
     DecryptionCache? decryptionCache,
     String? Function()? userIdResolver,
+    TrashAuditLogger? trashAuditLogger,
   }) : _logger = LoggerFactory.instance,
        _decryptionCache = decryptionCache ?? DecryptionCache(crypto),
-       _userIdResolver = userIdResolver;
+       _userIdResolver = userIdResolver,
+       _trashAuditLogger = trashAuditLogger ?? TrashAuditLogger(client: client);
 
   final AppDb db;
   final SupabaseClient client;
@@ -34,6 +38,7 @@ class FolderCoreRepository implements IFolderRepository {
   final _uuid = const Uuid();
   final String? Function()? _userIdResolver;
   final SecurityAuditTrail _securityAuditTrail = SecurityAuditTrail();
+  final TrashAuditLogger _trashAuditLogger;
 
   String? _currentUserId() =>
       _userIdResolver?.call() ?? client.auth.currentUser?.id;
@@ -610,35 +615,112 @@ class FolderCoreRepository implements IFolderRepository {
         throw StateError('Folder not found or does not belong to user');
       }
 
-      // First, move all notes in this folder to unfiled
-      await _moveNotesToUnfiled(folderId, userId);
+      // Phase 1.1: Soft delete implementation with timestamps
+      // Instead of hard deleting, mark folder as deleted and set 30-day retention schedule
 
-      // Move all child folders to parent or root
-      final childFolders = await db.getChildFolders(folderId);
-      final parentFolder = await db.getFolderById(folderId);
-      final newParentId = parentFolder?.parentId;
+      final now = DateTime.now().toUtc();
+      final scheduledPurgeAt = now.add(const Duration(days: 30));
 
-      for (final child in childFolders) {
-        await moveFolder(child.id, newParentId);
-      }
+      int cascadedNotes = 0;
+      int cascadedTasks = 0;
 
-      // Now delete the folder itself
       await db.transaction(() async {
-        // Remove folder-note relationships
-        await db.removeNoteFromFolder(folderId);
+        // 1. Soft delete the folder itself with timestamps
+        await (db.update(db.localFolders)
+              ..where((f) => f.id.equals(folderId)))
+            .write(LocalFoldersCompanion(
+          deleted: Value(true),
+          deletedAt: Value(now),
+          scheduledPurgeAt: Value(scheduledPurgeAt),
+          updatedAt: Value(now),
+        ));
 
-        // Delete the folder
-        await (db.delete(
-          db.localFolders,
-        )..where((f) => f.id.equals(folderId))).go();
+        // 2. Cascade soft-delete to all notes in this folder
+        // Get all notes that belong to this folder
+        final notesInFolder = await (db.select(db.noteFolders)
+              ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
+            .get();
+        cascadedNotes += notesInFolder.length;
+
+        // Soft delete each note (cascade to trash) with timestamps
+        for (final noteFolder in notesInFolder) {
+          await (db.update(db.localNotes)
+                ..where((n) => n.id.equals(noteFolder.noteId)))
+              .write(LocalNotesCompanion(
+            deleted: Value(true),
+            deletedAt: Value(now),
+            scheduledPurgeAt: Value(scheduledPurgeAt),
+            updatedAt: Value(now),
+          ));
+
+          // Enqueue note deletion for sync
+          await _enqueuePendingOp(
+            entityId: noteFolder.noteId,
+            kind: 'upsert_note',
+          );
+
+          // Phase 1.1: Also cascade soft-delete to all tasks in this note (including already deleted)
+          final tasks = await db.getTasksForNote(
+            noteFolder.noteId,
+            userId: userId,
+            includeDeleted: true,
+          );
+          cascadedTasks += tasks.length;
+          for (final task in tasks) {
+            await (db.update(db.noteTasks)
+                  ..where((t) => t.id.equals(task.id)))
+                .write(NoteTasksCompanion(
+              deleted: Value(true),
+              deletedAt: Value(now),
+              scheduledPurgeAt: Value(scheduledPurgeAt),
+              updatedAt: Value(now),
+            ));
+
+            await _enqueuePendingOp(
+              entityId: task.id,
+              kind: 'upsert_task',
+              payload: jsonEncode({'noteId': noteFolder.noteId}),
+            );
+          }
+        }
+
+        // 3. Handle child folders: soft-delete them too (recursive cascade)
+        // Use getChildFoldersIncludingDeleted to catch already-deleted children
+        final childFolders = await db.getChildFoldersIncludingDeleted(folderId);
+        for (final child in childFolders) {
+          // Use private helper to avoid re-entering public API
+          await _softDeleteFolderTree(
+            folderId: child.id,
+            userId: userId,
+            now: now,
+            scheduledPurgeAt: scheduledPurgeAt,
+          );
+        }
+
+        // Note: We keep folder-note relationships intact for restoration
+        // Do NOT call db.removeNoteFromFolder() - we need these for restore
       });
 
-      // Enqueue for sync deletion
-      await _enqueuePendingOp(entityId: folderId, kind: 'delete_folder');
+      // Enqueue folder deletion for sync (as upsert with deleted=true)
+      await _enqueuePendingOp(entityId: folderId, kind: 'upsert_folder');
       _auditAccess(
         'folders.deleteFolder',
         granted: true,
         reason: 'folderId=$folderId',
+      );
+
+      unawaited(
+        _trashAuditLogger.logSoftDelete(
+          itemType: TrashAuditItemType.folder,
+          itemId: folderId,
+          itemTitle: folderExistsForUser.name,
+          scheduledPurgeAt: scheduledPurgeAt,
+          metadata: {
+            'source': 'folders.deleteFolder',
+            'cascadeNotes': cascadedNotes,
+            'cascadeTasks': cascadedTasks,
+          },
+        ),
       );
     } catch (e, stack) {
       _logger.error(
@@ -658,6 +740,396 @@ class FolderCoreRepository implements IFolderRepository {
         reason: 'error=${e.runtimeType}',
       );
       rethrow;
+    }
+  }
+
+  /// Private helper: Recursively soft delete folder tree within transaction context
+  /// Avoids re-entering public API and repeating auth/audit checks
+  Future<void> _softDeleteFolderTree({
+    required String folderId,
+    required String userId,
+    required DateTime now,
+    required DateTime scheduledPurgeAt,
+  }) async {
+    // 1. Soft delete the folder itself with timestamps
+    await (db.update(db.localFolders)
+          ..where((f) => f.id.equals(folderId)))
+        .write(LocalFoldersCompanion(
+      deleted: Value(true),
+      deletedAt: Value(now),
+      scheduledPurgeAt: Value(scheduledPurgeAt),
+      updatedAt: Value(now),
+    ));
+
+    // 2. Cascade soft-delete to all notes in this folder
+    final notesInFolder = await (db.select(db.noteFolders)
+          ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
+        .get();
+
+    for (final noteFolder in notesInFolder) {
+      await (db.update(db.localNotes)
+            ..where((n) => n.id.equals(noteFolder.noteId)))
+          .write(LocalNotesCompanion(
+        deleted: Value(true),
+        deletedAt: Value(now),
+        scheduledPurgeAt: Value(scheduledPurgeAt),
+        updatedAt: Value(now),
+      ));
+
+      // Enqueue note deletion for sync
+      await _enqueuePendingOp(
+        entityId: noteFolder.noteId,
+        kind: 'upsert_note',
+      );
+
+      // Cascade soft-delete to all tasks in this note
+      final tasks = await db.getTasksForNote(
+        noteFolder.noteId,
+        userId: userId,
+        includeDeleted: true,
+      );
+      for (final task in tasks) {
+        await (db.update(db.noteTasks)
+              ..where((t) => t.id.equals(task.id)))
+            .write(NoteTasksCompanion(
+          deleted: Value(true),
+          deletedAt: Value(now),
+          scheduledPurgeAt: Value(scheduledPurgeAt),
+          updatedAt: Value(now),
+        ));
+
+        await _enqueuePendingOp(
+          entityId: task.id,
+          kind: 'upsert_task',
+          payload: jsonEncode({'noteId': noteFolder.noteId}),
+        );
+      }
+    }
+
+    // 3. Recursively handle child folders (stays within transaction)
+    final childFolders = await db.getChildFoldersIncludingDeleted(folderId);
+    for (final child in childFolders) {
+      await _softDeleteFolderTree(
+        folderId: child.id,
+        userId: userId,
+        now: now,
+        scheduledPurgeAt: scheduledPurgeAt,
+      );
+    }
+
+    // Enqueue folder deletion for sync
+    await _enqueuePendingOp(entityId: folderId, kind: 'upsert_folder');
+  }
+
+  /// Private helper: Recursively hard delete folder tree within transaction context
+  /// Enqueues sync operations BEFORE deleting to ensure Supabase is notified
+  /// Avoids re-entering public API and repeating auth/audit checks
+  Future<void> _hardDeleteFolderTree({
+    required String folderId,
+    required String userId,
+  }) async {
+    // 1. Cascade hard-delete to all notes in this folder
+    final notesInFolder = await (db.select(db.noteFolders)
+          ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
+        .get();
+
+    for (final noteFolder in notesInFolder) {
+      // First, handle all tasks in this note
+      final tasks = await db.getTasksForNote(
+        noteFolder.noteId,
+        userId: userId,
+        includeDeleted: true,
+      );
+      for (final task in tasks) {
+        // Enqueue delete operation BEFORE removing from database
+        await _enqueuePendingOp(
+          entityId: task.id,
+          kind: 'delete_task',
+          payload: jsonEncode({'noteId': noteFolder.noteId}),
+        );
+
+        // Hard delete the task
+        await (db.delete(db.noteTasks)
+              ..where((t) => t.id.equals(task.id)))
+            .go();
+      }
+
+      // Enqueue note deletion BEFORE removing from database
+      await _enqueuePendingOp(
+        entityId: noteFolder.noteId,
+        kind: 'delete_note',
+      );
+
+      // Hard delete the note
+      await (db.delete(db.localNotes)
+            ..where((n) => n.id.equals(noteFolder.noteId)))
+          .go();
+
+      // Delete the note-folder relationship
+      await (db.delete(db.noteFolders)
+            ..where((nf) => nf.noteId.equals(noteFolder.noteId)))
+          .go();
+    }
+
+    // 2. Recursively handle child folders (stays within transaction)
+    final childFolders = await db.getChildFoldersIncludingDeleted(folderId);
+    for (final child in childFolders) {
+      // Recursive call to private helper, NOT public API
+      await _hardDeleteFolderTree(
+        folderId: child.id,
+        userId: userId,
+      );
+    }
+
+    // 3. Enqueue folder deletion BEFORE removing from database
+    await _enqueuePendingOp(entityId: folderId, kind: 'delete_folder');
+
+    // 4. Hard delete the folder itself
+    await (db.delete(db.localFolders)
+          ..where((f) => f.id.equals(folderId)))
+        .go();
+  }
+
+  /// Restore a soft-deleted folder from trash (Phase 1.1)
+  /// Note: This does NOT automatically restore child notes or folders.
+  /// Call restoreFolder recursively on child folders if needed.
+  @override
+  Future<void> restoreFolder(String folderId, {bool restoreContents = false}) async {
+    try {
+      final userId = _requireUserId(
+        method: 'restoreFolder',
+        data: {'folderId': folderId, 'restoreContents': restoreContents},
+      );
+      if (userId == null) {
+        throw StateError('Cannot restore folder without authenticated user');
+      }
+
+      final folder = await (db.select(db.localFolders)
+            ..where((f) => f.id.equals(folderId))
+            ..where((f) => f.userId.equals(userId)))
+          .getSingleOrNull();
+
+      if (folder == null) {
+        throw StateError('Folder not found or does not belong to user');
+      }
+
+      if (!folder.deleted) {
+        _logger.warning('Attempted to restore folder that is not deleted: $folderId');
+        return; // Already restored, no-op
+      }
+
+      final now = DateTime.now().toUtc();
+
+      await db.transaction(() async {
+        // 1. Restore the folder itself and clear timestamps
+        await (db.update(db.localFolders)
+              ..where((f) => f.id.equals(folderId)))
+            .write(LocalFoldersCompanion(
+          deleted: Value(false),
+          deletedAt: Value(null),
+          scheduledPurgeAt: Value(null),
+          updatedAt: Value(now),
+        ));
+
+        // 2. Optionally restore child notes and folders
+        if (restoreContents) {
+          // Restore all notes in this folder
+          final notesInFolder = await (db.select(db.noteFolders)
+                ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
+              .get();
+
+          for (final noteFolder in notesInFolder) {
+            await (db.update(db.localNotes)
+                  ..where((n) => n.id.equals(noteFolder.noteId)))
+                .write(LocalNotesCompanion(
+              deleted: Value(false),
+              deletedAt: Value(null),
+              scheduledPurgeAt: Value(null),
+              updatedAt: Value(now),
+            ));
+
+            await _enqueuePendingOp(
+              entityId: noteFolder.noteId,
+              kind: 'upsert_note',
+            );
+
+            // Phase 1.1: Also restore all tasks for this note (including already deleted)
+            final tasks = await db.getTasksForNote(
+              noteFolder.noteId,
+              userId: userId,
+              includeDeleted: true,
+            );
+            for (final task in tasks.where((t) => t.deleted)) {
+              await (db.update(db.noteTasks)
+                    ..where((t) => t.id.equals(task.id)))
+                  .write(NoteTasksCompanion(
+                deleted: Value(false),
+                deletedAt: Value(null),
+                scheduledPurgeAt: Value(null),
+                updatedAt: Value(now),
+              ));
+
+              await _enqueuePendingOp(
+                entityId: task.id,
+                kind: 'upsert_task',
+                payload: jsonEncode({'noteId': noteFolder.noteId}),
+              );
+            }
+          }
+
+          // Restore child folders recursively
+          // Phase 1.1: Use getChildFoldersIncludingDeleted to find ALL children (deleted and not)
+          final childFolders = await db.getChildFoldersIncludingDeleted(folderId);
+          for (final child in childFolders) {
+            if (child.deleted) {
+              await restoreFolder(child.id, restoreContents: true);
+            }
+          }
+        }
+      });
+
+      // Enqueue folder restore for sync
+      await _enqueuePendingOp(entityId: folderId, kind: 'upsert_folder');
+
+      _logger.info('Restored folder from trash: $folderId (restoreContents=$restoreContents)');
+      _auditAccess(
+        'folders.restoreFolder',
+        granted: true,
+        reason: 'folderId=$folderId',
+      );
+
+      unawaited(
+        _trashAuditLogger.logRestore(
+          itemType: TrashAuditItemType.folder,
+          itemId: folderId,
+          itemTitle: folder.name,
+          metadata: {
+            'source': 'folders.restoreFolder',
+            'restoreContents': restoreContents,
+          },
+        ),
+      );
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to restore folder: $folderId',
+        error: e,
+        stackTrace: stack,
+      );
+      _captureRepositoryException(
+        method: 'restoreFolder',
+        error: e,
+        stackTrace: stack,
+        data: {'folderId': folderId},
+      );
+      _auditAccess(
+        'folders.restoreFolder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      rethrow;
+    }
+  }
+
+  /// Permanently delete a folder (hard delete, cannot be undone)
+  /// This removes the folder and all its contents from the database entirely
+  /// WARNING: This is irreversible and will also delete all notes and tasks in the folder
+  @override
+  Future<void> permanentlyDeleteFolder(String folderId) async {
+    try {
+      final userId = _requireUserId(
+        method: 'permanentlyDeleteFolder',
+        data: {'folderId': folderId},
+      );
+      if (userId == null) {
+        throw StateError('Cannot permanently delete folder without authenticated user');
+      }
+
+      final folder = await (db.select(db.localFolders)
+            ..where((f) => f.id.equals(folderId))
+            ..where((f) => f.userId.equals(userId)))
+          .getSingleOrNull();
+
+      if (folder == null) {
+        throw StateError('Folder not found or does not belong to user');
+      }
+
+      await db.transaction(() async {
+        // Use private helper to avoid re-entering public API
+        await _hardDeleteFolderTree(folderId: folderId, userId: userId);
+      });
+
+      _logger.info('Permanently deleted folder: $folderId');
+      _auditAccess(
+        'folders.permanentlyDeleteFolder',
+        granted: true,
+        reason: 'folderId=$folderId',
+      );
+
+      unawaited(
+        _trashAuditLogger.logPermanentDelete(
+          itemType: TrashAuditItemType.folder,
+          itemId: folderId,
+          itemTitle: folder.name,
+          metadata: const {
+            'source': 'folders.permanentlyDeleteFolder',
+          },
+        ),
+      );
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to permanently delete folder: $folderId',
+        error: e,
+        stackTrace: stack,
+      );
+      _captureRepositoryException(
+        method: 'permanentlyDeleteFolder',
+        error: e,
+        stackTrace: stack,
+        data: {'folderId': folderId},
+      );
+      _auditAccess(
+        'folders.permanentlyDeleteFolder',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      rethrow;
+    }
+  }
+
+  /// Get all deleted folders for Trash view (Phase 1.1)
+  @override
+  Future<List<domain.Folder>> getDeletedFolders() async {
+    try {
+      final userId = _requireUserId(method: 'getDeletedFolders');
+      if (userId == null) {
+        return const <domain.Folder>[];
+      }
+
+      final localFolders = await (db.select(db.localFolders)
+            ..where((f) => f.deleted.equals(true) & f.userId.equals(userId))
+            ..orderBy([(f) => OrderingTerm(expression: f.updatedAt, mode: OrderingMode.desc)]))
+          .get();
+
+      final folders = FolderMapper.toDomainList(localFolders);
+      _auditAccess(
+        'folders.getDeletedFolders',
+        granted: true,
+        reason: 'count=${folders.length}',
+      );
+      return folders;
+    } catch (e, stack) {
+      _logger.error('Failed to get deleted folders', error: e, stackTrace: stack);
+      _captureRepositoryException(
+        method: 'getDeletedFolders',
+        error: e,
+        stackTrace: stack,
+      );
+      _auditAccess(
+        'folders.getDeletedFolders',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      return const <domain.Folder>[];
     }
   }
 
@@ -1261,14 +1733,6 @@ class FolderCoreRepository implements IFolderRepository {
     }
 
     return false;
-  }
-
-  Future<void> _moveNotesToUnfiled(String folderId, String userId) async {
-    final noteIds = await db.getNoteIdsInFolder(folderId);
-
-    for (final noteId in noteIds) {
-      await db.moveNoteToFolder(noteId, null, expectedUserId: userId);
-    }
   }
 
   Future<List<String>> _findOrphanedNotes() async {

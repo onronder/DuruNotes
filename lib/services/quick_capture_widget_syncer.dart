@@ -33,21 +33,26 @@ class NoopQuickCaptureWidgetSyncer extends QuickCaptureWidgetSyncer {
 
 /// iOS implementation that talks to the WidgetKit extension via MethodChannel.
 class IosQuickCaptureWidgetSyncer extends QuickCaptureWidgetSyncer {
-  IosQuickCaptureWidgetSyncer({MethodChannel? channel, AppLogger? logger})
-    : _channel = channel ?? const MethodChannel(_channelName),
-      _logger = logger;
+  IosQuickCaptureWidgetSyncer({
+    MethodChannel? channel,
+    AppLogger? logger,
+    bool Function()? platformCheck,
+  }) : _channel = channel ?? const MethodChannel(_channelName),
+       _logger = logger,
+       _isSupportedPlatform = platformCheck ?? (() => Platform.isIOS);
 
   static const String _channelName =
       'com.fittechs.durunotes/quick_capture_widget';
   final MethodChannel _channel;
   final AppLogger? _logger;
+  final bool Function() _isSupportedPlatform;
 
   @override
   Future<void> sync({
     required String userId,
     required Map<String, dynamic> payload,
   }) async {
-    if (!Platform.isIOS) return;
+    if (!_isSupportedPlatform()) return;
 
     try {
       await _channel.invokeMethod<void>('syncWidgetCache', {
@@ -65,7 +70,7 @@ class IosQuickCaptureWidgetSyncer extends QuickCaptureWidgetSyncer {
 
   @override
   Future<void> clear() async {
-    if (!Platform.isIOS) return;
+    if (!_isSupportedPlatform()) return;
 
     try {
       await _channel.invokeMethod<void>('clearWidgetCache');
