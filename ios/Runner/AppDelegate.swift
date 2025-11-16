@@ -18,17 +18,177 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    NSLog("🔵 [AppDelegate] MINIMAL VERSION - didFinishLaunchingWithOptions STARTED")
+    NSLog("🔵 [AppDelegate] iOS 18.6 MANUAL WINDOW FIX - didFinishLaunchingWithOptions STARTED")
 
-    // PHASE 1 TEST: Only register plugins, nothing else
-    NSLog("🔵 [AppDelegate] About to register plugins...")
-    GeneratedPluginRegistrant.register(with: self)
-    NSLog("🔵 [AppDelegate] Plugin registration complete")
-
+    // Call super first - this sets up the Flutter engine and registers plugins internally
     NSLog("🔵 [AppDelegate] Calling super.application()")
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    NSLog("🔵 [AppDelegate] didFinishLaunchingWithOptions COMPLETED, returning \(result)")
+    NSLog("🔵 [AppDelegate] super.application() returned \(result)")
+
+    // iOS 18.6 FIX: Check if window was created, if not create it manually
+    if window == nil {
+      NSLog("🔵 [AppDelegate] Window is nil after super.application(), creating manually for iOS 18.6...")
+
+      // Create window and FlutterViewController
+      // FlutterViewController() without engine param uses the shared engine from FlutterAppDelegate
+      window = UIWindow(frame: UIScreen.main.bounds)
+      let flutterViewController = FlutterViewController()
+      window?.rootViewController = flutterViewController
+      window?.makeKeyAndVisible()
+
+      NSLog("✅ [AppDelegate] Window manually created: exists=\(window != nil), isKey=\(window?.isKeyWindow ?? false)")
+      NSLog("✅ [AppDelegate] FlutterViewController set as rootViewController")
+    } else {
+      NSLog("✅ [AppDelegate] Window already exists from super.application()")
+    }
+
+    // Register plugins AFTER window is created
+    NSLog("🔵 [AppDelegate] Registering plugins...")
+    GeneratedPluginRegistrant.register(with: self)
+    NSLog("✅ [AppDelegate] Plugins registered")
+
+    // BLACK SCREEN FIX: Setup diagnostics channel
+    setupWindowDiagnosticsChannel()
+
+    NSLog("🔵 [AppDelegate] didFinishLaunchingWithOptions COMPLETED")
+    NSLog("🔵 [AppDelegate] Final window state: exists=\(window != nil), isKey=\(window?.isKeyWindow ?? false)")
+
     return result
+  }
+
+  // BLACK SCREEN FIX: Setup method channel for window diagnostics
+  private func setupWindowDiagnosticsChannel() {
+    guard let controller = window?.rootViewController as? FlutterViewController else {
+      NSLog("❌ [Diagnostics] Cannot setup channel - no FlutterViewController")
+      return
+    }
+
+    let channel = FlutterMethodChannel(
+      name: "com.fittechs.durunotes/window_diagnostics",
+      binaryMessenger: controller.binaryMessenger
+    )
+
+    channel.setMethodCallHandler { [weak self] call, result in
+      if call.method == "getWindowState" {
+        result(self?.getWindowStateDictionary() ?? [:])
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    NSLog("✅ [Diagnostics] Window diagnostics channel registered")
+  }
+
+  // BLACK SCREEN FIX: Get window state as dictionary
+  private func getWindowStateDictionary() -> [String: Any] {
+    var state: [String: Any] = [:]
+
+    if let window = self.window {
+      state["window_exists"] = true
+      state["is_key_window"] = window.isKeyWindow
+      state["is_hidden"] = window.isHidden
+      state["alpha"] = window.alpha
+      state["frame_width"] = window.frame.width
+      state["frame_height"] = window.frame.height
+      state["background_color"] = window.backgroundColor?.description ?? "nil"
+
+      if let rootVC = window.rootViewController {
+        state["root_vc_type"] = String(describing: type(of: rootVC))
+        state["root_vc_view_alpha"] = rootVC.view.alpha
+        state["root_vc_view_hidden"] = rootVC.view.isHidden
+        state["root_vc_view_frame_width"] = rootVC.view.frame.width
+        state["root_vc_view_frame_height"] = rootVC.view.frame.height
+
+        if let flutterVC = rootVC as? FlutterViewController {
+          state["is_flutter_vc"] = true
+          state["flutter_subviews_count"] = flutterVC.view.subviews.count
+
+          var subviewsInfo: [[String: Any]] = []
+          for (index, subview) in flutterVC.view.subviews.enumerated() {
+            subviewsInfo.append([
+              "index": index,
+              "type": String(describing: type(of: subview)),
+              "alpha": subview.alpha,
+              "hidden": subview.isHidden,
+              "width": subview.frame.width,
+              "height": subview.frame.height
+            ])
+          }
+          state["flutter_subviews"] = subviewsInfo
+        } else {
+          state["is_flutter_vc"] = false
+        }
+      } else {
+        state["root_vc_exists"] = false
+      }
+    } else {
+      state["window_exists"] = false
+    }
+
+    return state
+  }
+
+  // BLACK SCREEN FIX: Log detailed window and view state
+  private func logWindowState() {
+    NSLog("🪟 [Window Diagnostics] ========== START ==========")
+
+    // Check window
+    if let window = self.window {
+      NSLog("🪟 [Window] EXISTS")
+      NSLog("🪟 [Window] isKeyWindow: \(window.isKeyWindow)")
+      NSLog("🪟 [Window] isHidden: \(window.isHidden)")
+      NSLog("🪟 [Window] alpha: \(window.alpha)")
+      NSLog("🪟 [Window] frame: \(window.frame)")
+      NSLog("🪟 [Window] bounds: \(window.bounds)")
+      NSLog("🪟 [Window] backgroundColor: \(String(describing: window.backgroundColor))")
+
+      // Check rootViewController
+      if let rootVC = window.rootViewController {
+        NSLog("🪟 [RootViewController] EXISTS: \(type(of: rootVC))")
+        NSLog("🪟 [RootViewController] view.alpha: \(rootVC.view.alpha)")
+        NSLog("🪟 [RootViewController] view.isHidden: \(rootVC.view.isHidden)")
+        NSLog("🪟 [RootViewController] view.frame: \(rootVC.view.frame)")
+        NSLog("🪟 [RootViewController] view.backgroundColor: \(String(describing: rootVC.view.backgroundColor))")
+
+        // Check if it's FlutterViewController
+        if let flutterVC = rootVC as? FlutterViewController {
+          NSLog("🪟 [FlutterVC] CONFIRMED as FlutterViewController")
+          NSLog("🪟 [FlutterVC] view.subviews.count: \(flutterVC.view.subviews.count)")
+
+          for (index, subview) in flutterVC.view.subviews.enumerated() {
+            NSLog("🪟 [FlutterVC] Subview[\(index)]: \(type(of: subview)) alpha:\(subview.alpha) hidden:\(subview.isHidden) frame:\(subview.frame)")
+          }
+        } else {
+          NSLog("❌ [FlutterVC] NOT a FlutterViewController! Type: \(type(of: rootVC))")
+        }
+      } else {
+        NSLog("❌ [RootViewController] DOES NOT EXIST")
+      }
+    } else {
+      NSLog("❌ [Window] DOES NOT EXIST")
+    }
+
+    // Check all windows in connected scenes
+    let allWindows = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+
+    NSLog("🪟 [AllWindows] Total count: \(allWindows.count)")
+    for (index, window) in allWindows.enumerated() {
+      NSLog("🪟 [AllWindows[\(index)]] isKey:\(window.isKeyWindow) hidden:\(window.isHidden) alpha:\(window.alpha)")
+    }
+
+    NSLog("🪟 [Window Diagnostics] ========== END ==========")
+  }
+
+  // BLACK SCREEN FIX: Track app lifecycle
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    NSLog("🔵 [AppDelegate] applicationDidBecomeActive - app became active")
+    logWindowState()
+  }
+
+  override func applicationWillResignActive(_ application: UIApplication) {
+    NSLog("🔵 [AppDelegate] applicationWillResignActive - app will resign active")
   }
 
   // ALL OTHER METHODS COMMENTED OUT FOR PHASE 1 TEST
