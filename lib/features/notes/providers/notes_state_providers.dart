@@ -9,6 +9,8 @@ import 'package:duru_notes/features/notes/pagination_notifier.dart';
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
 import 'package:duru_notes/services/sort_preferences_service.dart';
 import 'package:duru_notes/ui/filters/filters_bottom_sheet.dart';
+import 'package:duru_notes/core/security/security_initialization.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Notes UI state providers
@@ -50,6 +52,12 @@ final filterStateProvider = StateProvider.autoDispose<FilterState?>(
 final filteredNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((
   ref,
 ) async {
+  // CRITICAL FIX: Safety check to prevent crashes during startup
+  if (!SecurityInitialization.isInitialized) {
+    debugPrint('[filteredNotesProvider] Security not initialized, returning empty');
+    return <domain.Note>[];
+  }
+
   final currentFolder = ref.watch(currentFolderProvider);
   final filterState = ref.watch(filterStateProvider);
 
@@ -170,11 +178,23 @@ final notesPageProvider =
       NotesPaginationNotifier,
       AsyncValue<NotesPage>
     >((ref) {
+      // PHASE 5 FIX: Lazy provider initialization with security check
+      // This prevents race conditions during app startup where the provider
+      // might be created before security services are ready
+      if (!SecurityInitialization.isInitialized) {
+        debugPrint('[notesPageProvider] Security not initialized, returning empty notifier');
+        // Return empty notifier that no-ops all operations until security is ready
+        return NotesPaginationNotifier.empty(ref);
+      }
+
       final repo = ref.watch(notesCoreRepositoryProvider);
       final mutationBus = MutationEventBus.instance;
 
-      return NotesPaginationNotifier(ref, repo, mutationBus: mutationBus)
-        ..loadMore(); // Load first page immediately
+      // PHASE 5 FIX: Create notifier WITHOUT calling loadMore() immediately
+      // Let the UI explicitly trigger the first load when it's ready
+      // This prevents database queries during the critical startup path
+      debugPrint('[notesPageProvider] Creating active notifier (loadMore deferred to UI)');
+      return NotesPaginationNotifier(ref, repo, mutationBus: mutationBus);
     });
 
 /// Provider to check if there are more notes to load

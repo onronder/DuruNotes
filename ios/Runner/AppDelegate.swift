@@ -1,79 +1,68 @@
 import Flutter
 import UIKit
-import FirebaseCore
-import FirebaseMessaging
-import WidgetKit
+// TEMPORARILY COMMENTED OUT FOR DEBUGGING:
+// import FirebaseCore
+// import FirebaseMessaging
+// import WidgetKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-  private let quickCaptureChannelName = "com.fittechs.durunotes/quick_capture_widget"
-  private let shareExtensionChannelName = "com.fittechs.durunotes/share_extension"
-  private let firebaseBootstrapper = FirebaseBootstrapper()
-  private lazy var quickCaptureStore = QuickCaptureSharedStore()
-  private lazy var shareExtensionStore = ShareExtensionSharedStore()
+  // TEMPORARILY COMMENTED OUT FOR DEBUGGING:
+  // private let quickCaptureChannelName = "com.fittechs.durunotes/quick_capture_widget"
+  // private let shareExtensionChannelName = "com.fittechs.durunotes/share_extension"
+  // private let firebaseBootstrapper = FirebaseBootstrapper()
+  // private lazy var quickCaptureStore = QuickCaptureSharedStore()
+  // private lazy var shareExtensionStore = ShareExtensionSharedStore()
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    let firebaseState = firebaseBootstrapper.configureIfNeeded()
-    switch firebaseState {
-    case .configured:
-      print("✅ Firebase configured successfully")
-    case .alreadyConfigured:
-      print("ℹ️ Firebase already configured — skipping duplicate configure() call")
-    case .missingPlist:
-      print("❌ GoogleService-Info.plist not found - Firebase disabled")
-    }
+    NSLog("🔵 [AppDelegate] MINIMAL VERSION - didFinishLaunchingWithOptions STARTED")
 
-    if firebaseState.isReady {
-      UNUserNotificationCenter.current().delegate = self
-
-      let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
-      UNUserNotificationCenter.current().requestAuthorization(
-        options: authOptions,
-        completionHandler: { _, _ in }
-      )
-
-      application.registerForRemoteNotifications()
-      Messaging.messaging().delegate = self
-    } else {
-      print("⚠️ Push notifications disabled - Firebase not configured")
-    }
-
+    // PHASE 1 TEST: Only register plugins, nothing else
+    NSLog("🔵 [AppDelegate] About to register plugins...")
     GeneratedPluginRegistrant.register(with: self)
+    NSLog("🔵 [AppDelegate] Plugin registration complete")
 
-    attachMethodChannels()
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    NSLog("🔵 [AppDelegate] Calling super.application()")
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    NSLog("🔵 [AppDelegate] didFinishLaunchingWithOptions COMPLETED, returning \(result)")
+    return result
   }
-  
+
+  // ALL OTHER METHODS COMMENTED OUT FOR PHASE 1 TEST
+  /*
   // Handle APNs token registration
   override func application(_ application: UIApplication,
                            didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    NSLog("🔵 [AppDelegate] didRegisterForRemoteNotificationsWithDeviceToken CALLED")
     // Pass device token to Firebase only if Firebase is configured
     if FirebaseApp.app() != nil {
       Messaging.messaging().apnsToken = deviceToken
     }
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+    NSLog("🔵 [AppDelegate] didRegisterForRemoteNotificationsWithDeviceToken COMPLETED")
   }
-  
+
   override func application(_ application: UIApplication,
                            didFailToRegisterForRemoteNotificationsWithError error: Error) {
-    print("Failed to register for remote notifications: \(error)")
+    NSLog("🔵 [AppDelegate] didFailToRegisterForRemoteNotificationsWithError CALLED")
+    NSLog("❌ [AppDelegate] Failed to register for remote notifications: \(error)")
+    NSLog("🔵 [AppDelegate] didFailToRegisterForRemoteNotificationsWithError COMPLETED")
   }
 
   // MARK: - Deep Link Handling
   override func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
-    print("📱 [DeepLink] Received URL: \(url.absoluteString)")
+    NSLog("📱 [DeepLink] Received URL: \(url.absoluteString)")
 
     guard url.scheme == "durunotes" else {
-      print("❌ [DeepLink] Invalid scheme: \(url.scheme ?? "nil")")
+      NSLog("❌ [DeepLink] Invalid scheme: \(url.scheme ?? "nil")")
       return false
     }
 
     guard let controller = resolveFlutterViewController() else {
-      print("❌ [DeepLink] FlutterViewController not available")
+      NSLog("❌ [DeepLink] FlutterViewController not available")
       return false
     }
 
@@ -83,33 +72,52 @@ import WidgetKit
     )
 
     deepLinkChannel.invokeMethod("handleDeepLink", arguments: url.absoluteString)
-    print("✅ [DeepLink] Forwarded to Flutter: \(url.absoluteString)")
+    NSLog("✅ [DeepLink] Forwarded to Flutter: \(url.absoluteString)")
 
     return true
   }
 
   private func attachMethodChannels() {
+    NSLog("🔵 [AppDelegate] attachMethodChannels STARTED")
+    NSLog("🔵 [AppDelegate] About to resolve FlutterViewController...")
     guard let controller = resolveFlutterViewController() else {
-      NSLog("[Bootstrap] Unable to locate FlutterViewController for method channel registration")
+      NSLog("❌ [AppDelegate] Unable to locate FlutterViewController for method channel registration")
       return
     }
+    NSLog("✅ [AppDelegate] FlutterViewController resolved successfully")
 
+    NSLog("🔵 [AppDelegate] Configuring QuickCaptureChannel...")
     configureQuickCaptureChannel(controller)
+    NSLog("✅ [AppDelegate] QuickCaptureChannel configured")
+
+    NSLog("🔵 [AppDelegate] Configuring ShareExtensionChannel...")
     configureShareExtensionChannel(controller)
+    NSLog("✅ [AppDelegate] ShareExtensionChannel configured")
+    NSLog("🔵 [AppDelegate] attachMethodChannels COMPLETED")
   }
 
   private func resolveFlutterViewController() -> FlutterViewController? {
+    NSLog("🔵 [AppDelegate] resolveFlutterViewController STARTED")
+    NSLog("🔵 [AppDelegate] Trying window?.rootViewController...")
     if let flutterViewController = locateFlutterViewController(from: window?.rootViewController) {
+      NSLog("✅ [AppDelegate] Found FlutterViewController from window.rootViewController")
       return flutterViewController
     }
 
+    NSLog("🔵 [AppDelegate] window.rootViewController didn't work, trying keyWindow...")
     let keyWindowRootController = UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
       .flatMap { $0.windows }
       .first(where: { $0.isKeyWindow })?
       .rootViewController
 
-    return locateFlutterViewController(from: keyWindowRootController)
+    let result = locateFlutterViewController(from: keyWindowRootController)
+    if result != nil {
+      NSLog("✅ [AppDelegate] Found FlutterViewController from keyWindow")
+    } else {
+      NSLog("❌ [AppDelegate] FlutterViewController NOT FOUND anywhere!")
+    }
+    return result
   }
 
   private func locateFlutterViewController(from controller: UIViewController?) -> FlutterViewController? {
@@ -220,25 +228,29 @@ import WidgetKit
     switch call.method {
     case "getSharedItems":
       if let items = shareExtensionStore.readSharedItems() {
-        print("[ShareExtension] ✅ Retrieved \(items.count) shared items from App Group")
+        NSLog("✅ [ShareExtension] Retrieved \(items.count) shared items from App Group")
         result(items)
       } else {
-        print("[ShareExtension] ℹ️ No shared items found in App Group")
+        NSLog("ℹ️ [ShareExtension] No shared items found in App Group")
         result([])
       }
     case "clearSharedItems":
       shareExtensionStore.clearSharedItems()
-      print("[ShareExtension] ✅ Cleared shared items from App Group")
+      NSLog("✅ [ShareExtension] Cleared shared items from App Group")
       result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
   }
+  */
 }
 
 // MARK: - MessagingDelegate
+// TEMPORARILY COMMENTED OUT FOR DEBUGGING:
+/*
 extension AppDelegate: MessagingDelegate {
   func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-    print("Firebase registration token: \(fcmToken ?? "nil")")
+    NSLog("🔵 [Firebase] Registration token: \(fcmToken ?? "nil")")
   }
 }
+*/

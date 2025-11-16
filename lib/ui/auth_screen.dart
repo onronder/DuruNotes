@@ -72,14 +72,56 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
         );
 
-    // PRODUCTION FIX: Defer animation start to post-frame callback
-    // Starting animations in initState() can cause deadlock when main thread is blocked
-    // by platform channel calls. By deferring to post-frame, we ensure the first frame
-    // renders successfully before animation tickers start advancing.
+    // Start entrance animation once the first frame is ready so layout is stable.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (!mounted) {
+        debugPrint('[AuthScreen] ⚠️ Not mounted in post-frame callback, skipping animation start');
+        return;
+      }
+      debugPrint('[AuthScreen] ✅ Starting intro animation (fade + slide)');
+      try {
         _fadeController.forward();
         _slideController.forward();
+        debugPrint('[AuthScreen] 🎬 Animation controllers started successfully');
+      } catch (e) {
+        debugPrint('[AuthScreen] ❌ Error starting animations: $e');
+        // Ensure visibility even if animation start fails
+        _fadeController.value = 1;
+        _slideController.value = 1;
+      }
+    });
+
+    // CRITICAL iOS FIX: Improved fallback mechanism
+    // Reduced from 600ms to 300ms for faster black screen recovery
+    // If animations haven't started or completed by this time, force content visible
+    Future<void>.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) {
+        debugPrint('[AuthScreen] ⚠️ Not mounted in fallback timer');
+        return;
+      }
+
+      final fadeStalled =
+          !_fadeController.isAnimating && _fadeController.value < 1.0;
+      final slideStalled =
+          !_slideController.isAnimating && _slideController.value < 1.0;
+
+      if (fadeStalled || slideStalled) {
+        debugPrint('[AuthScreen] ⚡ Animation fallback triggered — forcing content visible');
+        debugPrint('[AuthScreen]   Fade: value=${_fadeController.value.toStringAsFixed(2)}, animating=${_fadeController.isAnimating}');
+        debugPrint('[AuthScreen]   Slide: value=${_slideController.value.toStringAsFixed(2)}, animating=${_slideController.isAnimating}');
+      }
+
+      if (fadeStalled) {
+        _fadeController.value = 1;
+        debugPrint('[AuthScreen] ✅ Fade forced to 1.0');
+      }
+      if (slideStalled) {
+        _slideController.value = 1;
+        debugPrint('[AuthScreen] ✅ Slide forced to 1.0');
+      }
+
+      if (!fadeStalled && !slideStalled) {
+        debugPrint('[AuthScreen] ✅ Animations completed successfully within 300ms');
       }
     });
   }

@@ -56,11 +56,10 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: BootstrapHost(
-            bootstrapOverride: _FakeBootstrap(result),
-            appBuilder: (_) => const _StubSignedOutShell(),
-          ),
+        BootstrapApp(
+          initialResult: result,
+          bootstrapOverride: _FakeBootstrap(result),
+          appBuilder: (_) => const _StubSignedOutShell(),
         ),
       );
 

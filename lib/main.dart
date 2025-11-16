@@ -1,13 +1,12 @@
+import 'dart:async';
+
 import 'package:duru_notes/app/app.dart';
 import 'package:duru_notes/core/bootstrap/app_bootstrap.dart';
 import 'package:duru_notes/core/bootstrap/bootstrap_providers.dart';
-import 'package:duru_notes/core/config/environment_config.dart';
-import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/monitoring/error_boundary.dart';
 // Phase 10: Migrated to organized provider imports
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show analyticsProvider;
-import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/ui/widgets/blocks/feature_flagged_block_factory.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,129 +14,87 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const BootstrapHost());
+  debugPrint('[main] Starting bootstrap before runApp()');
+  final bootstrap = AppBootstrap();
+  final bootstrapResult = await bootstrap.initialize();
+  debugPrint('[main] Bootstrap complete, launching app');
+  runApp(
+    BootstrapApp(
+      initialResult: bootstrapResult,
+      bootstrapOverride: bootstrap,
+    ),
+  );
 }
 
-/// Hosts the asynchronous bootstrap flow and wires Riverpod overrides.
-class BootstrapHost extends StatefulWidget {
-  const BootstrapHost({super.key, this.bootstrapOverride, this.appBuilder});
+/// Hosts the fully initialized application with Riverpod overrides.
+class BootstrapApp extends StatefulWidget {
+  const BootstrapApp({
+    required this.initialResult,
+    this.bootstrapOverride,
+    this.appBuilder,
+    super.key,
+  });
 
+  final BootstrapResult initialResult;
   final AppBootstrap? bootstrapOverride;
   final WidgetBuilder? appBuilder;
 
   @override
-  State<BootstrapHost> createState() => _BootstrapHostState();
+  State<BootstrapApp> createState() => _BootstrapAppState();
 }
 
-class _BootstrapHostState extends State<BootstrapHost> {
-  late Future<BootstrapResult> _bootstrapFuture;
+class _BootstrapAppState extends State<BootstrapApp> {
+  late BootstrapResult _result;
   late final AppBootstrap _bootstrap;
-  GlobalKey<NavigatorState>? _navigatorKey;
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  bool _isInitializing = false;
 
   @override
   void initState() {
     super.initState();
+    _result = widget.initialResult;
     _bootstrap = widget.bootstrapOverride ?? AppBootstrap();
-    _runBootstrap();
   }
 
-  void _runBootstrap() {
-    _bootstrapFuture = _bootstrap.initialize();
-  }
+  Future<void> _retryBootstrap() async {
+    if (_isInitializing) return;
+    setState(() {
+      _isInitializing = true;
+    });
 
-  void _retryBootstrap() {
-    setState(_runBootstrap);
+    try {
+      final newResult = await _bootstrap.initialize();
+      if (!mounted) return;
+      setState(() {
+        _result = newResult;
+        _isInitializing = false;
+      });
+    } catch (error, stack) {
+      debugPrint('[BootstrapApp] Retry failed: $error\n$stack');
+      if (!mounted) return;
+      setState(() {
+        _isInitializing = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<BootstrapResult>(
-      future: _bootstrapFuture,
-      builder: (context, snapshot) {
-        // Always provide the same number of overrides to avoid Riverpod container error
-        _navigatorKey ??= GlobalKey<NavigatorState>();
+    final overrides = <Override>[
+      bootstrapResultProvider.overrideWithValue(_result),
+      navigatorKeyProvider.overrideWithValue(_navigatorKey),
+    ];
 
-        final overrides = <Override>[
-          // Always override with either actual data or fallback
-          bootstrapResultProvider.overrideWithValue(
-            snapshot.hasData && snapshot.data != null
-                ? snapshot.data!
-                : _createFallbackBootstrapResult(),
-          ),
-          navigatorKeyProvider.overrideWithValue(_navigatorKey!),
-        ];
-
-        return ProviderScope(
-          overrides: overrides,
-          child: _BootstrapBody(
-            snapshot: snapshot,
-            navigatorKey: _navigatorKey,
-            onRetry: _retryBootstrap,
-            appBuilder: widget.appBuilder,
-          ),
-        );
-      },
-    );
-  }
-
-  BootstrapResult _createFallbackBootstrapResult() {
-    return BootstrapResult(
-      environment: EnvironmentConfig.fallback(),
-      logger: LoggerFactory.instance,
-      analytics: AnalyticsFactory.instance,
-      supabaseClient: null,
-      firebaseApp: null,
-      sentryEnabled: false,
-      failures: const [],
-      adaptyEnabled: false,
-      warnings: const [],
-      environmentSource: 'fallback-loading',
-      stageDurations: const {},
-    );
-  }
-}
-
-class _BootstrapBody extends StatelessWidget {
-  const _BootstrapBody({
-    required this.snapshot,
-    required this.navigatorKey,
-    required this.onRetry,
-    required this.appBuilder,
-  });
-
-  final AsyncSnapshot<BootstrapResult> snapshot;
-  final GlobalKey<NavigatorState>? navigatorKey;
-  final VoidCallback onRetry;
-  final WidgetBuilder? appBuilder;
-
-  @override
-  Widget build(BuildContext context) {
-    if (snapshot.connectionState != ConnectionState.done) {
-      return const _BootstrapLoadingApp();
-    }
-
-    if (snapshot.hasError || !snapshot.hasData) {
-      final failure = BootstrapFailure(
-        stage: BootstrapStage.environment,
-        error: snapshot.error ?? 'Unknown bootstrap error',
-        stackTrace: snapshot.stackTrace ?? StackTrace.current,
-        critical: true,
-      );
-      return BootstrapFailureApp(
-        failures: [failure],
-        warnings: const [],
-        onRetry: onRetry,
-        stageDurations: const {},
-      );
-    }
-
-    final result = snapshot.data!;
-    final key = navigatorKey ?? GlobalKey<NavigatorState>();
-    return BootstrapShell(
-      result: result,
-      navigatorKey: key,
-      onRetry: onRetry,
-      appBuilder: appBuilder,
+    return ProviderScope(
+      overrides: overrides,
+      child: _isInitializing
+          ? const _BootstrapLoadingApp()
+          : BootstrapShell(
+              result: _result,
+              navigatorKey: _navigatorKey,
+              onRetry: () => unawaited(_retryBootstrap()),
+              appBuilder: widget.appBuilder,
+            ),
     );
   }
 }
@@ -170,7 +127,10 @@ class BootstrapShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[BootstrapShell] build() START');
+
     if (result.hasCriticalFailures) {
+      debugPrint('[BootstrapShell] Has critical failures, showing error');
       return BootstrapFailureApp(
         failures: result.failures,
         warnings: result.warnings,
@@ -179,8 +139,10 @@ class BootstrapShell extends StatelessWidget {
       );
     }
 
+    debugPrint('[BootstrapShell] Checking runtime readiness...');
     final readinessFailures = _runtimeReadinessFailures(result);
     if (readinessFailures.isNotEmpty) {
+      debugPrint('[BootstrapShell] Has readiness failures, showing error');
       return BootstrapFailureApp(
         failures: [...result.failures, ...readinessFailures],
         warnings: result.warnings,
@@ -189,11 +151,14 @@ class BootstrapShell extends StatelessWidget {
       );
     }
 
+    debugPrint('[BootstrapShell] No failures, proceeding...');
     // Ensure feature flag factory prints state when in debug for diagnostics.
     if (result.environment.debugMode) {
+      debugPrint('[BootstrapShell] Logging feature flags...');
       FeatureFlaggedBlockFactory.logFeatureFlagState();
     }
 
+    debugPrint('[BootstrapShell] Creating DefaultAssetBundle with SentryAssetBundle...');
     return DefaultAssetBundle(
       bundle: SentryAssetBundle(),
       child: ErrorBoundary(
@@ -204,9 +169,14 @@ class BootstrapShell extends StatelessWidget {
           stageDurations: result.stageDurations,
         ),
         child: Builder(
-          builder: (context) => appBuilder != null
-              ? appBuilder!(context)
-              : _AppWithShareExtension(navigatorKey: navigatorKey),
+          builder: (context) {
+            debugPrint('[BootstrapShell] Builder callback executing...');
+            final widget = appBuilder != null
+                ? appBuilder!(context)
+                : _AppWithShareExtension(navigatorKey: navigatorKey);
+            debugPrint('[BootstrapShell] Builder callback complete, returning widget');
+            return widget;
+          },
         ),
       ),
     );
@@ -431,6 +401,7 @@ class _AppWithShareExtension extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    debugPrint('[AppWithShareExtension] build start');
     // Log bootstrap ready event
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {

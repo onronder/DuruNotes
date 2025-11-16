@@ -73,7 +73,6 @@ import 'package:duru_notes/ui/auth_screen.dart';
 import 'package:duru_notes/ui/dialogs/encryption_setup_dialog.dart';
 import 'package:duru_notes/ui/inbound_email_inbox_widget.dart';
 import 'package:duru_notes/ui/app_shell.dart';
-import 'package:duru_notes/ui/widgets/offline_indicator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -107,18 +106,21 @@ class App extends ConsumerWidget {
         ? locale
         : null;
 
-    // PRODUCTION FIX: Remove blocking post-frame callbacks to eliminate black screen freeze
-    //
-    // REMOVED: loadThemeMode() - themeModeProvider already returns cached value from previous session
-    // REMOVED: loadLocale() - localeProvider already returns cached value from previous session
-    // REMOVED: initializeAdapty() - Moved to lazy initialization when paywall is accessed
-    //
-    // These platform channel calls were blocking main thread for 400-800ms after first frame,
-    // causing the black screen hang. Settings providers use default/cached values until
-    // explicitly changed by user, so eager loading is unnecessary.
-    //
-    // Adapty will now initialize on-demand when user opens subscription screen, avoiding
-    // the 200-500ms StoreKit enumeration blocking during critical app startup path.
+    // CRITICAL iOS FIX: Load user preferences after first frame
+    // Phase 2 Fix: SharedPreferences is now preloaded in bootstrap, so loading
+    // theme/locale preferences won't block with platform channel calls
+    // This ensures UI renders immediately with defaults, then updates with saved preferences
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        debugPrint('[App] Loading cached user preferences...');
+        ref.read(themeModeProvider.notifier).loadThemeMode();
+        ref.read(localeProvider.notifier).loadLocale();
+        debugPrint('[App] ✅ User preferences loaded');
+      } catch (e) {
+        debugPrint('[App] ⚠️ Error loading preferences: $e');
+        // Non-critical - app continues with defaults
+      }
+    });
 
     return MaterialApp(
       title: 'Duru Notes',
@@ -530,6 +532,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
   // CRITICAL FIX: Key to force FutureBuilder re-run after unlock
   int _amkCheckKey = 0;
+  bool _signOutCleanupScheduled = false;
+  bool _signOutCleanupRunning = false;
+
+  // BLACK SCREEN FIX: Track if user was previously authenticated
+  // This prevents cleanup from running on cold start (when there was never a session)
+  bool _hadPreviousSession = false;
 
   // User-scoped cache for remote AMK existence (positive results only)
   // Auto-cleared when user ID changes to prevent cross-user cache leakage
@@ -769,6 +777,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
         final session = snapshot.hasData ? snapshot.data!.session : null;
 
         if (session != null) {
+          // BLACK SCREEN FIX: Track that user was authenticated
+          // This allows us to detect actual logout vs cold start
+          _hadPreviousSession = true;
+          _signOutCleanupScheduled = false;
           // Check if AMK is present locally
           return FutureBuilder<EncryptionGateState>(
             key: ValueKey(_amkCheckKey),
@@ -913,15 +925,22 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                   // SecurityInitialization is complete - show main app
                   _maybePerformInitialSync();
 
-                  // Register push token for authenticated users
+                  // PHASE 3 FIX: Optimize post-frame callbacks to reduce queue saturation
+                  // Only keep critical operations in post-frame callback
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     debugPrint(
                       '🔔 Attempting push token registration after authentication...',
                     );
                     _registerPushTokenInBackground();
 
-                    // Initialize notification handler service
+                    // Initialize notification handler service (critical for push)
                     _initializeNotificationHandler();
+                  });
+
+                  // Defer non-critical operations to reduce startup contention
+                  Future<void>.delayed(const Duration(milliseconds: 200), () {
+                    if (!mounted) return;
+                    debugPrint('🔄 Initializing non-critical services (share extension, widget cache)');
 
                     // Initialize share extension service (requires repositories)
                     _initializeShareExtension();
@@ -930,13 +949,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                     _syncWidgetCacheInBackground();
                   });
 
-                  // Wrap AppShell with OfflineIndicator AFTER authentication
-                  // This defers Connectivity platform channel initialization until
-                  // critical bootstrap and auth are complete, preventing black screen hang
-                  return const OfflineIndicator(
-                    showBanner: true,
-                    child: AppShell(),
-                  );
+                  // CRITICAL FIX: Removed connectivity initialization
+                  // The connectivity provider was causing iOS crashes due to synchronous
+                  // platform channel calls during startup. Let it initialize lazily when needed.
+                  return const AppShell();
                 },
               );
             },
@@ -947,30 +963,23 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           // CRITICAL SECURITY: Clear local database to prevent data leakage between users
           // This is a critical safeguard in case sign-out didn't clear the database properly
           //
-          // PRODUCTION FIX: Use Future.microtask instead of post-frame callback
-          // This defers the work without blocking the post-frame callback queue,
-          // preventing the database clear from contributing to the black screen freeze
-          Future.microtask(() async {
-            try {
-              final db = ref.read(appDbProvider);
-              await db.clearAll();
-              debugPrint(
-                '[AuthWrapper] ✅ Database cleared on logout - preventing data leakage',
-              );
-
-              // CRITICAL: Invalidate all providers to clear cached user data
-              // This prevents User B from seeing User A's cached data in Riverpod state
-              _invalidateAllProviders(ref);
-              debugPrint(
-                '[AuthWrapper] ✅ All providers invalidated - cached state cleared',
-              );
-            } catch (e) {
-              debugPrint(
-                '[AuthWrapper] ⚠️ Error clearing database on logout: $e',
-              );
-              // Continue - this is a safety measure, not critical path
-            }
-          });
+          // BLACK SCREEN FIX: Only run cleanup if user was previously authenticated
+          // This prevents cleanup from running on cold start (which causes provider invalidation
+          // and triggers a massive rebuild that destroys the AuthScreen, leaving black screen)
+          //
+          // Scenarios:
+          // - Cold start (no previous session): Skip cleanup, show AuthScreen immediately
+          // - Logout (had previous session): Run cleanup to clear data before showing AuthScreen
+          if (!_signOutCleanupScheduled && _hadPreviousSession) {
+            _signOutCleanupScheduled = true;
+            debugPrint('[AuthWrapper] Detected logout - scheduling database cleanup');
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (!mounted) return;
+              _scheduleSignedOutCleanup(ref);
+            });
+          } else if (!_hadPreviousSession) {
+            debugPrint('[AuthWrapper] Cold start detected - skipping cleanup to prevent black screen');
+          }
 
           _hasTriggeredInitialSync = false; // Reset flag when logged out
           SecurityInitialization.dispose();
@@ -988,6 +997,33 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
         }
       },
     );
+  }
+
+  void _scheduleSignedOutCleanup(WidgetRef ref) {
+    if (_signOutCleanupRunning) {
+      debugPrint(
+        '[AuthWrapper] Logout cleanup already running - skipping duplicate',
+      );
+      return;
+    }
+    _signOutCleanupRunning = true;
+    Future.microtask(() async {
+      try {
+        final db = ref.read(appDbProvider);
+        await db.clearAll();
+        debugPrint(
+          '[AuthWrapper] ✅ Database cleared on logout - preventing data leakage',
+        );
+        _invalidateAllProviders(ref);
+        debugPrint(
+          '[AuthWrapper] ✅ All providers invalidated - cached state cleared',
+        );
+      } catch (e) {
+        debugPrint('[AuthWrapper] ⚠️ Error clearing database on logout: $e');
+      } finally {
+        _signOutCleanupRunning = false;
+      }
+    });
   }
 
   /// Trigger initial sync if in automatic mode (only once per session)
