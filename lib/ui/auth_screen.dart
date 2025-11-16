@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:duru_notes/core/window_diagnostics.dart';
 import 'package:duru_notes/features/encryption/encryption_feature_flag.dart';
 // Phase 10: Migrated to organized provider imports
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
@@ -51,6 +52,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     // PRODUCTION FIX: Initialize logger early to avoid ref access after dispose
     _logger = ref.read(loggerProvider);
+
+    // BLACK SCREEN FIX: Run window diagnostics
+    Future.delayed(const Duration(milliseconds: 500), () {
+      WindowDiagnostics.printWindowState();
+    });
 
     // Initialize animations
     _fadeController = AnimationController(
