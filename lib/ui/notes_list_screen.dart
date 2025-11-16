@@ -160,8 +160,14 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     // This prevents the UI from showing 0 notes when a folder filter was
     // previously active but the notes don't belong to that folder
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(currentFolderProvider.notifier).clearCurrentFolder();
       print('🔧 STARTUP FIX: Cleared folder filter to show all notes');
+
+      // PHASE 5 FIX: Trigger initial notes load after UI is ready
+      // Now that provider initialization is lazy, we need to explicitly load
+      print('📥 PHASE 5 FIX: Triggering initial notes load');
+      ref.read(notesPageProvider.notifier).loadMore();
     });
   }
 
@@ -206,15 +212,24 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
 
   @override
   Widget build(BuildContext context) {
+    // PHASE 4 FIX: Remove nested Scaffold - we're already inside AdaptiveNavigation's Scaffold
     if (!SecurityInitialization.isInitialized) {
-      return Scaffold(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        body: const Center(child: CircularProgressIndicator()),
+      return Container(
+        color: Theme.of(context).colorScheme.surface,
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Initialize unified realtime service (only if authenticated)
-    ref.watch(unifiedRealtimeServiceProvider);
+    // CRITICAL FIX: Defer realtime service initialization to prevent blocking first render
+    // This was causing iOS crashes when combined with other startup operations
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        ref.read(unifiedRealtimeServiceProvider);
+      } catch (e) {
+        debugPrint('[NotesListScreen] Error initializing realtime: $e');
+      }
+    });
 
     // Trigger early loading of folders for deterministic first paint
     ref.watch(rootFoldersProvider);

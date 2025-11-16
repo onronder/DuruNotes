@@ -13,6 +13,8 @@ import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/data/migrations/migration_tables_setup.dart';
 import 'package:duru_notes/services/template_initialization_service.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Steps performed during application bootstrap.
@@ -192,9 +194,11 @@ class AppBootstrap {
       failures: failures,
       stageDurations: stageDurations,
       action: () async {
+        debugPrint('[Firebase] BEFORE Firebase.initializeApp()');
         firebaseApp = await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
+        debugPrint('[Firebase] AFTER Firebase.initializeApp()');
       },
     );
     if (firebaseApp == null) {
@@ -362,6 +366,33 @@ class AppBootstrap {
       }
     }
 
+    // 11. Preload SharedPreferences (CRITICAL iOS FIX)
+    // This prevents main thread blocking when SharedPreferences is first accessed
+    // The first getInstance() call makes a platform channel call that can block for 100-500ms
+    await _runStage<void>(
+      stage: BootstrapStage.platform,
+      logger: logger,
+      failures: failures,
+      stageDurations: stageDurations,
+      action: () async {
+        try {
+          debugPrint('[Bootstrap] Preloading SharedPreferences...');
+          await SharedPreferences.getInstance();
+          debugPrint('[Bootstrap] ✅ SharedPreferences preloaded');
+        } catch (e, stack) {
+          logger.warning(
+            'SharedPreferences preload failed (non-critical)',
+            data: {'error': e.toString()},
+          );
+          // Non-critical - app can continue
+        }
+      },
+    );
+
+    debugPrint(
+      '[AppBootstrap] completed: failures=${failures.length} '
+      'warnings=${warnings.length} sentry=$sentryEnabled',
+    );
     return BootstrapResult(
       environment: environment,
       logger: logger,
@@ -393,10 +424,19 @@ class AppBootstrap {
     bool critical = false,
   }) async {
     final stopwatch = Stopwatch()..start();
+    debugPrint('[AppBootstrap] Stage ${stage.name} started');
     try {
       final result = await action().timeout(_stageTimeout);
+      debugPrint(
+        '[AppBootstrap] Stage ${stage.name} completed in '
+        '${stopwatch.elapsedMilliseconds}ms',
+      );
       return result;
     } on TimeoutException catch (error) {
+      debugPrint(
+        '[AppBootstrap] Stage ${stage.name} timed out after '
+        '${_stageTimeout.inSeconds}s',
+      );
       final failure = BootstrapFailure(
         stage: stage,
         error: TimeoutException(
@@ -418,6 +458,9 @@ class AppBootstrap {
       );
       return null;
     } catch (error, stack) {
+      debugPrint(
+        '[AppBootstrap] Stage ${stage.name} failed: $error',
+      );
       failures.add(
         BootstrapFailure(
           stage: stage,
