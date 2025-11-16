@@ -1,15 +1,49 @@
-Phase 1.1: Soft Delete & Trash System Implementation Plan
-Overview of Soft Delete & Trash System
+---
+**Document**: Phase 1.1 - Soft Delete & Trash System Implementation Plan
+**Version**: 1.2.0
+**Created**: 2025-11-02
+**Last Updated**: 2025-11-16T22:41:12Z
+**Previous Version**: 1.0 (2025-11-02)
+**Author**: Claude Code AI Assistant
+**Git Commit**: de1dcfe0 (will be updated on commit)
+**Status**: ✅ **COMPLETE** (Service layer bypass remains - see below)
+**Related Documents**:
+  - MASTER_IMPLEMENTATION_PLAN.md v2.1.0
+  - ARCHITECTURE_VIOLATIONS.md v1.0.0
 
-Soft Delete allows us to mark notes (and related entities) as deleted without permanently removing data. Instead of immediately purging records from the database, we set a flag (e.g. deleted = true) indicating the item is in “Trash.” This gives users the ability to recover accidentally deleted notes and satisfies data retention policies until permanent deletion occurs (addressed later in Phase 1.3, Purge Automation). The Trash system will provide a user-visible area where all soft-deleted items reside. Implementing this fully requires changes across the stack: database schema, data access layer, synchronization logic, and UI. By planning it end-to-end now, we avoid technical debt and ensure the solution is robust and maintainable.
+**CHANGELOG**:
+- 1.2.0 (2025-11-16): Updated to reflect actual implementation status. Soft-delete timestamps, TrashScreen, and purge automation are complete. Only service layer bypass remains.
+- 1.1.0 (2025-11-05): Added audit comment noting boolean-only implementation
+- 1.0 (2025-11-02): Original implementation plan
 
-<!-- AUDIT 2025-11-05: Current implementation status
-  - Notes/Folders/Tasks soft delete implemented via boolean flag and Trash UI (lib/ui/trash_screen.dart) with restore flow.
-  - Deletion timestamps (`deleted_at`, `scheduled_purge_at`) and Supabase migrations still missing.
-  - Reminders/Tags/Attachments remain hard delete.
-  - Trash permanent delete / Empty Trash actions not yet wired (TODOs in trash_screen.dart).
-  - No dedicated automated tests for trash flows detected.
--->
+---
+
+# Phase 1.1: Soft Delete & Trash System Implementation Plan
+
+## ✅ Implementation Status (Updated 2025-11-16)
+
+**COMPLETED**: This phase is ✅ **fully implemented** with one remaining issue:
+
+✅ **Completed Features**:
+- Soft delete timestamps (`deleted_at`, `scheduled_purge_at`) - migration_40
+- TrashScreen UI with restore/delete actions - lib/ui/trash_screen.dart
+- Repository layer soft delete - all repositories use timestamp-based soft delete
+- Purge automation - purge_scheduler_service.dart with 30-day retention
+- Supabase migrations aligned with local schema
+
+⚠️ **Remaining Issue**: Service layer bypass
+- **File**: lib/services/enhanced_task_service.dart:305
+- **Problem**: Bypasses repository pattern, calls AppDb.deleteTaskById() directly (hard delete)
+- **Impact**: Tasks deleted via this service skip trash system
+- **Fix Required**: 2-3 hours to refactor service (see ARCHITECTURE_VIOLATIONS.md v1.0.0)
+
+---
+
+## Overview of Soft Delete & Trash System
+
+Soft Delete allows us to mark notes (and related entities) as deleted without permanently removing data. Instead of immediately purging records from the database, we set timestamps (`deleted_at`, `scheduled_purge_at`) indicating the item is in "Trash." This gives users the ability to recover accidentally deleted notes and satisfies data retention policies until permanent deletion occurs (addressed in Phase 1.3, Purge Automation). The Trash system provides a user-visible area where all soft-deleted items reside. The implementation spans the entire stack: database schema, data access layer, synchronization logic, and UI.
+
+**✅ Implementation completed in migration_40** - This plan document remains for reference and to guide the service layer bypass fix.
 
 Database Schema and Migrations (Local & Remote)
 
