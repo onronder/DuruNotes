@@ -2,16 +2,22 @@
 
 ---
 **Document**: Master Implementation Plan
-**Version**: 2.1.0
+**Version**: 2.2.0
 **Created**: 2025-11-02
-**Last Updated**: 2025-11-16T22:41:12Z
-**Previous Version**: 1.0 (2025-11-02)
+**Last Updated**: 2025-11-17T14:45:00Z
+**Previous Version**: 2.1.0 (2025-11-16)
 **Author**: Claude Code AI Assistant
-**Git Commit**: de1dcfe0 (will be updated on commit)
-**Status**: Active Development Plan
+**Git Commit**: eacd756f
+**Status**: Active Development Plan - Phase 1 Tests Complete, Phase 2 Ready
 **Approach**: Hybrid Parallel Tracks
 
 **CHANGELOG**:
+- 2.2.0 (2025-11-17): Phase 1 complete - Architecture tests created and validated
+  - Created test/architecture/repository_pattern_test.dart (automated violation detection)
+  - Expanded test/services/enhanced_task_service_isolation_test.dart (11 new tests)
+  - Bug validated with failing test: deleteTask performs hard delete instead of soft delete
+  - Service bypass issue documented with test coverage (see AUDIT_LOG.md v1.1.0)
+  - Ready for Phase 2: Fix read operations (14 violations)
 - 2.1.0 (2025-11-16): Updated soft-delete implementation status to reflect completed features. Documented service layer bypass issue in ARCHITECTURE_VIOLATIONS.md.
 - 1.0 (2025-11-02): Original plan document
 
@@ -173,13 +179,17 @@ Duru Notes is completing its MVP-to-Production transition by implementing critic
    - 24-hour throttling
    - Scheduled based on `scheduled_purge_at` column
 
-**Remaining Issue - Service Layer Bypass** *(P0 - CRITICAL)*:
+**Remaining Issue - Service Layer Bypass** *(P0 - CRITICAL, Validated with Tests)*:
 - ❌ `EnhancedTaskService.deleteTask()` bypasses `TaskCoreRepository` and directly calls `AppDb.deleteTaskById()` (hard delete)
 - **Impact**: Tasks deleted via this service are permanently removed instead of going to trash
 - **File**: `lib/services/enhanced_task_service.dart:305`
-- **Documentation**: See `ARCHITECTURE_VIOLATIONS.md` v1.0.0 for detailed analysis and remediation plan
-- **Effort**: 2-3 hours to refactor service to use repository pattern
-- **Exit Criteria**: All task deletions go through repository soft-delete, appear in TrashScreen, respect 30-day retention
+- **Test Coverage**: ✅ Phase 1 Complete (commit 359f30d1)
+  - Architecture test detects 23 violations (18 in EnhancedTaskService, 5 in TaskReminderBridge)
+  - Service test validates bug: "deleteTask performs SOFT DELETE" FAILS (confirms hard delete)
+  - 12/13 tests passing (1 expected failure proves issue exists)
+- **Documentation**: See `ARCHITECTURE_VIOLATIONS.md` v1.1.0, `AUDIT_LOG.md` v1.1.0
+- **Effort**: 2-3 hours to refactor service to use repository pattern (Phases 2-4)
+- **Exit Criteria**: All tests pass, all task deletions go through repository soft-delete, appear in TrashScreen, respect 30-day retention
 
 ### Key Findings
 

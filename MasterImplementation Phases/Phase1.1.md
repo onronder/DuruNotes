@@ -1,17 +1,25 @@
 ---
 **Document**: Phase 1.1 - Soft Delete & Trash System Implementation Plan
-**Version**: 1.2.0
+**Version**: 1.3.0
 **Created**: 2025-11-02
-**Last Updated**: 2025-11-16T22:41:12Z
-**Previous Version**: 1.0 (2025-11-02)
+**Last Updated**: 2025-11-17T14:45:00Z
+**Previous Version**: 1.2.0 (2025-11-16)
 **Author**: Claude Code AI Assistant
-**Git Commit**: de1dcfe0 (will be updated on commit)
-**Status**: ✅ **COMPLETE** (Service layer bypass remains - see below)
+**Git Commit**: eacd756f
+**Status**: ✅ **COMPLETE + TESTED** (Service layer bypass fix in progress - Phases 2-4)
 **Related Documents**:
-  - MASTER_IMPLEMENTATION_PLAN.md v2.1.0
-  - ARCHITECTURE_VIOLATIONS.md v1.0.0
+  - MASTER_IMPLEMENTATION_PLAN.md v2.2.0
+  - ARCHITECTURE_VIOLATIONS.md v1.1.0
+  - AUDIT_LOG.md v1.1.0
+  - test/architecture/repository_pattern_test.dart (NEW - automated detection)
+  - test/services/enhanced_task_service_isolation_test.dart (UPDATED - comprehensive coverage)
 
 **CHANGELOG**:
+- 1.3.0 (2025-11-17): Phase 1 test coverage complete
+  - Created architecture enforcement test (repository_pattern_test.dart)
+  - Expanded service test coverage (11 new tests, 12/13 passing)
+  - Bug validated: deleteTask test FAILS (confirms hard delete instead of soft delete)
+  - Ready for Phase 2-4 implementation (fix service layer bypass)
 - 1.2.0 (2025-11-16): Updated to reflect actual implementation status. Soft-delete timestamps, TrashScreen, and purge automation are complete. Only service layer bypass remains.
 - 1.1.0 (2025-11-05): Added audit comment noting boolean-only implementation
 - 1.0 (2025-11-02): Original implementation plan
@@ -31,11 +39,18 @@
 - Purge automation - purge_scheduler_service.dart with 30-day retention
 - Supabase migrations aligned with local schema
 
-⚠️ **Remaining Issue**: Service layer bypass
+⚠️ **Remaining Issue**: Service layer bypass (FIX IN PROGRESS - Phases 2-4)
 - **File**: lib/services/enhanced_task_service.dart:305
 - **Problem**: Bypasses repository pattern, calls AppDb.deleteTaskById() directly (hard delete)
 - **Impact**: Tasks deleted via this service skip trash system
-- **Fix Required**: 2-3 hours to refactor service (see ARCHITECTURE_VIOLATIONS.md v1.0.0)
+- **Test Coverage**: ✅ Phase 1 Complete (commit 359f30d1)
+  - Architecture test detects violations automatically
+  - Service test proves bug exists (deleteTask test FAILS)
+  - 23 violations detected: 18 in EnhancedTaskService, 5 in TaskReminderBridge
+- **Fix Plan**: See ARCHITECTURE_VIOLATIONS.md v1.1.0, AUDIT_LOG.md v1.1.0
+  - Phase 2: Fix read operations (14 violations)
+  - Phase 3: Fix update operations (5 violations)
+  - Phase 4: Fix delete operation (1 CRITICAL violation)
 
 ---
 
