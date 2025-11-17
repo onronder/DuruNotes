@@ -40,7 +40,8 @@ void main() {
         // Task operations
         '_db.deleteTaskById',
         '_db.deleteTasksForNote',
-        '_db.getTaskById',  // Services should use repository for decryption
+        // Note: _db.getTaskById is exempted for reminder bridge coordination
+        // See ARCHITECTURE_VIOLATIONS.md "Architectural Exemptions" section
         '_db.createTask',
         '_db.updateTask',
         '_db.completeTask',

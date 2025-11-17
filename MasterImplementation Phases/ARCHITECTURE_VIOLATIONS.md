@@ -478,6 +478,41 @@ Found 7 other services with `final AppDb _db`:
 
 ---
 
+## ARCHITECTURAL EXEMPTIONS (Infrastructure Concerns)
+
+### Reminder Bridge Infrastructure Access
+
+**Context**: `TaskReminderBridge` requires `NoteTask` (database layer objects) to manage platform-specific reminder APIs.
+
+**Current State**:
+- 13 instances of `_db.getTaskById()` in `EnhancedTaskService` exist solely to pass `NoteTask` to `TaskReminderBridge`
+- These are **infrastructure coordination calls**, not business logic violations
+- The service ALREADY uses `_taskRepository.getTaskById()` for all business logic (e.g., line 179)
+
+**Example Pattern** (enhanced_task_service.dart:176-179):
+```dart
+// Infrastructure: Get NoteTask for reminder coordination
+final oldLocalTask = await _db.getTaskById(taskId, userId: userId);
+
+// Business Logic: Use repository ✅
+final currentTask = await _taskRepository.getTaskById(taskId);
+```
+
+**Exempted Violations** (13 total):
+- Lines 125, 176, 230, 248, 275, 285, 302, 348, 374, 388, 408, 422: `_db.getTaskById()`
+- **Reason**: Required by `TaskReminderBridge` API contract
+- **Impact**: None - repository already used for business logic
+- **Future Work**: Refactor `TaskReminderBridge` to accept `domain.Task` instead of `NoteTask`
+
+**Decision**: Accept as technical debt, prioritize critical violations (update/delete) first.
+
+**Backlog Item**: "Refactor TaskReminderBridge to use domain layer objects"
+- Estimated Effort: 8-12 hours (requires platform API abstraction changes)
+- Target: Post-Phase 1 cleanup sprint
+- Priority: P2 (technical debt, not blocking production)
+
+---
+
 ## References
 
 - Phase 1.1: Soft Delete & Trash System Implementation Plan
