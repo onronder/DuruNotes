@@ -1,20 +1,31 @@
 ---
 **Document**: Architecture Violations & Remediation Plan
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Created**: 2025-11-16T22:41:12Z
+**Updated**: 2025-11-17T14:30:00Z
 **Author**: Claude Code AI Assistant
-**Git Commit**: de1dcfe0
+**Git Commit**: 359f30d1
 **Discovery Date**: 2025-11-17
-**Severity**: P0 - CRITICAL
+**Severity**: P0 - CRITICAL (Validated with Tests)
 **Related Documents**:
-  - MASTER_IMPLEMENTATION_PLAN.md (will be updated to v2.1.0)
-  - Phase1.1.md (will be updated to v1.2.0)
+  - MASTER_IMPLEMENTATION_PLAN.md v2.1.0
+  - Phase1.1.md v1.2.0
+  - DELETION_PATTERNS.md v1.0.0
+  - AUDIT_LOG.md v1.1.0
 **Related Files**:
   - lib/services/enhanced_task_service.dart
   - lib/data/local/app_db.dart
   - lib/infrastructure/repositories/task_core_repository.dart
+  - test/architecture/repository_pattern_test.dart (NEW - automated detection)
+  - test/services/enhanced_task_service_isolation_test.dart (UPDATED)
 
 **CHANGELOG**:
+- 1.1.0 (2025-11-17): ✅ Phase 1 Complete - Test coverage added
+  - Created repository_pattern_test.dart for automated violation detection
+  - Expanded enhanced_task_service_isolation_test.dart (11 new tests)
+  - Bug validated: deleteTask test FAILS (confirms hard delete instead of soft delete)
+  - 23 violations detected automatically (18 in EnhancedTaskService, 5 in TaskReminderBridge)
+  - Ready for remediation phases 2-4
 - 1.0.0 (2025-11-16): Initial documentation of service layer repository bypass issue
 
 ---
@@ -307,9 +318,9 @@ Future<void> _deleteTasksForNote(String noteId, String userId) async {
 
 ---
 
-#### Step 5: Create Architecture Enforcement Test
+#### Step 5: Create Architecture Enforcement Test ✅ COMPLETE (2025-11-17)
 
-**File**: `test/architecture/repository_pattern_test.dart` (NEW)
+**File**: `test/architecture/repository_pattern_test.dart` (CREATED - commit 359f30d1)
 
 ```dart
 /// Repository Pattern Enforcement Tests
