@@ -1,18 +1,29 @@
 ---
 **Document**: Service Layer Architecture Audit Log
-**Version**: 1.5.0
+**Version**: 1.6.0
 **Created**: 2025-11-16T22:41:12Z
-**Updated**: 2025-11-18T18:00:00Z
+**Updated**: 2025-11-19T00:00:00Z
 **Author**: Claude Code AI Assistant
-**Git Commit**: 359f30d1
+**Git Commit**: 2710127b
 **Purpose**: Track services with direct AppDb access requiring refactoring
 **Related Documents**:
   - ARCHITECTURE_VIOLATIONS.md v1.0.0
   - DELETION_PATTERNS.md v1.0.0
   - MASTER_IMPLEMENTATION_PLAN.md v2.1.0
+  - PHASE_1.1_COMPLETION_REPORT.md (NEW - Phase 1.1)
   - test/architecture/repository_pattern_test.dart (NEW - Phase 1.1)
 
 **CHANGELOG**:
+- 1.6.0 (2025-11-19): ✅ COMPLETED: Phase 1.1 - Soft Delete & Trash System
+  - Verified all 47 targeted tests passing (repository, service, trash, architecture)
+  - Critical test "deleteTask performs SOFT DELETE via repository" now PASSING
+  - Architecture pattern violations: ZERO (down from 23 in v1.1.0)
+  - All entities (Notes, Folders, Tasks) implement complete soft delete system
+  - Trash UI operational with restore/permanent delete/empty trash
+  - Auto-purge system functional (30-day retention)
+  - Created PHASE_1.1_COMPLETION_REPORT.md with full verification details
+  - Status: Production-ready, approved for deployment
+  - Approved exemption: TaskReminderBridge (5 read operations, documented)
 - 1.5.0 (2025-11-18): ✅ COMPLETED: Reminder INT→UUID Migration (v41)
   - Migrated local NoteReminders.id from INTEGER to TEXT (UUID)
   - Migrated NoteTasks.reminder_id foreign key from INTEGER to TEXT
