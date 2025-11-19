@@ -25,6 +25,7 @@ import 'package:duru_notes/data/migrations/migration_41_reminder_uuid.dart';
 import 'package:duru_notes/data/migrations/migration_42_reminder_encryption.dart';
 import 'package:duru_notes/data/migrations/migration_43_reminder_updated_at.dart';
 import 'package:duru_notes/data/migrations/migration_44_reminder_soft_delete.dart';
+import 'package:duru_notes/data/migrations/migration_45_anonymization_support.dart';
 import 'package:duru_notes/models/note_kind.dart';
 
 part 'app_db.g.dart';
@@ -618,7 +619,7 @@ class AppDb extends _$AppDb {
   AppDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 44; // Migration 44: Add soft delete to reminders (30-day recovery window)
+  int get schemaVersion => 45; // Migration 45: Add anonymization support (GDPR Article 17 compliance)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -962,6 +963,12 @@ class AppDb extends _$AppDb {
         // Migration 44: Add soft delete to reminders (30-day recovery window)
         // Adds deleted_at and scheduled_purge_at columns for soft delete support
         await Migration44ReminderSoftDelete.apply(this);
+      }
+
+      if (from < 45) {
+        // Migration 45: Add anonymization support (GDPR Article 17 compliance)
+        // Adds tables for anonymization events, key revocation, and compliance proofs
+        await migration45AnonymizationSupport(m);
       }
 
       // Always attempt Migration 12 (idempotent) to handle edge cases where

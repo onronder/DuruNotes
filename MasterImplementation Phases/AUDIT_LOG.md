@@ -1,8 +1,8 @@
 ---
 **Document**: Service Layer Architecture Audit Log
-**Version**: 1.6.0
+**Version**: 1.7.0
 **Created**: 2025-11-16T22:41:12Z
-**Updated**: 2025-11-19T00:00:00Z
+**Updated**: 2025-11-19T13:04:49Z
 **Author**: Claude Code AI Assistant
 **Git Commit**: 2710127b
 **Purpose**: Track services with direct AppDb access requiring refactoring
@@ -14,6 +14,37 @@
   - test/architecture/repository_pattern_test.dart (NEW - Phase 1.1)
 
 **CHANGELOG**:
+- 1.6.0 (2025-11-19): ✅ COMPLETED: Phase 1.1 - Soft Delete & Trash System
+  - Verified all 47 targeted tests passing (repository, service, trash, architecture)
+  - Critical test "deleteTask performs SOFT DELETE via repository" now PASSING
+  - Architecture pattern violations: ZERO (down from 23 in v1.1.0)
+
+**CHANGELOG** (Updated):
+- 1.7.0 (2025-11-19): ✅ COMPLETED: Phase 1.2 GDPR Anonymization Design
+  - Created comprehensive anonymization design document (2083 lines)
+  - Analyzed GDPR Article 17 (Right to Erasure) legal requirements
+  - Analyzed GDPR Recital 26 (Anonymization vs Pseudonymization standards)
+  - Researched ISO 29100:2024 privacy framework and ISO 27001:2022 data disposal
+  - Designed 7-phase anonymization process:
+    1. Verification (confirmation code, re-auth, warnings)
+    2. Backup & Export (GDPR Article 20 compliance)
+    3. Encrypted Blob Overwriting (notes, tasks, folders, reminders - random data via CSRNG)
+    4. Key Destruction (AMK + legacy keys, 3-pass DoD 5220.22-M overwrite)
+    5. Profile Anonymization (email → anonymized_hash@deleted.local)
+    6. Audit Log Anonymization (item_title → "ANONYMIZED", preserve structure)
+    7. Verification & Proof Generation (test decryption fails, PII scan)
+  - Defined data classification framework (MUST DELETE vs CAN ANONYMIZE vs MUST PRESERVE)
+  - Designed AnonymizationService API with progress tracking and error handling
+  - Created compliance validation framework with 5 key test cases
+  - Identified legal risks and mitigation strategies
+  - Created 4-week implementation roadmap
+  - Database schema additions: key_revocation_events, anonymization_proofs
+  - Key finding: True anonymization requires BOTH key destruction AND blob overwriting
+  - Legal compliance: Satisfies GDPR Article 17 through irreversible anonymization
+  - Files created:
+    - PHASE_1.2_ANONYMIZATION_DESIGN.md (comprehensive design doc)
+  - Status: Ready for legal review and implementation
+  - Next steps: Legal team approval, privacy policy update, 4-week implementation
 - 1.6.0 (2025-11-19): ✅ COMPLETED: Phase 1.1 - Soft Delete & Trash System
   - Verified all 47 targeted tests passing (repository, service, trash, architecture)
   - Critical test "deleteTask performs SOFT DELETE via repository" now PASSING
