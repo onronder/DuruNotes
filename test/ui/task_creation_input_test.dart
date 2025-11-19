@@ -173,6 +173,15 @@ class _FakeTaskRepository implements ITaskRepository {
   Future<List<domain.Task>> getSubtasks(String parentTaskId) async => const [];
 
   @override
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    required String? reminderId,
+  }) async {}
+
+  @override
+  Future<void> updateTaskPositions(Map<String, int> positions) async {}
+
+  @override
   Future<List<domain.Task>> getDeletedTasks() async => const [];
 
   @override
@@ -355,8 +364,9 @@ void main() {
                       builder: (context) => TaskMetadataDialog(
                         taskContent: '',
                         isNewTask: true,
-                        onSave: (metadata) =>
-                            Navigator.of(context).pop(metadata),
+                        onSave: (metadata) async {
+                          Navigator.of(context).pop(metadata);
+                        },
                       ),
                     );
 
@@ -407,7 +417,7 @@ void main() {
               body: TaskMetadataDialog(
                 taskContent: '',
                 isNewTask: true,
-                onSave: (_) {},
+                onSave: (_) async {},
               ),
             ),
           ),
@@ -439,7 +449,7 @@ void main() {
               body: TaskMetadataDialog(
                 taskContent: '',
                 isNewTask: true,
-                onSave: (_) {},
+                onSave: (_) async {},
               ),
             ),
           ),
@@ -463,7 +473,7 @@ void main() {
               body: TaskMetadataDialog(
                 taskContent: '',
                 isNewTask: true,
-                onSave: (_) {},
+                onSave: (_) async {},
               ),
             ),
           ),
@@ -484,7 +494,7 @@ void main() {
               body: TaskMetadataDialog(
                 taskContent: 'Existing Task',
                 isNewTask: false,
-                onSave: (_) {},
+                onSave: (_) async {},
               ),
             ),
           ),
@@ -534,8 +544,9 @@ void main() {
                       builder: (context) => TaskMetadataDialog(
                         taskContent: '',
                         isNewTask: true,
-                        onSave: (metadata) =>
-                            Navigator.of(context).pop(metadata),
+                        onSave: (metadata) async {
+                          Navigator.of(context).pop(metadata);
+                        },
                       ),
                     );
 
@@ -612,8 +623,9 @@ void main() {
                       builder: (context) => TaskMetadataDialog(
                         taskContent: '',
                         isNewTask: true,
-                        onSave: (metadata) =>
-                            Navigator.of(context).pop(metadata),
+                        onSave: (metadata) async {
+                          Navigator.of(context).pop(metadata);
+                        },
                       ),
                     );
 

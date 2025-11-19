@@ -23,6 +23,7 @@ import 'package:duru_notes/services/sync/folder_sync_audit.dart';
 import 'package:duru_notes/services/sync/folder_sync_coordinator.dart';
 import 'package:duru_notes/services/unified_realtime_service.dart';
 import 'package:duru_notes/services/unified_sync_service.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -83,20 +84,30 @@ final unifiedSyncServiceProvider = Provider<UnifiedSyncService>((ref) {
   final unifiedRealtime = ref.watch(unifiedRealtimeServiceProvider);
 
   // PRODUCTION FIX #4: Trigger automatic sync when realtime events arrive
+  // PERFORMANCE FIX: Add debouncing to prevent sync spam from rapid realtime events
   if (unifiedRealtime != null) {
+    Timer? realtimeSyncDebounceTimer;
+
     void onRealtimeEvent() {
       if (service.isInitialized) {
-        debugPrint(
-          '[Sync] 📡 Realtime event received - triggering automatic sync',
-        );
-        service.syncAll().catchError((Object error) {
-          debugPrint('[Sync] Auto-sync from realtime event failed: $error');
-          // Return a failed sync result for error handler
-          return SyncResult(
-            success: false,
-            message: error.toString(),
-            errors: [error.toString()],
+        // Cancel any pending debounced sync
+        realtimeSyncDebounceTimer?.cancel();
+
+        // Debounce: wait 2 seconds before syncing
+        // This prevents rapid-fire syncs when multiple realtime events arrive
+        realtimeSyncDebounceTimer = Timer(const Duration(seconds: 2), () {
+          debugPrint(
+            '[Sync] 📡 Realtime event (debounced) - triggering automatic sync',
           );
+          service.syncAll().catchError((Object error) {
+            debugPrint('[Sync] Auto-sync from realtime event failed: $error');
+            // Return a failed sync result for error handler
+            return SyncResult(
+              success: false,
+              message: error.toString(),
+              errors: [error.toString()],
+            );
+          });
         });
       }
     }
@@ -104,10 +115,11 @@ final unifiedSyncServiceProvider = Provider<UnifiedSyncService>((ref) {
     // Listen to realtime service notifications
     unifiedRealtime.addListener(onRealtimeEvent);
 
-    // Clean up listener on dispose
+    // Clean up listener and timer on dispose
     ref.onDispose(() {
+      realtimeSyncDebounceTimer?.cancel();
       unifiedRealtime.removeListener(onRealtimeEvent);
-      debugPrint('[Sync] Removed realtime listener');
+      debugPrint('[Sync] Removed realtime listener and cancelled debounce timer');
     });
   }
 
@@ -183,11 +195,28 @@ final unifiedRealtimeServiceProvider =
       // PRODUCTION FIX #5: Keep provider alive to prevent disposal/recreation cycles
       ref.keepAlive();
 
+      // Track current service instance for proper cleanup
+      UnifiedRealtimeService? currentService;
+
+      // CRITICAL FIX: Register disposal callback at provider level, not inside .when()
+      // This prevents "Cannot call onDispose after provider was dispose" error
+      ref.onDispose(() {
+        debugPrint('[Providers] Disposing unified realtime service');
+        currentService?.dispose();
+      });
+
       // Watch auth state to properly manage lifecycle
       final authStateAsync = ref.watch(authStateChangesProvider);
 
       return authStateAsync.when(
         data: (authState) {
+          // Dispose previous service if it exists (auth state changed)
+          if (currentService != null) {
+            debugPrint('[Providers] Auth state changed - disposing old realtime service');
+            currentService!.dispose();
+            currentService = null;
+          }
+
           // Return null if not authenticated
           if (authState.session == null) {
             debugPrint(
@@ -223,17 +252,28 @@ final unifiedRealtimeServiceProvider =
             );
           });
 
-          // CRITICAL: Proper disposal on logout or provider disposal
-          ref.onDispose(() {
-            debugPrint('[Providers] Disposing unified realtime service');
-            service.dispose();
-          });
+          // Track this service instance for cleanup
+          currentService = service;
 
           return service;
         },
-        loading: () => null,
+        loading: () {
+          // Dispose service when loading (shouldn't happen often)
+          if (currentService != null) {
+            debugPrint('[Providers] Auth loading - disposing realtime service');
+            currentService!.dispose();
+            currentService = null;
+          }
+          return null;
+        },
         error: (error, stack) {
           debugPrint('[Providers] Auth state error: $error');
+          // Dispose service on error
+          if (currentService != null) {
+            debugPrint('[Providers] Auth error - disposing realtime service');
+            currentService!.dispose();
+            currentService = null;
+          }
           return null;
         },
       );

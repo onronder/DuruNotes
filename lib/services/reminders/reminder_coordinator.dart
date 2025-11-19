@@ -6,6 +6,7 @@ import 'package:duru_notes/core/events/mutation_event_bus.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/core/feature_flags.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
@@ -31,15 +32,37 @@ import 'package:duru_notes/services/security/security_audit_trail.dart';
 ///
 /// The coordinator uses feature flags to enable gradual rollout of the refactored services.
 class ReminderCoordinator {
-  ReminderCoordinator(this._ref, this._plugin, this._db) {
+  ReminderCoordinator(
+    this._ref,
+    this._plugin,
+    this._db, {
+    CryptoBox? cryptoBox,
+  }) : _cryptoBox = cryptoBox {
     // Use consolidated reminder services (Phase 1 complete)
-    _recurringService = RecurringReminderService(_ref, _plugin, _db);
-    _geofenceService = GeofenceReminderService(_ref, _plugin, _db);
-    _snoozeService = SnoozeReminderService(_ref, _plugin, _db);
+    // MIGRATION v42: Pass CryptoBox for encryption support
+    _recurringService = RecurringReminderService(
+      _ref,
+      _plugin,
+      _db,
+      cryptoBox: _cryptoBox,
+    );
+    _geofenceService = GeofenceReminderService(
+      _ref,
+      _plugin,
+      _db,
+      cryptoBox: _cryptoBox,
+    );
+    _snoozeService = SnoozeReminderService(
+      _ref,
+      _plugin,
+      _db,
+      cryptoBox: _cryptoBox,
+    );
   }
 
   final FlutterLocalNotificationsPlugin _plugin;
   final AppDb _db;
+  final CryptoBox? _cryptoBox;
 
   late final BaseReminderService _recurringService;
   late final BaseReminderService _geofenceService;
@@ -167,7 +190,8 @@ class ReminderCoordinator {
   // Reminder creation and retrieval
 
   /// Create a time-based reminder (with optional recurrence)
-  Future<int?> createTimeReminder({
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<String?> createTimeReminder({
     required String noteId,
     required String title,
     required String body,
@@ -182,10 +206,15 @@ class ReminderCoordinator {
 
     final scheduledTime = remindAtUtc.toUtc();
 
-    debugPrint(
-      '[ReminderCoordinator] createTimeReminder -> '
-      'note=$noteId title="$title" remindAt=$scheduledTime '
-      'recurrence=${recurrence.name} interval=$recurrenceInterval',
+    logger.debug(
+      'Creating time reminder',
+      data: {
+        'noteId': noteId,
+        'title': title,
+        'remindAt': scheduledTime.toIso8601String(),
+        'recurrence': recurrence.name,
+        'interval': recurrenceInterval,
+      },
     );
 
     if (!await hasNotificationPermissions()) {
@@ -225,13 +254,12 @@ class ReminderCoordinator {
         'Created time reminder',
         data: {'id': reminderId, 'recurrence': recurrence.name},
       );
-      debugPrint('[ReminderCoordinator] time reminder created id=$reminderId');
 
       // PRODUCTION: Enqueue reminder for sync to Supabase
       try {
         await _db.enqueue(
           userId: userId,
-          entityId: reminderId.toString(),
+          entityId: reminderId, // MIGRATION v41: Already String (UUID)
           kind: 'upsert_reminder',
           payload: jsonEncode({
             'noteId': noteId,
@@ -268,7 +296,7 @@ class ReminderCoordinator {
 
       MutationEventBus.instance.emitReminder(
         kind: MutationKind.created,
-        reminderId: reminderId.toString(),
+        reminderId: reminderId, // MIGRATION v41: Already String (UUID)
         noteId: noteId,
         metadata: {
           'type': 'time',
@@ -285,7 +313,8 @@ class ReminderCoordinator {
   }
 
   /// Create a location-based reminder
-  Future<int?> createLocationReminder({
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<String?> createLocationReminder({
     required String noteId,
     required String title,
     required String body,
@@ -298,10 +327,16 @@ class ReminderCoordinator {
   }) async {
     await initialize();
 
-    debugPrint(
-      '[ReminderCoordinator] createLocationReminder -> '
-      'note=$noteId title="$title" lat=$latitude lng=$longitude '
-      'radius=$radius location=${locationName ?? "unnamed"}',
+    logger.debug(
+      'Creating location reminder',
+      data: {
+        'noteId': noteId,
+        'title': title,
+        'latitude': latitude,
+        'longitude': longitude,
+        'radius': radius,
+        'locationName': locationName ?? 'unnamed',
+      },
     );
 
     if (!await hasLocationPermissions()) {
@@ -346,15 +381,12 @@ class ReminderCoordinator {
         'Created location reminder',
         data: {'id': reminderId, 'location': locationName ?? 'unnamed'},
       );
-      debugPrint(
-        '[ReminderCoordinator] location reminder created id=$reminderId',
-      );
 
       // PRODUCTION: Enqueue reminder for sync to Supabase
       try {
         await _db.enqueue(
           userId: userId,
-          entityId: reminderId.toString(),
+          entityId: reminderId, // MIGRATION v41: Already String (UUID)
           kind: 'upsert_reminder',
           payload: jsonEncode({
             'noteId': noteId,
@@ -382,7 +414,7 @@ class ReminderCoordinator {
 
       MutationEventBus.instance.emitReminder(
         kind: MutationKind.created,
-        reminderId: reminderId.toString(),
+        reminderId: reminderId, // MIGRATION v41: Already String (UUID)
         noteId: noteId,
         metadata: {
           'locationName': locationName,
@@ -398,7 +430,10 @@ class ReminderCoordinator {
       );
       return reminderId;
     } else {
-      debugPrint('[ReminderCoordinator] createLocationReminder returned null');
+      logger.warning(
+        'Failed to create location reminder',
+        data: {'noteId': noteId},
+      );
     }
 
     if (reminderId == null) {
@@ -412,7 +447,8 @@ class ReminderCoordinator {
   }
 
   /// Snooze an existing reminder
-  Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<bool> snoozeReminder(String reminderId, SnoozeDuration duration) async {
     await initialize();
 
     if (!await hasNotificationPermissions()) {
@@ -435,7 +471,7 @@ class ReminderCoordinator {
         try {
           await _db.enqueue(
             userId: userId,
-            entityId: reminderId.toString(),
+            entityId: reminderId, // MIGRATION v41: Already String (UUID)
             kind: 'upsert_reminder',
             payload: jsonEncode({
               'operation': 'snooze',
@@ -465,7 +501,7 @@ class ReminderCoordinator {
 
       MutationEventBus.instance.emitReminder(
         kind: MutationKind.updated,
-        reminderId: reminderId.toString(),
+        reminderId: reminderId, // MIGRATION v41: Already String (UUID)
         metadata: {'snoozed': true, 'duration': duration.name},
       );
     }
@@ -484,8 +520,9 @@ class ReminderCoordinator {
       }
 
       final reminders = await _db.getRemindersForNote(noteId, userId);
-      debugPrint(
-        '[ReminderCoordinator] fetched ${reminders.length} reminders for note $noteId',
+      logger.debug(
+        'Fetched reminders for note',
+        data: {'noteId': noteId, 'count': reminders.length},
       );
       return reminders;
     } catch (e, stack) {
@@ -510,8 +547,9 @@ class ReminderCoordinator {
       }
 
       final reminders = await _db.getActiveReminders(userId);
-      debugPrint(
-        '[ReminderCoordinator] fetched ${reminders.length} active reminders',
+      logger.debug(
+        'Fetched active reminders',
+        data: {'count': reminders.length},
       );
       return reminders;
     } catch (e, stack) {
@@ -525,7 +563,8 @@ class ReminderCoordinator {
   }
 
   /// Cancel a reminder
-  Future<void> cancelReminder(int reminderId) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> cancelReminder(String reminderId) async {
     try {
       // P0.5 SECURITY: Get current userId
       final userId = currentUserId;
@@ -572,7 +611,7 @@ class ReminderCoordinator {
       try {
         await _db.enqueue(
           userId: userId,
-          entityId: reminderId.toString(),
+          entityId: reminderId, // MIGRATION v41: Already String (UUID)
           kind: 'delete_reminder',
           payload: jsonEncode({
             'noteId': reminder.noteId,
@@ -601,7 +640,7 @@ class ReminderCoordinator {
 
       MutationEventBus.instance.emitReminder(
         kind: MutationKind.deleted,
-        reminderId: reminderId.toString(),
+        reminderId: reminderId, // MIGRATION v41: Already String (UUID)
         noteId: reminder.noteId,
         metadata: {'type': reminder.type.name},
       );

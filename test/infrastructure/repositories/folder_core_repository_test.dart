@@ -127,7 +127,8 @@ void main() {
     );
 
     final pendingOps = await db.getPendingOpsForUser('user-123');
-    expect(pendingOps.any((op) => op.kind == 'delete_folder'), isTrue);
+    // Soft delete uses 'upsert_folder' to sync the deleted=true flag
+    expect(pendingOps.any((op) => op.kind == 'upsert_folder'), isTrue);
   });
 }
 

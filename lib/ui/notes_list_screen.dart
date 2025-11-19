@@ -6,6 +6,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
+import 'package:duru_notes/utils/date_display_utils.dart';
 import 'package:duru_notes/features/folders/create_folder_dialog.dart'
     as folder_dialog;
 import 'package:duru_notes/features/folders/drag_drop/note_drag_drop.dart';
@@ -1153,8 +1154,12 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                 ),
                 const SizedBox(height: 6),
                 // Minimal footer with just date
+                // Using getSafeDisplayDate for defensive programming
                 Text(
-                  _formatDate(note.updatedAt),
+                  _formatDate(getSafeDisplayDate(
+                    createdAt: note.createdAt,
+                    updatedAt: note.updatedAt,
+                  )),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                     fontSize: 10,

@@ -118,6 +118,22 @@ class WindowDiagnostics {
     }
   }
 
+  /// Log iOS platform state at a specific point in execution
+  /// This helps identify where exactly the platform freezes
+  static Future<void> logPlatformState(String context) async {
+    if (!Platform.isIOS) {
+      return;
+    }
+
+    try {
+      debugPrint('📊 [PlatformState] $context - Calling native...');
+      await _channel.invokeMethod('logPlatformState', {'context': context});
+      debugPrint('📊 [PlatformState] $context - Native call completed');
+    } catch (e) {
+      debugPrint('📊 [PlatformState] $context - ERROR: $e');
+    }
+  }
+
   /// Analyze the window state for potential black screen causes
   static void _analyzeForBlackScreen(Map<dynamic, dynamic> state) {
     debugPrint('[WindowDiagnostics] ========== BLACK SCREEN ANALYSIS ==========');

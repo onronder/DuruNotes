@@ -27,7 +27,8 @@ class TaskCrudService {
     DateTime? dueDate,
     domain.TaskPriority? priority,
     String? parentTaskId,
-    int? reminderId,
+    // MIGRATION v41: Changed from int to String (UUID)
+    String? reminderId,
   }) async {
     try {
       _logger.info(
@@ -94,7 +95,8 @@ class TaskCrudService {
     DateTime? dueDate,
     domain.TaskPriority? priority,
     String? parentTaskId,
-    int? reminderId,
+    // MIGRATION v41: Changed from int to String (UUID)
+    String? reminderId,
     bool clearReminderId = false,
   }) async {
     try {

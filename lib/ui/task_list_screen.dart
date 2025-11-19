@@ -34,6 +34,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
   late TabController _tabController;
   TaskViewMode _viewMode = TaskViewMode.grouped;
   bool _showCompleted = false;
+  bool _isCreatingTask = false; // Prevent duplicate task creation
 
   DomainTaskController? _controllerOrNull({bool showSnackbar = true}) {
     final logger = ref.read(loggerProvider);
@@ -187,10 +188,24 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'task_list_fab', // PRODUCTION FIX: Unique hero tag
-        onPressed: () => _showCreateStandaloneTaskDialog(context),
-        backgroundColor: DuruColors.primary,
-        icon: const Icon(CupertinoIcons.add, color: Colors.white),
-        label: const Text('New Task', style: TextStyle(color: Colors.white)),
+        onPressed: _isCreatingTask
+            ? null // Disable while creating to prevent duplicates
+            : () => _showCreateStandaloneTaskDialog(context),
+        backgroundColor: _isCreatingTask ? Colors.grey : DuruColors.primary,
+        icon: _isCreatingTask
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(CupertinoIcons.add, color: Colors.white),
+        label: Text(
+          _isCreatingTask ? 'Creating...' : 'New Task',
+          style: const TextStyle(color: Colors.white),
+        ),
       ),
     );
   }
@@ -220,6 +235,42 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
             ref.watch(taskCoreRepositoryProvider)?.watchAllTasks() ??
             Stream.value([]),
         builder: (context, snapshot) {
+          // Error handling: Show error UI if stream fails
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: DuruColors.error,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Error loading tasks',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: DuruColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    snapshot.error.toString(),
+                    style: theme.textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () => setState(() {}),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           final tasks = snapshot.data ?? [];
           final pendingTasks = tasks
               .where((t) => t.status != domain.TaskStatus.completed)
@@ -310,20 +361,34 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
   }
 
   Future<void> _showCreateStandaloneTaskDialog(BuildContext context) async {
+    // Prevent opening dialog if already creating
+    if (_isCreatingTask) return;
+
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
         taskContent: '',
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
+        onSave: (metadata) async {
+          Navigator.of(context).pop(metadata);
+        },
       ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       await _createStandaloneTask(result);
     }
   }
 
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
+    // Prevent duplicate creation
+    if (_isCreatingTask) return;
+
+    // Set loading state
+    if (!mounted) return;
+    setState(() {
+      _isCreatingTask = true;
+    });
+
     final logger = ref.read(loggerProvider);
 
     try {
@@ -392,6 +457,13 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
             ),
           ),
         );
+      }
+    } finally {
+      // Always reset loading state
+      if (mounted) {
+        setState(() {
+          _isCreatingTask = false;
+        });
       }
     }
   }
@@ -512,6 +584,41 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView> {
           child: FutureBuilder<Map<DateTime, List<domain.Task>>>(
             future: _getTasksForMonth(),
             builder: (context, snapshot) {
+              // Error handling: Show error UI if future fails
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: DuruColors.error,
+                        size: 64,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error loading calendar',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: DuruColors.error,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        snapshot.error.toString(),
+                        style: theme.textTheme.bodyMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: () => setState(() {}),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
               final tasksByDate = snapshot.data ?? {};
 
               return GridView.builder(

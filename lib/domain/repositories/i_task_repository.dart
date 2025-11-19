@@ -84,6 +84,16 @@ abstract class ITaskRepository {
   /// Remove tag from task
   Future<void> removeTagFromTask(String taskId, String tag);
 
+  /// Update reminder linkage metadata for a task.
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    required String? reminderId,
+  });
+
+  /// Bulk update task positions for manual reordering.
+  Future<void> updateTaskPositions(Map<String, int> positions);
+
   /// Sync tasks with note content
   Future<void> syncTasksWithNoteContent(String noteId, String noteContent);
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:duru_notes/core/utils/hash_utils.dart';
+import 'package:duru_notes/core/monitoring/app_logger.dart';
 
 import '../../data/local/app_db.dart';
 import '../../domain/entities/task.dart' as domain;
@@ -9,6 +10,24 @@ import '../../domain/entities/task.dart' as domain;
 /// NOTE: This mapper works with already encrypted/decrypted data.
 /// Encryption/decryption happens at the repository level.
 class TaskMapper {
+  static final _logger = LoggerFactory.instance;
+
+  /// Validate if a string is a valid UUID (RFC 4122 format)
+  ///
+  /// Returns true if the value is a non-empty string matching UUID format:
+  /// xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (where x is hexadecimal digit)
+  ///
+  /// Issue #2 fix: Ensures reminder IDs are valid UUIDs before storage in metadata
+  static bool _isValidUuid(String? value) {
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+    final uuidPattern = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    );
+    return uuidPattern.hasMatch(value);
+  }
   /// Convert infrastructure NoteTask to domain Task
   /// Note: content, notes, and labels are expected to be already decrypted by the repository
   static domain.Task toDomain(
@@ -160,8 +179,19 @@ class TaskMapper {
     if (local.parentTaskId != null) {
       metadata['parentTaskId'] = local.parentTaskId;
     }
+
+    // SYNC INTEGRITY FIX (Issue #2): Validate reminder ID is valid UUID before storing
     if (local.reminderId != null) {
-      metadata['reminderId'] = local.reminderId;
+      if (_isValidUuid(local.reminderId)) {
+        metadata['reminderId'] = local.reminderId;
+      } else {
+        _logger.warning(
+          'Task ${local.id} has invalid reminder ID format: ${local.reminderId}. '
+          'Skipping invalid reminder ID in metadata.',
+          data: {'taskId': local.id, 'invalidReminderId': local.reminderId},
+        );
+        // Don't store invalid reminder IDs in metadata
+      }
     }
 
     metadata['position'] = local.position;

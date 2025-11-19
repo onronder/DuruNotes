@@ -210,9 +210,11 @@ class CalendarTaskSheet extends ConsumerWidget {
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
-        taskContent: 'New Task',
-        onSave: (metadata) =>
-            Navigator.of(context).pop(metadata.copyWith(dueDate: selectedDate)),
+        taskContent: '', // Consistency: Use empty string like other dialogs
+        isNewTask: true, // Flag to show appropriate placeholder
+        onSave: (metadata) async {
+          Navigator.of(context).pop(metadata.copyWith(dueDate: selectedDate));
+        },
       ),
     );
 

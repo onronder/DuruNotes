@@ -89,6 +89,9 @@ class EnhancedTaskService {
     int? position,
     bool createReminder = true,
   }) async {
+    // PERFORMANCE INSTRUMENTATION
+    final totalStopwatch = Stopwatch()..start();
+
     // Convert parameters to domain.Task object
     final domainTask = domain.Task(
       id: '', // TaskCoreRepository will generate ID
@@ -112,42 +115,50 @@ class EnhancedTaskService {
     );
 
     // Create task using TaskCoreRepository (handles encryption)
+    final repoStopwatch = Stopwatch()..start();
     final createdTask = await _taskRepository.createTask(domainTask);
+    debugPrint('[PERF] taskRepository.createTask: ${repoStopwatch.elapsedMilliseconds}ms');
+
     final taskId = createdTask.id;
 
     // Handle reminder creation if requested
+    // PERFORMANCE FIX: Don't block task creation on reminder scheduling
     if (createReminder && dueDate != null) {
-      try {
-        final userId = _requireUserIdFor('createTask.linkReminder');
-        if (userId == null) {
-          return taskId;
-        }
-        final localTask = await _db.getTaskById(taskId, userId: userId);
-        if (localTask != null) {
-          // Create reminder and get its ID
-          final reminderId = await _reminderBridge.createTaskReminder(
-            task: localTask,
-            beforeDueDate: const Duration(hours: 1), // Default 1 hour before
-          );
+      debugPrint('[PERF] Starting async reminder creation (non-blocking)');
+      unawaited(
+        Future(() async {
+          final reminderStopwatch = Stopwatch()..start();
+          try {
+            final userId = _requireUserIdFor('createTask.linkReminder');
+            if (userId == null) {
+              return;
+            }
+            final localTask = await _db.getTaskById(taskId, userId: userId);
+            if (localTask != null) {
+              // Create reminder and get its ID
+              final reminderId = await _reminderBridge.createTaskReminder(
+                task: localTask,
+                beforeDueDate: const Duration(hours: 1), // Default 1 hour before
+              );
 
-          // Link reminder to task
-          if (reminderId != null) {
-            await _db.updateTask(
-              taskId,
-              userId,
-              NoteTasksCompanion(
-                reminderId: Value(reminderId),
-                updatedAt: Value(DateTime.now()),
-              ),
-            );
+              // Link reminder to task
+              if (reminderId != null) {
+                await _taskRepository.updateTaskReminderLink(
+                  taskId: taskId,
+                  reminderId: reminderId,
+                );
+              }
+            }
+            debugPrint('[PERF] Async reminder creation completed: ${reminderStopwatch.elapsedMilliseconds}ms');
+          } catch (e) {
+            // Don't fail task creation if reminder fails
+            debugPrint('[PERF] Reminder creation failed after ${reminderStopwatch.elapsedMilliseconds}ms: $e');
           }
-        }
-      } catch (e) {
-        // Don't fail task creation if reminder fails
-        debugPrint('Failed to create reminder for task $taskId: $e');
-      }
+        }),
+      );
     }
 
+    debugPrint('[PERF] ⏱️ EnhancedTaskService.createTask total: ${totalStopwatch.elapsedMilliseconds}ms');
     return taskId;
   }
 
@@ -163,7 +174,8 @@ class EnhancedTaskService {
     String? notes,
     int? estimatedMinutes,
     int? actualMinutes,
-    int? reminderId,
+    // MIGRATION v41: Changed from int to String (UUID)
+    String? reminderId,
     String? parentTaskId,
     bool updateReminder = true,
     bool clearReminderId = false,
@@ -214,13 +226,9 @@ class EnhancedTaskService {
 
     // Handle reminder ID clearing separately if needed
     if (clearReminderId) {
-      await _db.updateTask(
-        taskId,
-        userId,
-        NoteTasksCompanion(
-          reminderId: const Value(null),
-          updatedAt: Value(DateTime.now()),
-        ),
+      await _taskRepository.updateTaskReminderLink(
+        taskId: taskId,
+        reminderId: null,
       );
     }
 
@@ -239,6 +247,7 @@ class EnhancedTaskService {
   }
 
   /// Complete a task
+  /// PRODUCTION: Uses TaskCoreRepository for soft-delete compliance
   Future<void> completeTask(String taskId, {String? completedBy}) async {
     final userId = _requireUserIdFor('completeTask');
     if (userId == null) {
@@ -247,10 +256,8 @@ class EnhancedTaskService {
     // Get task before completion for reminder cleanup
     final task = await _db.getTaskById(taskId, userId: userId);
 
-    // Complete the task using AppDb directly
-    await _db.completeTask(taskId, userId, completedBy: completedBy);
-
-    // Sync handled by domain synchronization flows
+    // Complete the task using repository (handles soft-delete, sync)
+    await _taskRepository.completeTask(taskId);
 
     // Cancel reminder if task had one
     if (task != null) {
@@ -266,6 +273,7 @@ class EnhancedTaskService {
   }
 
   /// Toggle task status between completed and open
+  /// PRODUCTION: Uses TaskCoreRepository for soft-delete compliance
   Future<void> toggleTaskStatus(String taskId) async {
     final userId = _requireUserIdFor('toggleTaskStatus');
     if (userId == null) {
@@ -274,10 +282,8 @@ class EnhancedTaskService {
     // Get task before toggle for reminder management
     final oldTask = await _db.getTaskById(taskId, userId: userId);
 
-    // Toggle using AppDb directly
-    await _db.toggleTaskStatus(taskId, userId);
-
-    // Sync handled by domain synchronization flows
+    // Toggle using repository (handles soft-delete, sync)
+    await _taskRepository.toggleTaskStatus(taskId);
 
     // Handle reminder updates
     if (oldTask != null) {
@@ -293,6 +299,9 @@ class EnhancedTaskService {
   }
 
   /// Delete a task
+  /// PRODUCTION: Uses TaskCoreRepository for SOFT DELETE (30-day retention)
+  /// Task will appear in TrashScreen and can be restored within 30 days
+  /// See: DELETION_PATTERNS.md v1.0.0, ARCHITECTURE_VIOLATIONS.md v1.1.0
   Future<void> deleteTask(String taskId) async {
     final userId = _requireUserIdFor('deleteTask');
     if (userId == null) {
@@ -301,8 +310,9 @@ class EnhancedTaskService {
     // Get task before deletion for reminder cleanup
     final task = await _db.getTaskById(taskId, userId: userId);
 
-    // Delete the task using AppDb directly
-    await _db.deleteTaskById(taskId, userId);
+    // CRITICAL FIX: Use repository for SOFT DELETE instead of hard delete
+    // This enables 30-day trash retention and recovery
+    await _taskRepository.deleteTask(taskId);
 
     // Cancel reminder if task had one
     if (task != null) {
@@ -523,17 +533,8 @@ class EnhancedTaskService {
   /// Update task positions for reordering
   Future<void> updateTaskPositions(Map<String, int> taskPositions) async {
     final userId = _requireUserIdFor('updateTaskPositions');
-    if (userId == null) return;
-    for (final entry in taskPositions.entries) {
-      await _db.updateTask(
-        entry.key,
-        userId,
-        NoteTasksCompanion(
-          position: Value(entry.value),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-    }
+    if (userId == null || taskPositions.isEmpty) return;
+    await _taskRepository.updateTaskPositions(taskPositions);
   }
 
   /// Move task to different parent (change hierarchy)

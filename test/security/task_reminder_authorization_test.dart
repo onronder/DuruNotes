@@ -25,6 +25,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 
+import '../utils/uuid_test_helper.dart';
 import 'task_reminder_authorization_test.mocks.dart';
 
 const _userA = 'user-a';
@@ -194,7 +195,7 @@ void main() {
     required String noteId,
     required String userId,
     DateTime? dueDate,
-    int? reminderId,
+    String? reminderId,
   }) async {
     final now = DateTime.utc(2025, 10, 29, 12);
     await db
@@ -223,7 +224,7 @@ void main() {
     return task!;
   }
 
-  Future<int> insertReminder({
+  Future<String> insertReminder({
     required String noteId,
     required String userId,
     required DateTime remindAt,
@@ -265,10 +266,10 @@ void main() {
         dueDate: dueDate,
       );
 
-      fakeCoordinator.nextReminderId = 321;
+      fakeCoordinator.nextReminderId = UuidTestHelper.testReminder1;
 
       final taskWithoutUser = originalTask.copyWith(userId: '');
-      late int? reminderId;
+      late String? reminderId;
       final events = await _captureAuditEvents(() async {
         reminderId = await bridge.createTaskReminder(
           task: taskWithoutUser,
@@ -276,10 +277,10 @@ void main() {
         );
       });
 
-      expect(reminderId, equals(321));
+      expect(reminderId, equals(UuidTestHelper.testReminder1));
 
       final updatedTask = await db.getTaskById('task-1', userId: _userA);
-      expect(updatedTask!.reminderId, equals(321));
+      expect(updatedTask!.reminderId, equals(UuidTestHelper.testReminder1));
       expect(fakeCoordinator.createCalls, hasLength(1));
       expect(fakeCoordinator.createCalls.single['noteId'], 'note-1');
 
@@ -290,7 +291,7 @@ void main() {
       expect(auditEvents, isNotEmpty);
       final latest = auditEvents.last;
       expect(latest.metadata?['granted'], isTrue);
-      expect('${latest.metadata?['reason']}', contains('reminderId=321'));
+      expect('${latest.metadata?['reason']}', contains('reminderId=${UuidTestHelper.testReminder1}'));
     });
 
     test('createTaskReminder logs denial when unauthenticated', () async {
@@ -303,9 +304,9 @@ void main() {
         dueDate: DateTime.now().add(const Duration(hours: 2)),
       );
 
-      fakeCoordinator.nextReminderId = 555;
+      fakeCoordinator.nextReminderId = UuidTestHelper.testReminder2;
 
-      late int? reminderId;
+      late String? reminderId;
       final events = await _captureAuditEvents(() async {
         reminderId = await bridge.createTaskReminder(
           task: task.copyWith(userId: ''),
@@ -313,7 +314,7 @@ void main() {
         );
       });
 
-      expect(reminderId, equals(555));
+      expect(reminderId, equals(UuidTestHelper.testReminder2));
 
       final storedTask = await db.getTaskById('task-unauth', userId: _userA);
       expect(storedTask!.reminderId, isNull);
@@ -338,23 +339,23 @@ void main() {
           noteId: 'note-2',
           userId: _userA,
           dueDate: DateTime.now().add(const Duration(hours: 2)),
-          reminderId: 777,
+          reminderId: UuidTestHelper.testReminder3,
         );
 
         final storedTask = await db.getTaskById('task-2', userId: _userA);
         final taskWithoutUser = storedTask!.copyWith(
           userId: '',
-          reminderId: const Value(777),
+          reminderId: Value(UuidTestHelper.testReminder3),
         );
 
         final events = await _captureAuditEvents(() async {
           await bridge.cancelTaskReminder(taskWithoutUser);
         });
 
-        verify(mockAdvancedService.deleteReminder(777)).called(1);
+        verify(mockAdvancedService.deleteReminder(UuidTestHelper.testReminder3)).called(1);
 
         final postTask = await db.getTaskById('task-2', userId: _userA);
-        expect(postTask!.reminderId, equals(777));
+        expect(postTask!.reminderId, equals(UuidTestHelper.testReminder3));
 
         final auditEvents = _eventsFor(
           events,
@@ -419,10 +420,10 @@ class FakeReminderCoordinator {
   FakeReminderCoordinator(this.snoozeService);
 
   final FakeSnoozeReminderService snoozeService;
-  int nextReminderId = 100;
+  String nextReminderId = UuidTestHelper.testReminder1;
   final List<Map<String, dynamic>> createCalls = [];
 
-  Future<int?> createTimeReminder({
+  Future<String?> createTimeReminder({
     required String noteId,
     required String title,
     required String body,
@@ -452,7 +453,7 @@ class FakeSnoozeReminderService {
   bool shouldSucceed = true;
 
   Future<bool> snoozeReminder(
-    int reminderId,
+    String reminderId,
     app_db.SnoozeDuration duration,
   ) async {
     calls.add({'reminderId': reminderId, 'duration': duration});

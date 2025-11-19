@@ -1154,7 +1154,8 @@ class NotesCoreRepository implements INotesRepository {
 
   Future<bool> _pushReminderOp(PendingOp op) async {
     final reminderIdRaw = op.entityId;
-    final reminderId = int.tryParse(reminderIdRaw);
+    // MIGRATION v41: Changed from int to String (UUID)
+    final reminderId = reminderIdRaw; // Now expects UUID string format
 
     if (op.kind == 'delete_reminder') {
       if (reminderIdRaw.isEmpty) {
@@ -1578,7 +1579,9 @@ class NotesCoreRepository implements INotesRepository {
 
     final deleted = remoteTask['deleted'] as bool? ?? false;
     if (deleted) {
-      await db.deleteTaskById(taskId, userId);
+      // Repository layer is authorized to call hard-delete for purge operations
+      // ignore: deprecated_member_use
+      await db.hardDeleteTaskById(taskId, userId);
       return;
     }
 
@@ -1655,7 +1658,8 @@ class NotesCoreRepository implements INotesRepository {
       contentHash: Value(
         metadata['contentHash'] as String? ?? stableTaskHash(noteId, content),
       ),
-      reminderId: Value((metadata['reminderId'] as num?)?.toInt()),
+      // MIGRATION v41: reminderId changed from int to String (UUID)
+      reminderId: Value(metadata['reminderId'] as String?),
       estimatedMinutes: Value((metadata['estimatedMinutes'] as num?)?.toInt()),
       actualMinutes: Value((metadata['actualMinutes'] as num?)?.toInt()),
       parentTaskId: Value(
@@ -2321,7 +2325,10 @@ class NotesCoreRepository implements INotesRepository {
     }
 
     // Soft delete the note itself with timestamps (direct Drift update)
-    await (db.update(db.localNotes)..where((n) => n.id.equals(id)))
+    // SECURITY: Only delete if note belongs to current user
+    await (db.update(db.localNotes)
+          ..where((n) => n.id.equals(id))
+          ..where((n) => n.userId.equals(userId)))
         .write(LocalNotesCompanion(
       deleted: Value(true),
       deletedAt: Value(now),

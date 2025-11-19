@@ -58,7 +58,8 @@ class TaskService {
     String? notes,
     int? estimatedMinutes,
     int? actualMinutes,
-    int? reminderId,
+    // MIGRATION v41: Changed from int to String (UUID)
+    String? reminderId,
     String? parentTaskId,
     bool clearReminderId = false,
   }) async {

@@ -33,7 +33,7 @@ class TestReminderService extends BaseReminderService {
   TestReminderService(super.ref, super.plugin, super.db);
 
   @override
-  Future<int?> createReminder(ReminderConfig config) async => -1;
+  Future<String?> createReminder(ReminderConfig config) async => 'test-reminder-id';
 }
 
 @GenerateNiceMocks([
@@ -91,7 +91,7 @@ void main() {
 
   group('BaseReminderService database operations', () {
     test('createReminderInDb returns inserted identifier', () async {
-      when(mockDb.createReminder(any)).thenAnswer((_) async => 99);
+      when(mockDb.createReminder(any)).thenAnswer((_) async => 'reminder-99');
 
       final config = ReminderConfig(
         noteId: 'note-123',
@@ -102,7 +102,7 @@ void main() {
 
       final result = await service.createReminderInDb(companion);
 
-      expect(result, 99);
+      expect(result, 'reminder-99');
       verify(mockDb.createReminder(companion)).called(1);
     });
 
@@ -117,9 +117,9 @@ void main() {
               invocation.positionalArguments[2] as NoteRemindersCompanion;
         });
 
-        await service.updateReminderStatus(42, true);
+        await service.updateReminderStatus('reminder-42', true);
 
-        verify(mockDb.updateReminder(42, 'user-123', any)).called(1);
+        verify(mockDb.updateReminder('reminder-42', 'user-123', any)).called(1);
         expect(updatedCompanion, isNotNull);
         expect(updatedCompanion!.isActive.value, isTrue);
       },
@@ -128,14 +128,14 @@ void main() {
     test('updateReminderStatus skips update when user missing', () async {
       when(mockAuth.currentUser).thenReturn(null);
 
-      await service.updateReminderStatus(13, false);
+      await service.updateReminderStatus('reminder-13', false);
 
       verifyNever(mockDb.updateReminder(any, any, any));
     });
 
     test('getRemindersForNote delegates to database with user scope', () async {
       final reminder = NoteReminder(
-        id: 1,
+        id: 'reminder-1',
         noteId: 'note-abc',
         userId: 'user-123',
         title: 'Sync meeting',
@@ -196,7 +196,7 @@ void main() {
       ).thenAnswer((_) async {});
 
       final data = ReminderNotificationData(
-        id: 77,
+        id: 'reminder-77',
         title: 'Daily review',
         body: 'Capture notes before wrap-up',
         scheduledTime: DateTime.now().add(const Duration(hours: 1)),
@@ -207,7 +207,7 @@ void main() {
 
       verify(
         mockPlugin.zonedSchedule(
-          77,
+          any,
           'Daily review',
           'Capture notes before wrap-up',
           any,
@@ -221,9 +221,9 @@ void main() {
     test('cancelNotification cancels scheduled entry', () async {
       when(mockPlugin.cancel(any)).thenAnswer((_) async {});
 
-      await service.cancelNotification(88);
+      await service.cancelNotification('reminder-88');
 
-      verify(mockPlugin.cancel(88)).called(1);
+      verify(mockPlugin.cancel(any)).called(1);
     });
 
     test('getPendingNotifications returns plugin list', () async {

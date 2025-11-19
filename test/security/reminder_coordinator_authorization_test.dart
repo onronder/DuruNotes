@@ -17,6 +17,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 
+import '../utils/uuid_test_helper.dart';
 import 'reminder_coordinator_authorization_test.mocks.dart';
 
 const _userA = 'user-a';
@@ -166,7 +167,7 @@ void main() {
     await coordinator.initialize();
   }
 
-  Future<int> insertReminder({
+  Future<String> insertReminder({
     required String noteId,
     required String userId,
     required DateTime remindAt,
@@ -195,7 +196,7 @@ void main() {
     test('createTimeReminder logs success for authenticated user', () async {
       await setupCoordinator(userId: _userA);
 
-      late int? reminderId;
+      late String? reminderId;
       final events = await _captureAuditEvents(() async {
         reminderId = await coordinator.createTimeReminder(
           noteId: 'note-1',
@@ -206,6 +207,7 @@ void main() {
       });
 
       expect(reminderId, isNotNull);
+      expect(UuidTestHelper.isValidUuid(reminderId), isTrue);
       final stored = await db.getReminderById(reminderId!, _userA);
       expect(stored, isNotNull);
 

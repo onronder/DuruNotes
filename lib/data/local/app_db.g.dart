@@ -1988,16 +1988,13 @@ class $NoteRemindersTable extends NoteReminders
   $NoteRemindersTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
     'id',
     aliasedName,
     false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
+    clientDefault: () => const Uuid().v4(),
   );
   static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
   @override
@@ -2036,6 +2033,52 @@ class $NoteRemindersTable extends NoteReminders
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _titleEncryptedMeta = const VerificationMeta(
+    'titleEncrypted',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> titleEncrypted =
+      GeneratedColumn<Uint8List>(
+        'title_encrypted',
+        aliasedName,
+        true,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _bodyEncryptedMeta = const VerificationMeta(
+    'bodyEncrypted',
+  );
+  @override
+  late final GeneratedColumn<Uint8List> bodyEncrypted =
+      GeneratedColumn<Uint8List>(
+        'body_encrypted',
+        aliasedName,
+        true,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _locationNameEncryptedMeta =
+      const VerificationMeta('locationNameEncrypted');
+  @override
+  late final GeneratedColumn<Uint8List> locationNameEncrypted =
+      GeneratedColumn<Uint8List>(
+        'location_name_encrypted',
+        aliasedName,
+        true,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _encryptionVersionMeta = const VerificationMeta(
+    'encryptionVersion',
+  );
+  @override
+  late final GeneratedColumn<int> encryptionVersion = GeneratedColumn<int>(
+    'encryption_version',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   @override
   late final GeneratedColumnWithTypeConverter<ReminderType, int> type =
@@ -2231,6 +2274,40 @@ class $NoteRemindersTable extends NoteReminders
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduledPurgeAtMeta = const VerificationMeta(
+    'scheduledPurgeAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledPurgeAt =
+      GeneratedColumn<DateTime>(
+        'scheduled_purge_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _lastTriggeredMeta = const VerificationMeta(
     'lastTriggered',
   );
@@ -2262,6 +2339,10 @@ class $NoteRemindersTable extends NoteReminders
     userId,
     title,
     body,
+    titleEncrypted,
+    bodyEncrypted,
+    locationNameEncrypted,
+    encryptionVersion,
     type,
     remindAt,
     isActive,
@@ -2279,6 +2360,9 @@ class $NoteRemindersTable extends NoteReminders
     notificationImage,
     timeZone,
     createdAt,
+    updatedAt,
+    deletedAt,
+    scheduledPurgeAt,
     lastTriggered,
     triggerCount,
   ];
@@ -2323,6 +2407,42 @@ class $NoteRemindersTable extends NoteReminders
       context.handle(
         _bodyMeta,
         body.isAcceptableOrUnknown(data['body']!, _bodyMeta),
+      );
+    }
+    if (data.containsKey('title_encrypted')) {
+      context.handle(
+        _titleEncryptedMeta,
+        titleEncrypted.isAcceptableOrUnknown(
+          data['title_encrypted']!,
+          _titleEncryptedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('body_encrypted')) {
+      context.handle(
+        _bodyEncryptedMeta,
+        bodyEncrypted.isAcceptableOrUnknown(
+          data['body_encrypted']!,
+          _bodyEncryptedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('location_name_encrypted')) {
+      context.handle(
+        _locationNameEncryptedMeta,
+        locationNameEncrypted.isAcceptableOrUnknown(
+          data['location_name_encrypted']!,
+          _locationNameEncryptedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('encryption_version')) {
+      context.handle(
+        _encryptionVersionMeta,
+        encryptionVersion.isAcceptableOrUnknown(
+          data['encryption_version']!,
+          _encryptionVersionMeta,
+        ),
       );
     }
     if (data.containsKey('remind_at')) {
@@ -2439,6 +2559,27 @@ class $NoteRemindersTable extends NoteReminders
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('scheduled_purge_at')) {
+      context.handle(
+        _scheduledPurgeAtMeta,
+        scheduledPurgeAt.isAcceptableOrUnknown(
+          data['scheduled_purge_at']!,
+          _scheduledPurgeAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('last_triggered')) {
       context.handle(
         _lastTriggeredMeta,
@@ -2467,7 +2608,7 @@ class $NoteRemindersTable extends NoteReminders
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return NoteReminder(
       id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
+        DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
       noteId: attachedDatabase.typeMapping.read(
@@ -2486,6 +2627,22 @@ class $NoteRemindersTable extends NoteReminders
         DriftSqlType.string,
         data['${effectivePrefix}body'],
       )!,
+      titleEncrypted: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}title_encrypted'],
+      ),
+      bodyEncrypted: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}body_encrypted'],
+      ),
+      locationNameEncrypted: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}location_name_encrypted'],
+      ),
+      encryptionVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}encryption_version'],
+      ),
       type: $NoteRemindersTable.$convertertype.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -2559,6 +2716,18 @@ class $NoteRemindersTable extends NoteReminders
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      scheduledPurgeAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_purge_at'],
+      ),
       lastTriggered: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_triggered'],
@@ -2584,13 +2753,17 @@ class $NoteRemindersTable extends NoteReminders
 }
 
 class NoteReminder extends DataClass implements Insertable<NoteReminder> {
-  final int id;
+  final String id;
   final String noteId;
 
   /// User ID who owns this reminder (P0.5 SECURITY: prevents cross-user access)
   final String userId;
   final String title;
   final String body;
+  final Uint8List? titleEncrypted;
+  final Uint8List? bodyEncrypted;
+  final Uint8List? locationNameEncrypted;
+  final int? encryptionVersion;
   final ReminderType type;
   final DateTime? remindAt;
   final bool isActive;
@@ -2608,6 +2781,9 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
   final String? notificationImage;
   final String? timeZone;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final DateTime? deletedAt;
+  final DateTime? scheduledPurgeAt;
   final DateTime? lastTriggered;
   final int triggerCount;
   const NoteReminder({
@@ -2616,6 +2792,10 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
     required this.userId,
     required this.title,
     required this.body,
+    this.titleEncrypted,
+    this.bodyEncrypted,
+    this.locationNameEncrypted,
+    this.encryptionVersion,
     required this.type,
     this.remindAt,
     required this.isActive,
@@ -2633,17 +2813,34 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
     this.notificationImage,
     this.timeZone,
     required this.createdAt,
+    this.updatedAt,
+    this.deletedAt,
+    this.scheduledPurgeAt,
     this.lastTriggered,
     required this.triggerCount,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
+    map['id'] = Variable<String>(id);
     map['note_id'] = Variable<String>(noteId);
     map['user_id'] = Variable<String>(userId);
     map['title'] = Variable<String>(title);
     map['body'] = Variable<String>(body);
+    if (!nullToAbsent || titleEncrypted != null) {
+      map['title_encrypted'] = Variable<Uint8List>(titleEncrypted);
+    }
+    if (!nullToAbsent || bodyEncrypted != null) {
+      map['body_encrypted'] = Variable<Uint8List>(bodyEncrypted);
+    }
+    if (!nullToAbsent || locationNameEncrypted != null) {
+      map['location_name_encrypted'] = Variable<Uint8List>(
+        locationNameEncrypted,
+      );
+    }
+    if (!nullToAbsent || encryptionVersion != null) {
+      map['encryption_version'] = Variable<int>(encryptionVersion);
+    }
     {
       map['type'] = Variable<int>(
         $NoteRemindersTable.$convertertype.toSql(type),
@@ -2693,6 +2890,15 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
       map['time_zone'] = Variable<String>(timeZone);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    if (!nullToAbsent || scheduledPurgeAt != null) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt);
+    }
     if (!nullToAbsent || lastTriggered != null) {
       map['last_triggered'] = Variable<DateTime>(lastTriggered);
     }
@@ -2707,6 +2913,18 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
       userId: Value(userId),
       title: Value(title),
       body: Value(body),
+      titleEncrypted: titleEncrypted == null && nullToAbsent
+          ? const Value.absent()
+          : Value(titleEncrypted),
+      bodyEncrypted: bodyEncrypted == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bodyEncrypted),
+      locationNameEncrypted: locationNameEncrypted == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationNameEncrypted),
+      encryptionVersion: encryptionVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(encryptionVersion),
       type: Value(type),
       remindAt: remindAt == null && nullToAbsent
           ? const Value.absent()
@@ -2746,6 +2964,15 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
           ? const Value.absent()
           : Value(timeZone),
       createdAt: Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      scheduledPurgeAt: scheduledPurgeAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(scheduledPurgeAt),
       lastTriggered: lastTriggered == null && nullToAbsent
           ? const Value.absent()
           : Value(lastTriggered),
@@ -2759,11 +2986,17 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return NoteReminder(
-      id: serializer.fromJson<int>(json['id']),
+      id: serializer.fromJson<String>(json['id']),
       noteId: serializer.fromJson<String>(json['noteId']),
       userId: serializer.fromJson<String>(json['userId']),
       title: serializer.fromJson<String>(json['title']),
       body: serializer.fromJson<String>(json['body']),
+      titleEncrypted: serializer.fromJson<Uint8List?>(json['titleEncrypted']),
+      bodyEncrypted: serializer.fromJson<Uint8List?>(json['bodyEncrypted']),
+      locationNameEncrypted: serializer.fromJson<Uint8List?>(
+        json['locationNameEncrypted'],
+      ),
+      encryptionVersion: serializer.fromJson<int?>(json['encryptionVersion']),
       type: $NoteRemindersTable.$convertertype.fromJson(
         serializer.fromJson<int>(json['type']),
       ),
@@ -2790,6 +3023,11 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
       ),
       timeZone: serializer.fromJson<String?>(json['timeZone']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      scheduledPurgeAt: serializer.fromJson<DateTime?>(
+        json['scheduledPurgeAt'],
+      ),
       lastTriggered: serializer.fromJson<DateTime?>(json['lastTriggered']),
       triggerCount: serializer.fromJson<int>(json['triggerCount']),
     );
@@ -2798,11 +3036,17 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
+      'id': serializer.toJson<String>(id),
       'noteId': serializer.toJson<String>(noteId),
       'userId': serializer.toJson<String>(userId),
       'title': serializer.toJson<String>(title),
       'body': serializer.toJson<String>(body),
+      'titleEncrypted': serializer.toJson<Uint8List?>(titleEncrypted),
+      'bodyEncrypted': serializer.toJson<Uint8List?>(bodyEncrypted),
+      'locationNameEncrypted': serializer.toJson<Uint8List?>(
+        locationNameEncrypted,
+      ),
+      'encryptionVersion': serializer.toJson<int?>(encryptionVersion),
       'type': serializer.toJson<int>(
         $NoteRemindersTable.$convertertype.toJson(type),
       ),
@@ -2826,17 +3070,24 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
       'notificationImage': serializer.toJson<String?>(notificationImage),
       'timeZone': serializer.toJson<String?>(timeZone),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'scheduledPurgeAt': serializer.toJson<DateTime?>(scheduledPurgeAt),
       'lastTriggered': serializer.toJson<DateTime?>(lastTriggered),
       'triggerCount': serializer.toJson<int>(triggerCount),
     };
   }
 
   NoteReminder copyWith({
-    int? id,
+    String? id,
     String? noteId,
     String? userId,
     String? title,
     String? body,
+    Value<Uint8List?> titleEncrypted = const Value.absent(),
+    Value<Uint8List?> bodyEncrypted = const Value.absent(),
+    Value<Uint8List?> locationNameEncrypted = const Value.absent(),
+    Value<int?> encryptionVersion = const Value.absent(),
     ReminderType? type,
     Value<DateTime?> remindAt = const Value.absent(),
     bool? isActive,
@@ -2854,6 +3105,9 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
     Value<String?> notificationImage = const Value.absent(),
     Value<String?> timeZone = const Value.absent(),
     DateTime? createdAt,
+    Value<DateTime?> updatedAt = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
+    Value<DateTime?> scheduledPurgeAt = const Value.absent(),
     Value<DateTime?> lastTriggered = const Value.absent(),
     int? triggerCount,
   }) => NoteReminder(
@@ -2862,6 +3116,18 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
     userId: userId ?? this.userId,
     title: title ?? this.title,
     body: body ?? this.body,
+    titleEncrypted: titleEncrypted.present
+        ? titleEncrypted.value
+        : this.titleEncrypted,
+    bodyEncrypted: bodyEncrypted.present
+        ? bodyEncrypted.value
+        : this.bodyEncrypted,
+    locationNameEncrypted: locationNameEncrypted.present
+        ? locationNameEncrypted.value
+        : this.locationNameEncrypted,
+    encryptionVersion: encryptionVersion.present
+        ? encryptionVersion.value
+        : this.encryptionVersion,
     type: type ?? this.type,
     remindAt: remindAt.present ? remindAt.value : this.remindAt,
     isActive: isActive ?? this.isActive,
@@ -2887,6 +3153,11 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
         : this.notificationImage,
     timeZone: timeZone.present ? timeZone.value : this.timeZone,
     createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    scheduledPurgeAt: scheduledPurgeAt.present
+        ? scheduledPurgeAt.value
+        : this.scheduledPurgeAt,
     lastTriggered: lastTriggered.present
         ? lastTriggered.value
         : this.lastTriggered,
@@ -2899,6 +3170,18 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
       userId: data.userId.present ? data.userId.value : this.userId,
       title: data.title.present ? data.title.value : this.title,
       body: data.body.present ? data.body.value : this.body,
+      titleEncrypted: data.titleEncrypted.present
+          ? data.titleEncrypted.value
+          : this.titleEncrypted,
+      bodyEncrypted: data.bodyEncrypted.present
+          ? data.bodyEncrypted.value
+          : this.bodyEncrypted,
+      locationNameEncrypted: data.locationNameEncrypted.present
+          ? data.locationNameEncrypted.value
+          : this.locationNameEncrypted,
+      encryptionVersion: data.encryptionVersion.present
+          ? data.encryptionVersion.value
+          : this.encryptionVersion,
       type: data.type.present ? data.type.value : this.type,
       remindAt: data.remindAt.present ? data.remindAt.value : this.remindAt,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
@@ -2934,6 +3217,11 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
           : this.notificationImage,
       timeZone: data.timeZone.present ? data.timeZone.value : this.timeZone,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      scheduledPurgeAt: data.scheduledPurgeAt.present
+          ? data.scheduledPurgeAt.value
+          : this.scheduledPurgeAt,
       lastTriggered: data.lastTriggered.present
           ? data.lastTriggered.value
           : this.lastTriggered,
@@ -2951,6 +3239,10 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
           ..write('userId: $userId, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('titleEncrypted: $titleEncrypted, ')
+          ..write('bodyEncrypted: $bodyEncrypted, ')
+          ..write('locationNameEncrypted: $locationNameEncrypted, ')
+          ..write('encryptionVersion: $encryptionVersion, ')
           ..write('type: $type, ')
           ..write('remindAt: $remindAt, ')
           ..write('isActive: $isActive, ')
@@ -2968,6 +3260,9 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
           ..write('notificationImage: $notificationImage, ')
           ..write('timeZone: $timeZone, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt, ')
           ..write('lastTriggered: $lastTriggered, ')
           ..write('triggerCount: $triggerCount')
           ..write(')'))
@@ -2981,6 +3276,10 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
     userId,
     title,
     body,
+    $driftBlobEquality.hash(titleEncrypted),
+    $driftBlobEquality.hash(bodyEncrypted),
+    $driftBlobEquality.hash(locationNameEncrypted),
+    encryptionVersion,
     type,
     remindAt,
     isActive,
@@ -2998,6 +3297,9 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
     notificationImage,
     timeZone,
     createdAt,
+    updatedAt,
+    deletedAt,
+    scheduledPurgeAt,
     lastTriggered,
     triggerCount,
   ]);
@@ -3010,6 +3312,16 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
           other.userId == this.userId &&
           other.title == this.title &&
           other.body == this.body &&
+          $driftBlobEquality.equals(
+            other.titleEncrypted,
+            this.titleEncrypted,
+          ) &&
+          $driftBlobEquality.equals(other.bodyEncrypted, this.bodyEncrypted) &&
+          $driftBlobEquality.equals(
+            other.locationNameEncrypted,
+            this.locationNameEncrypted,
+          ) &&
+          other.encryptionVersion == this.encryptionVersion &&
           other.type == this.type &&
           other.remindAt == this.remindAt &&
           other.isActive == this.isActive &&
@@ -3027,16 +3339,23 @@ class NoteReminder extends DataClass implements Insertable<NoteReminder> {
           other.notificationImage == this.notificationImage &&
           other.timeZone == this.timeZone &&
           other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.scheduledPurgeAt == this.scheduledPurgeAt &&
           other.lastTriggered == this.lastTriggered &&
           other.triggerCount == this.triggerCount);
 }
 
 class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
-  final Value<int> id;
+  final Value<String> id;
   final Value<String> noteId;
   final Value<String> userId;
   final Value<String> title;
   final Value<String> body;
+  final Value<Uint8List?> titleEncrypted;
+  final Value<Uint8List?> bodyEncrypted;
+  final Value<Uint8List?> locationNameEncrypted;
+  final Value<int?> encryptionVersion;
   final Value<ReminderType> type;
   final Value<DateTime?> remindAt;
   final Value<bool> isActive;
@@ -3054,14 +3373,22 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
   final Value<String?> notificationImage;
   final Value<String?> timeZone;
   final Value<DateTime> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<DateTime?> deletedAt;
+  final Value<DateTime?> scheduledPurgeAt;
   final Value<DateTime?> lastTriggered;
   final Value<int> triggerCount;
+  final Value<int> rowid;
   const NoteRemindersCompanion({
     this.id = const Value.absent(),
     this.noteId = const Value.absent(),
     this.userId = const Value.absent(),
     this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.titleEncrypted = const Value.absent(),
+    this.bodyEncrypted = const Value.absent(),
+    this.locationNameEncrypted = const Value.absent(),
+    this.encryptionVersion = const Value.absent(),
     this.type = const Value.absent(),
     this.remindAt = const Value.absent(),
     this.isActive = const Value.absent(),
@@ -3079,8 +3406,12 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
     this.notificationImage = const Value.absent(),
     this.timeZone = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.lastTriggered = const Value.absent(),
     this.triggerCount = const Value.absent(),
+    this.rowid = const Value.absent(),
   });
   NoteRemindersCompanion.insert({
     this.id = const Value.absent(),
@@ -3088,6 +3419,10 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
     required String userId,
     this.title = const Value.absent(),
     this.body = const Value.absent(),
+    this.titleEncrypted = const Value.absent(),
+    this.bodyEncrypted = const Value.absent(),
+    this.locationNameEncrypted = const Value.absent(),
+    this.encryptionVersion = const Value.absent(),
     required ReminderType type,
     this.remindAt = const Value.absent(),
     this.isActive = const Value.absent(),
@@ -3105,17 +3440,25 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
     this.notificationImage = const Value.absent(),
     this.timeZone = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.scheduledPurgeAt = const Value.absent(),
     this.lastTriggered = const Value.absent(),
     this.triggerCount = const Value.absent(),
+    this.rowid = const Value.absent(),
   }) : noteId = Value(noteId),
        userId = Value(userId),
        type = Value(type);
   static Insertable<NoteReminder> custom({
-    Expression<int>? id,
+    Expression<String>? id,
     Expression<String>? noteId,
     Expression<String>? userId,
     Expression<String>? title,
     Expression<String>? body,
+    Expression<Uint8List>? titleEncrypted,
+    Expression<Uint8List>? bodyEncrypted,
+    Expression<Uint8List>? locationNameEncrypted,
+    Expression<int>? encryptionVersion,
     Expression<int>? type,
     Expression<DateTime>? remindAt,
     Expression<bool>? isActive,
@@ -3133,8 +3476,12 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
     Expression<String>? notificationImage,
     Expression<String>? timeZone,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+    Expression<DateTime>? scheduledPurgeAt,
     Expression<DateTime>? lastTriggered,
     Expression<int>? triggerCount,
+    Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3142,6 +3489,11 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
       if (userId != null) 'user_id': userId,
       if (title != null) 'title': title,
       if (body != null) 'body': body,
+      if (titleEncrypted != null) 'title_encrypted': titleEncrypted,
+      if (bodyEncrypted != null) 'body_encrypted': bodyEncrypted,
+      if (locationNameEncrypted != null)
+        'location_name_encrypted': locationNameEncrypted,
+      if (encryptionVersion != null) 'encryption_version': encryptionVersion,
       if (type != null) 'type': type,
       if (remindAt != null) 'remind_at': remindAt,
       if (isActive != null) 'is_active': isActive,
@@ -3159,17 +3511,25 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
       if (notificationImage != null) 'notification_image': notificationImage,
       if (timeZone != null) 'time_zone': timeZone,
       if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (scheduledPurgeAt != null) 'scheduled_purge_at': scheduledPurgeAt,
       if (lastTriggered != null) 'last_triggered': lastTriggered,
       if (triggerCount != null) 'trigger_count': triggerCount,
+      if (rowid != null) 'rowid': rowid,
     });
   }
 
   NoteRemindersCompanion copyWith({
-    Value<int>? id,
+    Value<String>? id,
     Value<String>? noteId,
     Value<String>? userId,
     Value<String>? title,
     Value<String>? body,
+    Value<Uint8List?>? titleEncrypted,
+    Value<Uint8List?>? bodyEncrypted,
+    Value<Uint8List?>? locationNameEncrypted,
+    Value<int?>? encryptionVersion,
     Value<ReminderType>? type,
     Value<DateTime?>? remindAt,
     Value<bool>? isActive,
@@ -3187,8 +3547,12 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
     Value<String?>? notificationImage,
     Value<String?>? timeZone,
     Value<DateTime>? createdAt,
+    Value<DateTime?>? updatedAt,
+    Value<DateTime?>? deletedAt,
+    Value<DateTime?>? scheduledPurgeAt,
     Value<DateTime?>? lastTriggered,
     Value<int>? triggerCount,
+    Value<int>? rowid,
   }) {
     return NoteRemindersCompanion(
       id: id ?? this.id,
@@ -3196,6 +3560,11 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
       userId: userId ?? this.userId,
       title: title ?? this.title,
       body: body ?? this.body,
+      titleEncrypted: titleEncrypted ?? this.titleEncrypted,
+      bodyEncrypted: bodyEncrypted ?? this.bodyEncrypted,
+      locationNameEncrypted:
+          locationNameEncrypted ?? this.locationNameEncrypted,
+      encryptionVersion: encryptionVersion ?? this.encryptionVersion,
       type: type ?? this.type,
       remindAt: remindAt ?? this.remindAt,
       isActive: isActive ?? this.isActive,
@@ -3213,8 +3582,12 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
       notificationImage: notificationImage ?? this.notificationImage,
       timeZone: timeZone ?? this.timeZone,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      scheduledPurgeAt: scheduledPurgeAt ?? this.scheduledPurgeAt,
       lastTriggered: lastTriggered ?? this.lastTriggered,
       triggerCount: triggerCount ?? this.triggerCount,
+      rowid: rowid ?? this.rowid,
     );
   }
 
@@ -3222,7 +3595,7 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     if (id.present) {
-      map['id'] = Variable<int>(id.value);
+      map['id'] = Variable<String>(id.value);
     }
     if (noteId.present) {
       map['note_id'] = Variable<String>(noteId.value);
@@ -3235,6 +3608,20 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
     }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
+    }
+    if (titleEncrypted.present) {
+      map['title_encrypted'] = Variable<Uint8List>(titleEncrypted.value);
+    }
+    if (bodyEncrypted.present) {
+      map['body_encrypted'] = Variable<Uint8List>(bodyEncrypted.value);
+    }
+    if (locationNameEncrypted.present) {
+      map['location_name_encrypted'] = Variable<Uint8List>(
+        locationNameEncrypted.value,
+      );
+    }
+    if (encryptionVersion.present) {
+      map['encryption_version'] = Variable<int>(encryptionVersion.value);
     }
     if (type.present) {
       map['type'] = Variable<int>(
@@ -3293,11 +3680,23 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (scheduledPurgeAt.present) {
+      map['scheduled_purge_at'] = Variable<DateTime>(scheduledPurgeAt.value);
+    }
     if (lastTriggered.present) {
       map['last_triggered'] = Variable<DateTime>(lastTriggered.value);
     }
     if (triggerCount.present) {
       map['trigger_count'] = Variable<int>(triggerCount.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
     }
     return map;
   }
@@ -3310,6 +3709,10 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
           ..write('userId: $userId, ')
           ..write('title: $title, ')
           ..write('body: $body, ')
+          ..write('titleEncrypted: $titleEncrypted, ')
+          ..write('bodyEncrypted: $bodyEncrypted, ')
+          ..write('locationNameEncrypted: $locationNameEncrypted, ')
+          ..write('encryptionVersion: $encryptionVersion, ')
           ..write('type: $type, ')
           ..write('remindAt: $remindAt, ')
           ..write('isActive: $isActive, ')
@@ -3327,8 +3730,12 @@ class NoteRemindersCompanion extends UpdateCompanion<NoteReminder> {
           ..write('notificationImage: $notificationImage, ')
           ..write('timeZone: $timeZone, ')
           ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('scheduledPurgeAt: $scheduledPurgeAt, ')
           ..write('lastTriggered: $lastTriggered, ')
-          ..write('triggerCount: $triggerCount')
+          ..write('triggerCount: $triggerCount, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -3492,11 +3899,11 @@ class $NoteTasksTable extends NoteTasks
     'reminderId',
   );
   @override
-  late final GeneratedColumn<int> reminderId = GeneratedColumn<int>(
+  late final GeneratedColumn<String> reminderId = GeneratedColumn<String>(
     'reminder_id',
     aliasedName,
     true,
-    type: DriftSqlType.int,
+    type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
   static const VerificationMeta _estimatedMinutesMeta = const VerificationMeta(
@@ -3868,7 +4275,7 @@ class $NoteTasksTable extends NoteTasks
         data['${effectivePrefix}content_hash'],
       )!,
       reminderId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
+        DriftSqlType.string,
         data['${effectivePrefix}reminder_id'],
       ),
       estimatedMinutes: attachedDatabase.typeMapping.read(
@@ -3953,7 +4360,8 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
   final String contentHash;
 
   /// Optional reminder ID if a reminder is set for this task
-  final int? reminderId;
+  /// MIGRATION v41: Changed from INTEGER to TEXT (UUID) to match NoteReminders.id
+  final String? reminderId;
 
   /// Time estimate in minutes
   final int? estimatedMinutes;
@@ -4037,7 +4445,7 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
     map['position'] = Variable<int>(position);
     map['content_hash'] = Variable<String>(contentHash);
     if (!nullToAbsent || reminderId != null) {
-      map['reminder_id'] = Variable<int>(reminderId);
+      map['reminder_id'] = Variable<String>(reminderId);
     }
     if (!nullToAbsent || estimatedMinutes != null) {
       map['estimated_minutes'] = Variable<int>(estimatedMinutes);
@@ -4134,7 +4542,7 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
       completedBy: serializer.fromJson<String?>(json['completedBy']),
       position: serializer.fromJson<int>(json['position']),
       contentHash: serializer.fromJson<String>(json['contentHash']),
-      reminderId: serializer.fromJson<int?>(json['reminderId']),
+      reminderId: serializer.fromJson<String?>(json['reminderId']),
       estimatedMinutes: serializer.fromJson<int?>(json['estimatedMinutes']),
       actualMinutes: serializer.fromJson<int?>(json['actualMinutes']),
       parentTaskId: serializer.fromJson<String?>(json['parentTaskId']),
@@ -4169,7 +4577,7 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
       'completedBy': serializer.toJson<String?>(completedBy),
       'position': serializer.toJson<int>(position),
       'contentHash': serializer.toJson<String>(contentHash),
-      'reminderId': serializer.toJson<int?>(reminderId),
+      'reminderId': serializer.toJson<String?>(reminderId),
       'estimatedMinutes': serializer.toJson<int?>(estimatedMinutes),
       'actualMinutes': serializer.toJson<int?>(actualMinutes),
       'parentTaskId': serializer.toJson<String?>(parentTaskId),
@@ -4196,7 +4604,7 @@ class NoteTask extends DataClass implements Insertable<NoteTask> {
     Value<String?> completedBy = const Value.absent(),
     int? position,
     String? contentHash,
-    Value<int?> reminderId = const Value.absent(),
+    Value<String?> reminderId = const Value.absent(),
     Value<int?> estimatedMinutes = const Value.absent(),
     Value<int?> actualMinutes = const Value.absent(),
     Value<String?> parentTaskId = const Value.absent(),
@@ -4392,7 +4800,7 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
   final Value<String?> completedBy;
   final Value<int> position;
   final Value<String> contentHash;
-  final Value<int?> reminderId;
+  final Value<String?> reminderId;
   final Value<int?> estimatedMinutes;
   final Value<int?> actualMinutes;
   final Value<String?> parentTaskId;
@@ -4473,7 +4881,7 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
     Expression<String>? completedBy,
     Expression<int>? position,
     Expression<String>? contentHash,
-    Expression<int>? reminderId,
+    Expression<String>? reminderId,
     Expression<int>? estimatedMinutes,
     Expression<int>? actualMinutes,
     Expression<String>? parentTaskId,
@@ -4527,7 +4935,7 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
     Value<String?>? completedBy,
     Value<int>? position,
     Value<String>? contentHash,
-    Value<int?>? reminderId,
+    Value<String?>? reminderId,
     Value<int?>? estimatedMinutes,
     Value<int?>? actualMinutes,
     Value<String?>? parentTaskId,
@@ -4616,7 +5024,7 @@ class NoteTasksCompanion extends UpdateCompanion<NoteTask> {
       map['content_hash'] = Variable<String>(contentHash.value);
     }
     if (reminderId.present) {
-      map['reminder_id'] = Variable<int>(reminderId.value);
+      map['reminder_id'] = Variable<String>(reminderId.value);
     }
     if (estimatedMinutes.present) {
       map['estimated_minutes'] = Variable<int>(estimatedMinutes.value);
@@ -10576,11 +10984,15 @@ typedef $$NoteLinksTableProcessedTableManager =
     >;
 typedef $$NoteRemindersTableCreateCompanionBuilder =
     NoteRemindersCompanion Function({
-      Value<int> id,
+      Value<String> id,
       required String noteId,
       required String userId,
       Value<String> title,
       Value<String> body,
+      Value<Uint8List?> titleEncrypted,
+      Value<Uint8List?> bodyEncrypted,
+      Value<Uint8List?> locationNameEncrypted,
+      Value<int?> encryptionVersion,
       required ReminderType type,
       Value<DateTime?> remindAt,
       Value<bool> isActive,
@@ -10598,16 +11010,24 @@ typedef $$NoteRemindersTableCreateCompanionBuilder =
       Value<String?> notificationImage,
       Value<String?> timeZone,
       Value<DateTime> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<DateTime?> lastTriggered,
       Value<int> triggerCount,
+      Value<int> rowid,
     });
 typedef $$NoteRemindersTableUpdateCompanionBuilder =
     NoteRemindersCompanion Function({
-      Value<int> id,
+      Value<String> id,
       Value<String> noteId,
       Value<String> userId,
       Value<String> title,
       Value<String> body,
+      Value<Uint8List?> titleEncrypted,
+      Value<Uint8List?> bodyEncrypted,
+      Value<Uint8List?> locationNameEncrypted,
+      Value<int?> encryptionVersion,
       Value<ReminderType> type,
       Value<DateTime?> remindAt,
       Value<bool> isActive,
@@ -10625,8 +11045,12 @@ typedef $$NoteRemindersTableUpdateCompanionBuilder =
       Value<String?> notificationImage,
       Value<String?> timeZone,
       Value<DateTime> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<DateTime?> deletedAt,
+      Value<DateTime?> scheduledPurgeAt,
       Value<DateTime?> lastTriggered,
       Value<int> triggerCount,
+      Value<int> rowid,
     });
 
 class $$NoteRemindersTableFilterComposer
@@ -10638,7 +11062,7 @@ class $$NoteRemindersTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
+  ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
   );
@@ -10660,6 +11084,26 @@ class $$NoteRemindersTableFilterComposer
 
   ColumnFilters<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get titleEncrypted => $composableBuilder(
+    column: $table.titleEncrypted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get bodyEncrypted => $composableBuilder(
+    column: $table.bodyEncrypted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get locationNameEncrypted => $composableBuilder(
+    column: $table.locationNameEncrypted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get encryptionVersion => $composableBuilder(
+    column: $table.encryptionVersion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10750,6 +11194,21 @@ class $$NoteRemindersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get lastTriggered => $composableBuilder(
     column: $table.lastTriggered,
     builder: (column) => ColumnFilters(column),
@@ -10770,7 +11229,7 @@ class $$NoteRemindersTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
+  ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
   );
@@ -10792,6 +11251,26 @@ class $$NoteRemindersTableOrderingComposer
 
   ColumnOrderings<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get titleEncrypted => $composableBuilder(
+    column: $table.titleEncrypted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get bodyEncrypted => $composableBuilder(
+    column: $table.bodyEncrypted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get locationNameEncrypted => $composableBuilder(
+    column: $table.locationNameEncrypted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get encryptionVersion => $composableBuilder(
+    column: $table.encryptionVersion,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -10880,6 +11359,21 @@ class $$NoteRemindersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get lastTriggered => $composableBuilder(
     column: $table.lastTriggered,
     builder: (column) => ColumnOrderings(column),
@@ -10900,7 +11394,7 @@ class $$NoteRemindersTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
+  GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get noteId =>
@@ -10914,6 +11408,26 @@ class $$NoteRemindersTableAnnotationComposer
 
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<Uint8List> get titleEncrypted => $composableBuilder(
+    column: $table.titleEncrypted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get bodyEncrypted => $composableBuilder(
+    column: $table.bodyEncrypted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get locationNameEncrypted => $composableBuilder(
+    column: $table.locationNameEncrypted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get encryptionVersion => $composableBuilder(
+    column: $table.encryptionVersion,
+    builder: (column) => column,
+  );
 
   GeneratedColumnWithTypeConverter<ReminderType, int> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
@@ -10985,6 +11499,17 @@ class $$NoteRemindersTableAnnotationComposer
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get scheduledPurgeAt => $composableBuilder(
+    column: $table.scheduledPurgeAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get lastTriggered => $composableBuilder(
     column: $table.lastTriggered,
     builder: (column) => column,
@@ -11027,11 +11552,15 @@ class $$NoteRemindersTableTableManager
               $$NoteRemindersTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                Value<String> id = const Value.absent(),
                 Value<String> noteId = const Value.absent(),
                 Value<String> userId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> body = const Value.absent(),
+                Value<Uint8List?> titleEncrypted = const Value.absent(),
+                Value<Uint8List?> bodyEncrypted = const Value.absent(),
+                Value<Uint8List?> locationNameEncrypted = const Value.absent(),
+                Value<int?> encryptionVersion = const Value.absent(),
                 Value<ReminderType> type = const Value.absent(),
                 Value<DateTime?> remindAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
@@ -11050,14 +11579,22 @@ class $$NoteRemindersTableTableManager
                 Value<String?> notificationImage = const Value.absent(),
                 Value<String?> timeZone = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<DateTime?> lastTriggered = const Value.absent(),
                 Value<int> triggerCount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
               }) => NoteRemindersCompanion(
                 id: id,
                 noteId: noteId,
                 userId: userId,
                 title: title,
                 body: body,
+                titleEncrypted: titleEncrypted,
+                bodyEncrypted: bodyEncrypted,
+                locationNameEncrypted: locationNameEncrypted,
+                encryptionVersion: encryptionVersion,
                 type: type,
                 remindAt: remindAt,
                 isActive: isActive,
@@ -11075,16 +11612,24 @@ class $$NoteRemindersTableTableManager
                 notificationImage: notificationImage,
                 timeZone: timeZone,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 lastTriggered: lastTriggered,
                 triggerCount: triggerCount,
+                rowid: rowid,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
+                Value<String> id = const Value.absent(),
                 required String noteId,
                 required String userId,
                 Value<String> title = const Value.absent(),
                 Value<String> body = const Value.absent(),
+                Value<Uint8List?> titleEncrypted = const Value.absent(),
+                Value<Uint8List?> bodyEncrypted = const Value.absent(),
+                Value<Uint8List?> locationNameEncrypted = const Value.absent(),
+                Value<int?> encryptionVersion = const Value.absent(),
                 required ReminderType type,
                 Value<DateTime?> remindAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
@@ -11103,14 +11648,22 @@ class $$NoteRemindersTableTableManager
                 Value<String?> notificationImage = const Value.absent(),
                 Value<String?> timeZone = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> scheduledPurgeAt = const Value.absent(),
                 Value<DateTime?> lastTriggered = const Value.absent(),
                 Value<int> triggerCount = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
               }) => NoteRemindersCompanion.insert(
                 id: id,
                 noteId: noteId,
                 userId: userId,
                 title: title,
                 body: body,
+                titleEncrypted: titleEncrypted,
+                bodyEncrypted: bodyEncrypted,
+                locationNameEncrypted: locationNameEncrypted,
+                encryptionVersion: encryptionVersion,
                 type: type,
                 remindAt: remindAt,
                 isActive: isActive,
@@ -11128,8 +11681,12 @@ class $$NoteRemindersTableTableManager
                 notificationImage: notificationImage,
                 timeZone: timeZone,
                 createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                scheduledPurgeAt: scheduledPurgeAt,
                 lastTriggered: lastTriggered,
                 triggerCount: triggerCount,
+                rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -11172,7 +11729,7 @@ typedef $$NoteTasksTableCreateCompanionBuilder =
       Value<String?> completedBy,
       Value<int> position,
       required String contentHash,
-      Value<int?> reminderId,
+      Value<String?> reminderId,
       Value<int?> estimatedMinutes,
       Value<int?> actualMinutes,
       Value<String?> parentTaskId,
@@ -11199,7 +11756,7 @@ typedef $$NoteTasksTableUpdateCompanionBuilder =
       Value<String?> completedBy,
       Value<int> position,
       Value<String> contentHash,
-      Value<int?> reminderId,
+      Value<String?> reminderId,
       Value<int?> estimatedMinutes,
       Value<int?> actualMinutes,
       Value<String?> parentTaskId,
@@ -11292,7 +11849,7 @@ class $$NoteTasksTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get reminderId => $composableBuilder(
+  ColumnFilters<String> get reminderId => $composableBuilder(
     column: $table.reminderId,
     builder: (column) => ColumnFilters(column),
   );
@@ -11417,7 +11974,7 @@ class $$NoteTasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get reminderId => $composableBuilder(
+  ColumnOrderings<String> get reminderId => $composableBuilder(
     column: $table.reminderId,
     builder: (column) => ColumnOrderings(column),
   );
@@ -11528,7 +12085,7 @@ class $$NoteTasksTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get reminderId => $composableBuilder(
+  GeneratedColumn<String> get reminderId => $composableBuilder(
     column: $table.reminderId,
     builder: (column) => column,
   );
@@ -11608,7 +12165,7 @@ class $$NoteTasksTableTableManager
                 Value<String?> completedBy = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 Value<String> contentHash = const Value.absent(),
-                Value<int?> reminderId = const Value.absent(),
+                Value<String?> reminderId = const Value.absent(),
                 Value<int?> estimatedMinutes = const Value.absent(),
                 Value<int?> actualMinutes = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),
@@ -11660,7 +12217,7 @@ class $$NoteTasksTableTableManager
                 Value<String?> completedBy = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 required String contentHash,
-                Value<int?> reminderId = const Value.absent(),
+                Value<String?> reminderId = const Value.absent(),
                 Value<int?> estimatedMinutes = const Value.absent(),
                 Value<int?> actualMinutes = const Value.absent(),
                 Value<String?> parentTaskId = const Value.absent(),

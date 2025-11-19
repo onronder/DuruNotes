@@ -479,6 +479,7 @@ class GDPRComplianceService {
 
   Future<List<Map<String, dynamic>>> _exportAllReminders(String userId) async {
     try {
+      _logger.info('[GDPR] Exporting reminders with decryption for user: $userId');
       // P0.5 SECURITY: Get reminders only for this user
       // Defense-in-depth: Filter by both userId AND noteId
       final userNoteIds = await (db.select(
@@ -491,22 +492,123 @@ class GDPRComplianceService {
                   (r) => r.userId.equals(userId) & r.noteId.isIn(userNoteIds),
                 ))
                 .get();
-      return reminders
-          .map(
-            (reminder) => {
-              'id': reminder.id,
-              'noteId': reminder.noteId,
-              'reminderTime': reminder.remindAt?.toIso8601String(),
-              'isRecurring':
-                  reminder.recurrencePattern != RecurrencePattern.none,
-              'recurringPattern': reminder.recurrencePattern.name,
-              'isActive': reminder.isActive,
-              'type': reminder.type.name,
-            },
-          )
-          .toList();
-    } catch (e) {
-      _logger.warning('[GDPR] Failed to export reminders: $e');
+
+      // GDPR FIX: Decrypt reminder content (title, body, location_name)
+      // Article 15 & 20 require complete data export including content
+      final exportedReminders = await Future.wait(
+        reminders.map((reminder) async {
+          String title = '';
+          String? body;
+          String? locationName;
+
+          try {
+            // Attempt to decrypt encrypted fields if they exist
+            if (reminder.titleEncrypted != null) {
+              try {
+                title = await cryptoBox.decryptStringForNote(
+                  userId: userId,
+                  noteId: reminder.noteId,
+                  data: reminder.titleEncrypted!,
+                );
+              } catch (e) {
+                _logger.warning(
+                  '[GDPR] Failed to decrypt reminder title ${reminder.id}: $e',
+                );
+                // Fallback to plaintext if decryption fails
+                title = reminder.title;
+              }
+            } else {
+              // No encrypted version, use plaintext
+              title = reminder.title;
+            }
+
+            // Decrypt body if present
+            if (reminder.bodyEncrypted != null) {
+              try {
+                body = await cryptoBox.decryptStringForNote(
+                  userId: userId,
+                  noteId: reminder.noteId,
+                  data: reminder.bodyEncrypted!,
+                );
+              } catch (e) {
+                _logger.warning(
+                  '[GDPR] Failed to decrypt reminder body ${reminder.id}: $e',
+                );
+                // Fallback to plaintext if decryption fails
+                body = reminder.body;
+              }
+            } else {
+              // No encrypted version, use plaintext
+              body = reminder.body;
+            }
+
+            // Decrypt location name if present
+            if (reminder.locationNameEncrypted != null) {
+              try {
+                locationName = await cryptoBox.decryptStringForNote(
+                  userId: userId,
+                  noteId: reminder.noteId,
+                  data: reminder.locationNameEncrypted!,
+                );
+              } catch (e) {
+                _logger.warning(
+                  '[GDPR] Failed to decrypt reminder location ${reminder.id}: $e',
+                );
+                // Fallback to plaintext if decryption fails
+                locationName = reminder.locationName;
+              }
+            } else {
+              // No encrypted version, use plaintext
+              locationName = reminder.locationName;
+            }
+          } catch (e) {
+            // On any error, use plaintext values or mark as failed
+            _logger.warning(
+              '[GDPR] Error processing reminder ${reminder.id}: $e',
+            );
+            title = reminder.title.isNotEmpty
+                ? reminder.title
+                : '[DECRYPTION_FAILED]';
+            body = reminder.body;
+            locationName = reminder.locationName;
+          }
+
+          return {
+            'id': reminder.id,
+            'noteId': reminder.noteId,
+            // GDPR COMPLIANCE: Include actual reminder content
+            'title': title,
+            'body': body,
+            'locationName': locationName,
+            'reminderTime': reminder.remindAt?.toIso8601String(),
+            'isRecurring':
+                reminder.recurrencePattern != RecurrencePattern.none,
+            'recurringPattern': reminder.recurrencePattern.name,
+            'isActive': reminder.isActive,
+            'type': reminder.type.name,
+            'createdAt': reminder.createdAt.toIso8601String(),
+            'updatedAt': reminder.updatedAt?.toIso8601String(),
+            'encryptionStatus':
+                reminder.encryptionVersion != null ? 'encrypted' : 'plaintext',
+            // Include location coordinates if present
+            if (reminder.latitude != null) 'locationLatitude': reminder.latitude,
+            if (reminder.longitude != null)
+              'locationLongitude': reminder.longitude,
+            if (reminder.radius != null) 'locationRadius': reminder.radius,
+          };
+        }),
+      );
+
+      _logger.info(
+        '[GDPR] Successfully exported ${exportedReminders.length} reminders',
+      );
+      return exportedReminders;
+    } catch (e, stack) {
+      _logger.error(
+        '[GDPR] Failed to export reminders',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -710,6 +812,24 @@ class GDPRComplianceService {
         // Delete reminders for user notes
         // P0.5 SECURITY: Defense-in-depth - filter by both userId AND noteId
         if (userNoteIds.isNotEmpty) {
+          // SECURITY FIX: Overwrite encrypted blobs before deletion
+          // This prevents forensic recovery of encrypted data
+          await (db.update(db.noteReminders)..where(
+                (r) => r.userId.equals(userId) & r.noteId.isIn(userNoteIds),
+              ))
+              .write(NoteRemindersCompanion(
+            // Overwrite encrypted fields with zeros
+            titleEncrypted: Value(Uint8List.fromList(List.filled(32, 0))),
+            bodyEncrypted: Value(Uint8List.fromList(List.filled(32, 0))),
+            locationNameEncrypted:
+                Value(Uint8List.fromList(List.filled(32, 0))),
+            // Also clear plaintext fields
+            title: const Value(''),
+            body: const Value(''),
+            locationName: const Value(''),
+          ));
+
+          // Now delete the rows
           await (db.delete(db.noteReminders)..where(
                 (r) => r.userId.equals(userId) & r.noteId.isIn(userNoteIds),
               ))

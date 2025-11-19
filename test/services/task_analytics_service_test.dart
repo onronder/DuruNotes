@@ -153,6 +153,19 @@ class _FakeTaskRepository implements ITaskRepository {
   }
 
   @override
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    required String? reminderId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateTaskPositions(Map<String, int> positions) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<domain.Task>> getDeletedTasks() async => const [];
 
   @override

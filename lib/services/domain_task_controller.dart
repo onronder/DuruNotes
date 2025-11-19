@@ -125,7 +125,13 @@ class DomainTaskController {
     String? parentTaskId,
     int? estimatedMinutes,
   }) async {
+    // PERFORMANCE INSTRUMENTATION: Track total time
+    final totalStopwatch = Stopwatch()..start();
+
+    var stepStopwatch = Stopwatch()..start();
     final effectiveNoteId = noteId ?? await _ensureStandaloneNote();
+    debugPrint('[PERF] ensureStandaloneNote: ${stepStopwatch.elapsedMilliseconds}ms');
+
     debugPrint(
       '[DomainTaskController] createTask request -> '
       'note=$effectiveNoteId title="$title" due=${dueDate?.toIso8601String()} '
@@ -144,6 +150,7 @@ class DomainTaskController {
       );
     }
 
+    stepStopwatch = Stopwatch()..start();
     final taskId = await _enhancedTaskService.createTask(
       noteId: effectiveNoteId,
       content: title,
@@ -156,23 +163,49 @@ class DomainTaskController {
       estimatedMinutes: estimatedMinutes,
       createReminder: shouldScheduleReminder,
     );
+    debugPrint('[PERF] enhancedTaskService.createTask: ${stepStopwatch.elapsedMilliseconds}ms');
 
     if (shouldCreateCustomReminder) {
       // ignore: unnecessary_non_null_assertion
       final DateTime dueDateForReminder = dueDate!;
       // ignore: unnecessary_non_null_assertion
       final DateTime reminderTimeForReminder = reminderTime!;
-      await _enhancedTaskService.setCustomTaskReminder(
-        taskId: taskId,
-        dueDate: dueDateForReminder,
-        reminderTime: reminderTimeForReminder,
-      );
-      debugPrint(
-        '[DomainTaskController] custom reminder scheduled for task $taskId',
+
+      // UX FIX: Fire-and-forget pattern for reminder creation
+      // Task creation succeeds even if reminder scheduling fails
+      // This provides better UX - user isn't blocked by reminder failures
+      // Reminder errors are logged for debugging but don't block task creation
+      unawaited(
+        Future(() async {
+          final stopwatch = Stopwatch()..start();
+          try {
+            await _enhancedTaskService.setCustomTaskReminder(
+              taskId: taskId,
+              dueDate: dueDateForReminder,
+              reminderTime: reminderTimeForReminder,
+            );
+            debugPrint(
+              '[DomainTaskController] custom reminder scheduled for task $taskId',
+            );
+            debugPrint('[PERF] setCustomTaskReminder: ${stopwatch.elapsedMilliseconds}ms');
+          } catch (error, stackTrace) {
+            _logger.error(
+              'Failed to schedule custom reminder (non-blocking)',
+              error: error,
+              stackTrace: stackTrace,
+              data: {'taskId': taskId},
+            );
+            // Note: Error logged but not propagated - task creation succeeds
+            // User will see "Task created successfully" even if reminder fails
+          }
+        }),
       );
     }
 
+    stepStopwatch = Stopwatch()..start();
     final created = await _taskRepository.getTaskById(taskId);
+    debugPrint('[PERF] taskRepository.getTaskById: ${stepStopwatch.elapsedMilliseconds}ms');
+
     if (created == null) {
       throw StateError('Task $taskId not found after creation');
     }
@@ -180,6 +213,9 @@ class DomainTaskController {
     _logger.info(
       'Created domain task',
       data: {'taskId': taskId, 'noteId': created.noteId},
+    );
+    debugPrint(
+      '[PERF] ⏱️ TOTAL createTask: ${totalStopwatch.elapsedMilliseconds}ms (task ${created.id})',
     );
     debugPrint(
       '[DomainTaskController] task created id=$taskId note=${created.noteId}',
@@ -223,7 +259,8 @@ class DomainTaskController {
       estimatedMinutes:
           estimatedMinutes ?? task.metadata['estimatedMinutes'] as int?,
       actualMinutes: actualMinutes ?? task.metadata['actualMinutes'] as int?,
-      reminderId: metadata?['reminderId'] as int?,
+      // MIGRATION v41: Changed from int to String (UUID)
+      reminderId: metadata?['reminderId'] as String?,
       updateReminder: shouldAutoRefreshReminder,
       clearReminderId: shouldCancelReminder,
     );

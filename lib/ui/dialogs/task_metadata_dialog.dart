@@ -20,7 +20,7 @@ class TaskMetadataDialog extends ConsumerStatefulWidget {
 
   final domain.Task? task;
   final String taskContent;
-  final void Function(TaskMetadata) onSave;
+  final Future<void> Function(TaskMetadata) onSave;
   final bool isNewTask;
 
   @override
@@ -87,6 +87,9 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
     // Auto-focus on content field for new tasks
     if (widget.isNewTask && widget.taskContent.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Safety: Check mounted before accessing context
+        // Dialog might be dismissed before this callback executes
+        if (!mounted) return;
         FocusScope.of(context).requestFocus(_contentFocusNode);
       });
     }
@@ -227,11 +230,12 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
     // Validate task content
     final content = _taskContentController.text.trim();
 
     if (content.isEmpty) {
+      if (!mounted) return;
       setState(() {
         _contentError = 'Task title is required';
       });
@@ -246,9 +250,26 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
 
       // Validate reminder is before due date
       if (_reminderTime!.isAfter(_dueDate!)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reminder time must be before the due date'),
+        if (!mounted) return;
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 12),
+                Text('Invalid Reminder Time'),
+              ],
+            ),
+            content: const Text(
+              'Reminder time must be before the due date. Please adjust the reminder time.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
         return;
@@ -256,10 +277,26 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
 
       // Warn if reminder is in the past
       if (_reminderTime!.isBefore(DateTime.now())) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Warning: Reminder time has already passed'),
-            backgroundColor: Colors.orange,
+        if (!mounted) return;
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.orange),
+                SizedBox(width: 12),
+                Text('Reminder in the Past'),
+              ],
+            ),
+            content: const Text(
+              'The reminder time has already passed. The task will be created, but no reminder notification will be scheduled.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
         // Don't return - allow saving with past reminder (it won't be scheduled)
@@ -277,8 +314,26 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
       labels: _labels,
     );
 
-    widget.onSave(metadata);
-    Navigator.of(context).pop();
+    try {
+      // Call the onSave callback - the callback will handle navigation
+      // by calling Navigator.pop(metadata) from the parent context
+      await widget.onSave(metadata);
+    } catch (error, stackTrace) {
+      _logger.error(
+        'Failed to save task metadata',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save task: ${error.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+    // NOTE: Navigation is handled by the callback (onSave), not here
+    // The callback calls Navigator.of(context).pop(metadata) to return the result
   }
 
   @override

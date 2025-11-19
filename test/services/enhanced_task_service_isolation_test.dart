@@ -61,7 +61,8 @@ class MockTaskReminderBridge extends Mock implements TaskReminderBridge {
   }
 
   @override
-  Future<int?> createTaskReminder({
+  // MIGRATION v41: Changed from Future<int?> to Future<String?> (UUID)
+  Future<String?> createTaskReminder({
     required db.NoteTask task,
     Duration? beforeDueDate,
   }) async {
@@ -70,7 +71,7 @@ class MockTaskReminderBridge extends Mock implements TaskReminderBridge {
         #task: task,
         #beforeDueDate: beforeDueDate,
       }),
-      returnValue: Future<int?>.value(null),
+      returnValue: Future<String?>.value(null),
     );
   }
 

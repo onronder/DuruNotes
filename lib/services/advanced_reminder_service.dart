@@ -258,7 +258,8 @@ class AdvancedReminderService {
   // ========================
 
   /// Create a time-based reminder
-  Future<int?> createTimeReminder({
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<String?> createTimeReminder({
     required String noteId,
     required String title,
     required String body,
@@ -371,8 +372,9 @@ class AdvancedReminderService {
   }
 
   /// Schedule next occurrence for recurring reminders
+  // MIGRATION v41: Changed from int to String (UUID)
   Future<void> _scheduleNextRecurrence(
-    int reminderId,
+    String reminderId,
     DateTime currentTime,
     RecurrencePattern pattern,
     int interval,
@@ -447,7 +449,8 @@ class AdvancedReminderService {
   // ========================
 
   /// Create a location-based reminder
-  Future<int?> createLocationReminder({
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<String?> createLocationReminder({
     required String noteId,
     required String title,
     required String body,
@@ -528,8 +531,9 @@ class AdvancedReminderService {
   }
 
   /// Set up geofence for location reminder
+  // MIGRATION v41: Changed from int to String (UUID)
   Future<void> _setupGeofence(
-    int reminderId,
+    String reminderId,
     double latitude,
     double longitude,
     double radius,
@@ -584,8 +588,9 @@ class AdvancedReminderService {
   // ========================
 
   /// Schedule a time-based notification
+  // MIGRATION v41: Changed from int to String (UUID)
   Future<void> _scheduleNotification(
-    int reminderId,
+    String reminderId,
     DateTime remindAtUtc,
     String title,
     String body, {
@@ -661,7 +666,8 @@ class AdvancedReminderService {
   // ========================
 
   /// Snooze a reminder
-  Future<void> snoozeReminder(int reminderId, SnoozeDuration duration) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> snoozeReminder(String reminderId, SnoozeDuration duration) async {
     try {
       // P0.5 SECURITY: Get current userId
       final userId = _currentUserId;
@@ -764,8 +770,9 @@ class AdvancedReminderService {
   }
 
   /// Update a reminder
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
   Future<void> updateReminder(
-    int reminderId,
+    String reminderId,
     NoteRemindersCompanion updates,
   ) async {
     // P0.5 SECURITY: Get current userId
@@ -781,7 +788,8 @@ class AdvancedReminderService {
   }
 
   /// Delete a reminder
-  Future<void> deleteReminder(int reminderId) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> deleteReminder(String reminderId) async {
     try {
       // P0.5 SECURITY: Get current userId
       final userId = _currentUserId;
@@ -827,13 +835,15 @@ class AdvancedReminderService {
   }
 
   /// Cancel a notification
-  Future<void> _cancelNotification(int reminderId) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> _cancelNotification(String reminderId) async {
     final notificationId = _generateNotificationId(reminderId);
     await _plugin.cancel(notificationId);
   }
 
   /// Remove a geofence
-  Future<void> _removeGeofence(int reminderId) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> _removeGeofence(String reminderId) async {
     if (_geofenceService == null) return;
 
     try {
@@ -846,7 +856,8 @@ class AdvancedReminderService {
   }
 
   /// Generate stable notification ID
-  int _generateNotificationId(int reminderId) {
+  // MIGRATION v41: Convert String UUID to int for notification plugin
+  int _generateNotificationId(String reminderId) {
     return reminderId.hashCode.abs();
   }
 
@@ -864,7 +875,8 @@ class AdvancedReminderService {
       }
 
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      final reminderId = data['reminderId'] as int?;
+      // MIGRATION v41: Changed from int to String (UUID)
+      final reminderId = data['reminderId'] as String?;
 
       if (reminderId == null) return;
 

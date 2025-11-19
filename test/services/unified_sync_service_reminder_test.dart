@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +12,7 @@ import 'package:duru_notes/services/unified_sync_service.dart';
 import 'package:duru_notes/data/remote/secure_api_wrapper.dart';
 
 import '../repository/notes_repository_test.mocks.dart';
+import '../utils/uuid_test_helper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -53,11 +56,39 @@ void main() {
     await db.customStatement('DELETE FROM note_reminders;');
     await db.customStatement('DELETE FROM local_notes;');
     reset(mockNoteApi);
+    reset(mockCrypto);
+
     when(
       mockNoteApi.getReminders(),
     ).thenAnswer((_) async => <Map<String, dynamic>>[]);
     when(mockNoteApi.upsertReminder(any)).thenAnswer((_) async {});
     when(mockNoteApi.deleteReminder(any)).thenAnswer((_) async {});
+
+    // CRITICAL #7: Mock encryption for sync uploads
+    when(
+      mockCrypto.encryptStringForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        text: anyNamed('text'),
+      ),
+    ).thenAnswer((invocation) async {
+      final text = invocation.namedArguments[Symbol('text')] as String;
+      // Return encrypted bytes (reversed for testing)
+      return Uint8List.fromList(text.codeUnits.reversed.toList());
+    });
+
+    // CRITICAL #7: Mock decryption for roundtrip verification
+    when(
+      mockCrypto.decryptStringForNote(
+        userId: anyNamed('userId'),
+        noteId: anyNamed('noteId'),
+        data: anyNamed('data'),
+      ),
+    ).thenAnswer((invocation) async {
+      final data = invocation.namedArguments[Symbol('data')] as Uint8List;
+      // Return original plaintext (reverse the reversed)
+      return String.fromCharCodes(data.reversed);
+    });
   });
 
   tearDownAll(() async {
@@ -125,7 +156,7 @@ void main() {
       await seedNote(noteId: 'note-remote', timestamp: createdAt);
 
       final remoteReminder = {
-        'id': 99,
+        'id': UuidTestHelper.testReminder1,
         'note_id': 'note-remote',
         'user_id': 'user-123',
         'title': 'Remote Reminder',
@@ -163,7 +194,7 @@ void main() {
       verify(mockNoteApi.getReminders()).called(1);
       verifyNever(mockNoteApi.upsertReminder(any));
 
-      final stored = await db.getReminderById(99, 'user-123');
+      final stored = await db.getReminderById(UuidTestHelper.testReminder1, 'user-123');
       expect(stored, isNotNull);
       expect(stored!.title, 'Remote Reminder');
       expect(stored.body, 'Imported from cloud');

@@ -598,7 +598,9 @@ class TaskItemWidget extends ConsumerWidget {
       builder: (context) => TaskMetadataDialog(
         task: task,
         taskContent: task.title,
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
+        onSave: (metadata) async {
+          Navigator.of(context).pop(metadata);
+        },
       ),
     );
 

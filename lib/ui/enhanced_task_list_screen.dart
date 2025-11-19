@@ -41,6 +41,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
   late TabController _tabController;
   TaskViewMode _viewMode = TaskViewMode.grouped;
   bool _showCompleted = false;
+  bool _isCreatingTask = false; // Prevent duplicate task creation
 
   AppLogger get _logger => ref.read(loggerProvider);
 
@@ -310,30 +311,59 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'enhanced_task_list_fab', // PRODUCTION FIX: Unique hero tag
-        onPressed: () => _showCreateStandaloneTaskDialog(context),
-        backgroundColor: DuruColors.primary,
-        icon: Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
-        label: const Text('New Task', style: TextStyle(color: Colors.white)),
+        onPressed: _isCreatingTask
+            ? null // Disable while creating to prevent duplicates
+            : () => _showCreateStandaloneTaskDialog(context),
+        backgroundColor:
+            _isCreatingTask ? Colors.grey : DuruColors.primary,
+        icon: _isCreatingTask
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(CupertinoIcons.plus_circle_fill, color: Colors.white),
+        label: Text(
+          _isCreatingTask ? 'Creating...' : 'New Task',
+          style: const TextStyle(color: Colors.white),
+        ),
       ),
     );
   }
 
   Future<void> _showCreateStandaloneTaskDialog(BuildContext context) async {
+    // Prevent opening dialog if already creating
+    if (_isCreatingTask) return;
+
     final result = await showDialog<TaskMetadata>(
       context: context,
       builder: (context) => TaskMetadataDialog(
         taskContent: '', // Start with empty, not "New Task"
         isNewTask: true, // Flag to show appropriate placeholder
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
+        onSave: (metadata) async {
+          Navigator.of(context).pop(metadata);
+        },
       ),
     );
 
-    if (result != null) {
+    if (result != null && mounted) {
       await _createStandaloneTask(result);
     }
   }
 
   Future<void> _createStandaloneTask(TaskMetadata metadata) async {
+    // Prevent duplicate creation
+    if (_isCreatingTask) return;
+
+    // Set loading state
+    if (!mounted) return;
+    setState(() {
+      _isCreatingTask = true;
+    });
+
     try {
       // USE USER'S INPUT instead of hardcoded "New Task"
       final taskContent = metadata.taskContent.trim();
@@ -420,6 +450,13 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
             ),
           ),
         );
+      }
+    } finally {
+      // Always reset loading state
+      if (mounted) {
+        setState(() {
+          _isCreatingTask = false;
+        });
       }
     }
   }
@@ -876,7 +913,9 @@ class _TaskCalendarViewState extends ConsumerState<_TaskCalendarView>
       builder: (context) => TaskMetadataDialog(
         task: task,
         taskContent: task.title, // Use decrypted title from domain.Task
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
+        onSave: (metadata) async {
+          Navigator.of(context).pop(metadata);
+        },
       ),
     );
 

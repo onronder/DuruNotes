@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/core/monitoring/reminder_sync_metrics.dart';
 import 'package:duru_notes/core/migration/migration_config.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
@@ -24,6 +25,7 @@ import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/sync/sync_coordinator.dart';
 import 'package:duru_notes/services/quick_capture_service.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
+import 'package:duru_notes/services/reminders/sync_encryption_helper.dart';
 
 /// Sync result with detailed information
 class SyncResult {
@@ -60,10 +62,11 @@ class SyncConflict {
   final String entityId;
   final DateTime localVersion;
   final DateTime remoteVersion;
-  final ConflictResolution resolution;
+  final SyncConflictResolution resolution;
 }
 
-enum ConflictResolution { useLocal, useRemote, merge, skip }
+/// Conflict resolution strategy for general sync operations (notes, tasks, folders)
+enum SyncConflictResolution { useLocal, useRemote, merge, skip }
 
 /// Task mapping for bidirectional sync
 class TaskMapping {
@@ -88,6 +91,7 @@ class UnifiedSyncService {
 
   final _logger = LoggerFactory.instance;
   final SecurityAuditTrail _securityAuditTrail = SecurityAuditTrail();
+  final _reminderMetrics = ReminderSyncMetrics.instance;
   final _uuid = const Uuid();
 
   AppDb? _db;
@@ -96,6 +100,9 @@ class UnifiedSyncService {
   ServiceAdapter? _adapter;
   CryptoBox? _cryptoBox;
   SecureApiWrapper? _secureApi;
+
+  // CRITICAL #4: Encryption failure handling
+  SyncEncryptionHelper? _syncEncryptionHelper;
 
   // Domain repositories
   INotesRepository? _domainNotesRepo;
@@ -118,6 +125,8 @@ class UnifiedSyncService {
   // MEMORY OPTIMIZATION: Batch size for iOS (lower than Android due to stricter memory limits)
   static const int _syncBatchSize =
       5; // Process 5 notes at a time to prevent memory spikes
+  static const int _reminderBatchSize =
+      10; // Process 10 reminders at a time (simpler objects than notes)
 
   String _cipherDebugSummary(Uint8List data) {
     if (data.isEmpty) {
@@ -250,6 +259,9 @@ class UnifiedSyncService {
       throw ArgumentError('CryptoBox must be provided for encryption');
     }
     _cryptoBox = resolvedCryptoBox;
+
+    // CRITICAL #4: Initialize encryption helper with explicit error handling
+    _syncEncryptionHelper = SyncEncryptionHelper(_cryptoBox);
 
     _adapter = ServiceAdapter(
       db: database,
@@ -749,9 +761,20 @@ class UnifiedSyncService {
   }
 
   Future<SyncResult> _syncReminders() async {
-    final uploadedIds = <int>[];
-    final downloadedIds = <int>[];
+    // MIGRATION v41: Changed from int to String (UUID)
+    final uploadedIds = <String>[];
+    final downloadedIds = <String>[];
     final errors = <String>[];
+
+    // METRICS: Start tracking reminder sync
+    final syncId = _reminderMetrics.startSync(
+      syncType: 'unified_reminder_sync',
+      metadata: {'source': 'UnifiedSyncService'},
+    );
+    int conflictsResolved = 0;
+    int orphanedLinksCleared = 0;
+    int invalidUuidsRejected = 0;
+    int batchesProcessed = 0;
 
     try {
       final userId = _requireUserId(
@@ -768,11 +791,13 @@ class UnifiedSyncService {
       final localReminders = await _db!.getAllReminders(userId);
       final remoteReminders = await _secureApi!.fetchReminders();
 
-      final localById = <int, NoteReminder>{
+      // MIGRATION v41: Changed from Map<int, ...> to Map<String, ...> (UUID)
+      final localById = <String, NoteReminder>{
         for (final reminder in localReminders) reminder.id: reminder,
       };
 
-      final remoteById = <int, Map<String, dynamic>>{};
+      // MIGRATION v41: Changed from Map<int, ...> to Map<String, ...> (UUID)
+      final remoteById = <String, Map<String, dynamic>>{};
       for (final remote in remoteReminders) {
         final remoteId = _parseReminderId(remote['id']);
         if (remoteId != null) {
@@ -780,10 +805,32 @@ class UnifiedSyncService {
         }
       }
 
-      for (final reminder in localReminders) {
-        if (!remoteById.containsKey(reminder.id)) {
+      // MEMORY OPTIMIZATION (Issue #6): Process reminders in batches to prevent memory spikes
+      final remindersToUpload = localReminders
+          .where((reminder) => !remoteById.containsKey(reminder.id))
+          .toList();
+
+      _logger.debug(
+        'Uploading ${remindersToUpload.length} reminders in batches of $_reminderBatchSize',
+      );
+
+      for (int i = 0; i < remindersToUpload.length; i += _reminderBatchSize) {
+        final end = (i + _reminderBatchSize).clamp(0, remindersToUpload.length);
+        final batch = remindersToUpload.sublist(i, end);
+        final batchNumber = (i ~/ _reminderBatchSize) + 1;
+
+        _logger.debug(
+          'Processing upload batch $batchNumber/${(remindersToUpload.length / _reminderBatchSize).ceil()}: '
+          'reminders $i-${end - 1}',
+        );
+
+        // METRICS: Track batch start
+        final batchStartTime = DateTime.now();
+
+        for (final reminder in batch) {
           try {
-            await _secureApi!.upsertReminder(_serializeReminder(reminder));
+            final serialized = await _serializeReminder(reminder);
+            await _secureApi!.upsertReminder(serialized);
             uploadedIds.add(reminder.id);
           } catch (error, stack) {
             final message =
@@ -804,64 +851,151 @@ class UnifiedSyncService {
             );
           }
         }
+
+        // METRICS: Track batch completion
+        final batchDuration = DateTime.now().difference(batchStartTime);
+        _reminderMetrics.recordBatch(
+          batchNumber: batchNumber,
+          itemsInBatch: batch.length,
+          batchDuration: batchDuration,
+        );
+        batchesProcessed++;
+
+        // Allow garbage collection between batches
+        if (i + _reminderBatchSize < remindersToUpload.length) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          _logger.debug('Batch uploaded, allowing GC before next batch...');
+        }
       }
 
       final existingIds = localById.keys.toSet();
 
-      for (final remote in remoteReminders) {
-        final remoteUser = remote['user_id'] as String?;
-        final remoteId = _parseReminderId(remote['id']);
+      // MEMORY OPTIMIZATION (Issue #6): Process remote reminders in batches
+      _logger.debug(
+        'Processing ${remoteReminders.length} remote reminders in batches of $_reminderBatchSize',
+      );
 
-        if (remoteId == null) {
-          errors.add('Remote reminder missing id');
-          continue;
-        }
+      for (int i = 0; i < remoteReminders.length; i += _reminderBatchSize) {
+        final end = (i + _reminderBatchSize).clamp(0, remoteReminders.length);
+        final batch = remoteReminders.sublist(i, end);
+        final batchNumber = (i ~/ _reminderBatchSize) + 1;
 
-        if (remoteUser == null || remoteUser != userId) {
-          _auditSync(
-            'syncReminders.reject',
-            granted: false,
-            reason: 'remoteUser=$remoteUser current=$userId',
-          );
-          continue;
-        }
+        _logger.debug(
+          'Processing download batch $batchNumber/${(remoteReminders.length / _reminderBatchSize).ceil()}: '
+          'reminders $i-${end - 1}',
+        );
 
-        try {
-          final noteId = remote['note_id'] as String?;
-          if (noteId == null || noteId.isEmpty) {
-            throw StateError('Remote reminder $remoteId missing note_id');
+        // METRICS: Track batch start
+        final batchStartTime = DateTime.now();
+
+        for (final remote in batch) {
+          final remoteUser = remote['user_id'] as String?;
+          final remoteId = _parseReminderId(remote['id']);
+
+          if (remoteId == null) {
+            errors.add('Remote reminder missing id');
+            continue;
           }
 
-          final note = await _db!.getNote(noteId);
-          if (note == null) {
-            _logger.warning(
-              'Skipping remote reminder with missing local note',
-              data: {'reminderId': remoteId, 'noteId': noteId},
+          if (remoteUser == null || remoteUser != userId) {
+            _auditSync(
+              'syncReminders.reject',
+              granted: false,
+              reason: 'remoteUser=$remoteUser current=$userId',
             );
             continue;
           }
 
-          await _upsertLocalReminder(remote, userId);
-          if (!existingIds.contains(remoteId)) {
-            downloadedIds.add(remoteId);
+          try {
+            final noteId = remote['note_id'] as String?;
+            if (noteId == null || noteId.isEmpty) {
+              throw StateError('Remote reminder $remoteId missing note_id');
+            }
+
+            final note = await _db!.getNote(noteId);
+            if (note == null) {
+              _logger.warning(
+                'Skipping remote reminder with missing local note',
+                data: {'reminderId': remoteId, 'noteId': noteId},
+              );
+              continue;
+            }
+
+            // SYNC CONFLICT RESOLUTION (Issue #5): Check for conflicts before upserting
+            final localReminder = localById[remoteId];
+            if (localReminder != null) {
+              // Both local and remote exist - check for conflicts
+              final localUpdated = localReminder.updatedAt ?? localReminder.createdAt;
+              final remoteUpdatedStr = remote['updated_at'] as String?;
+              final remoteUpdated = remoteUpdatedStr != null
+                  ? DateTime.parse(remoteUpdatedStr)
+                  : DateTime.now();
+
+              // If timestamps differ significantly, resolve conflict
+              if (localUpdated.difference(remoteUpdated).abs() >
+                  const Duration(seconds: 5)) {
+                _logger.info(
+                  '[Sync] Reminder conflict detected: ${localReminder.id}. '
+                  'Applying smart conflict resolution.',
+                  data: {
+                    'reminderId': localReminder.id,
+                    'localUpdated': localUpdated.toIso8601String(),
+                    'remoteUpdated': remoteUpdated.toIso8601String(),
+                  },
+                );
+
+                // Smart merge for reminders
+                final mergedReminder = _resolveReminderConflict(
+                  localReminder,
+                  remote,
+                  userId,
+                );
+                await _db!.into(_db!.noteReminders).insertOnConflictUpdate(mergedReminder);
+
+                // METRICS: Track conflict resolution
+                conflictsResolved++;
+              } else {
+                // No significant conflict, use remote (standard last-write-wins)
+                await _upsertLocalReminder(remote, userId);
+              }
+            } else {
+              // New remote reminder, just insert
+              await _upsertLocalReminder(remote, userId);
+              downloadedIds.add(remoteId);
+            }
+          } catch (error, stack) {
+            final message =
+                'Failed to apply remote reminder $remoteId: ${error.toString()}';
+            errors.add(message);
+            _logger.error(
+              'Failed to apply remote reminder',
+              error: error,
+              stackTrace: stack,
+              data: {'reminderId': remoteId},
+            );
+            _captureSyncException(
+              operation: 'syncReminders.download',
+              error: error,
+              stackTrace: stack,
+              data: {'reminderId': remoteId},
+              level: SentryLevel.warning,
+            );
           }
-        } catch (error, stack) {
-          final message =
-              'Failed to apply remote reminder $remoteId: ${error.toString()}';
-          errors.add(message);
-          _logger.error(
-            'Failed to apply remote reminder',
-            error: error,
-            stackTrace: stack,
-            data: {'reminderId': remoteId},
-          );
-          _captureSyncException(
-            operation: 'syncReminders.download',
-            error: error,
-            stackTrace: stack,
-            data: {'reminderId': remoteId},
-            level: SentryLevel.warning,
-          );
+        }
+
+        // METRICS: Track batch completion
+        final batchDuration = DateTime.now().difference(batchStartTime);
+        _reminderMetrics.recordBatch(
+          batchNumber: batchNumber,
+          itemsInBatch: batch.length,
+          batchDuration: batchDuration,
+        );
+        batchesProcessed++;
+
+        // Allow garbage collection between batches
+        if (i + _reminderBatchSize < remoteReminders.length) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          _logger.debug('Batch downloaded, allowing GC before next batch...');
         }
       }
 
@@ -871,6 +1005,17 @@ class UnifiedSyncService {
         'syncReminders',
         granted: errors.isEmpty,
         reason: 'upload=${uploadedIds.length} download=${downloadedIds.length}',
+      );
+
+      // METRICS: Complete sync tracking (success)
+      _reminderMetrics.endSync(
+        syncId: syncId,
+        success: errors.isEmpty,
+        remindersProcessed: syncedCount,
+        conflictsResolved: conflictsResolved,
+        orphanedLinksCleared: orphanedLinksCleared,
+        invalidUuidsRejected: invalidUuidsRejected,
+        batchesProcessed: batchesProcessed,
       );
 
       return SyncResult(
@@ -890,6 +1035,14 @@ class UnifiedSyncService {
         granted: false,
         reason: 'error=${error.runtimeType}',
       );
+
+      // METRICS: Complete sync tracking (failure)
+      _reminderMetrics.endSync(
+        syncId: syncId,
+        success: false,
+        error: error.toString(),
+      );
+
       return SyncResult(
         success: false,
         syncedReminders: 0,
@@ -900,6 +1053,70 @@ class UnifiedSyncService {
 
   @visibleForTesting
   Future<SyncResult> syncRemindersForTest() => _syncReminders();
+
+  /// CRITICAL #4: Process pending encryption retries
+  ///
+  /// Call this method when:
+  /// - CryptoBox becomes available (user authenticates)
+  /// - App returns from background
+  /// - Periodic background job runs
+  ///
+  /// Returns the number of reminders still pending retry
+  Future<int> processEncryptionRetries() async {
+    if (_syncEncryptionHelper == null) {
+      _logger.warning('Cannot process retries - encryption helper not initialized');
+      return 0;
+    }
+
+    if (_db == null) {
+      _logger.warning('Cannot process retries - database not initialized');
+      return 0;
+    }
+
+    final userId = _requireUserId('processEncryptionRetries');
+
+    _logger.info('[ReminderSync] Processing encryption retries');
+
+    try {
+      final pendingCount = await _syncEncryptionHelper!.processRetries(
+        userId: userId,
+        retriever: (reminderId) async {
+          // Retrieve reminder including deleted ones (they might be in retry queue)
+          return await _db!.getReminderByIdIncludingDeleted(reminderId, userId);
+        },
+      );
+
+      _logger.info(
+        '[ReminderSync] Encryption retry processing complete',
+        data: {'remainingPending': pendingCount},
+      );
+
+      return pendingCount;
+    } catch (error, stack) {
+      _logger.error(
+        '[ReminderSync] Error processing encryption retries',
+        error: error,
+        stackTrace: stack,
+      );
+      return 0;
+    }
+  }
+
+  /// Get encryption retry queue statistics
+  ///
+  /// Returns metrics about pending encryption retries for monitoring
+  Map<String, dynamic> getEncryptionRetryStats() {
+    if (_syncEncryptionHelper == null) {
+      return {
+        'queueSize': 0,
+        'readyForRetry': 0,
+        'totalRetries': 0,
+        'expiredCount': 0,
+      };
+    }
+
+    return _syncEncryptionHelper!.getRetryStats();
+  }
 
   /// Bidirectional task sync within note content
   Future<void> _syncEmbeddedTasks(String noteId) async {
@@ -1048,8 +1265,8 @@ class UnifiedSyncService {
           localVersion: localUpdated,
           remoteVersion: remoteUpdated,
           resolution: localUpdated.isAfter(remoteUpdated)
-              ? ConflictResolution.useLocal
-              : ConflictResolution.useRemote,
+              ? SyncConflictResolution.useLocal
+              : SyncConflictResolution.useRemote,
         );
       }
 
@@ -1077,17 +1294,297 @@ class UnifiedSyncService {
     Map<String, dynamic> remote,
   ) async {
     switch (conflict.resolution) {
-      case ConflictResolution.useLocal:
+      case SyncConflictResolution.useLocal:
         return local;
-      case ConflictResolution.useRemote:
+      case SyncConflictResolution.useRemote:
         // Convert remote to local format
         return null; // Would need conversion logic
-      case ConflictResolution.merge:
+      case SyncConflictResolution.merge:
         // Implement merge logic
         return local; // For now, default to local
-      case ConflictResolution.skip:
+      case SyncConflictResolution.skip:
         return null;
     }
+  }
+
+  /// Resolve reminder conflict with smart merging strategy (Issue #5)
+  ///
+  /// Strategy:
+  /// 1. Prefer snoozed_until if set (user action takes priority)
+  /// 2. Merge trigger_count (sum from both versions)
+  /// 3. Prefer is_active=false (user turning off reminder takes priority)
+  /// 4. Use newer timestamp for other fields
+  /// 5. CRITICAL #5: Preserve encrypted fields from newer version
+  ///
+  /// This prevents losing important user actions like snooze or deactivation
+  /// AND ensures encrypted fields are not lost during conflict resolution.
+  NoteRemindersCompanion _resolveReminderConflict(
+    NoteReminder local,
+    Map<String, dynamic> remote,
+    String userId,
+  ) {
+    final remoteUpdatedStr = remote['updated_at'] as String?;
+    final remoteUpdated = remoteUpdatedStr != null
+        ? DateTime.parse(remoteUpdatedStr)
+        : DateTime.now();
+    final localUpdated = local.updatedAt ?? local.createdAt;
+
+    // Determine which version is newer
+    final useLocalForDefaults = localUpdated.isAfter(remoteUpdated);
+
+    // Track which conflict resolution strategy was applied
+    ConflictResolution appliedStrategy = ConflictResolution.lastWriteWins;
+
+    // STRATEGY 1: Prefer snoozed_until if either version has it set
+    DateTime? mergedSnoozedUntil;
+    final localSnooze = local.snoozedUntil;
+    final remoteSnooze = _parseDate(remote['snoozed_until']);
+
+    if (localSnooze != null || remoteSnooze != null) {
+      appliedStrategy = ConflictResolution.preferSnoozed;
+      if (localSnooze != null && remoteSnooze != null) {
+        // Both have snooze - use the later one (user probably snoozed again)
+        mergedSnoozedUntil = localSnooze.isAfter(remoteSnooze)
+            ? localSnooze
+            : remoteSnooze;
+      } else {
+        // Use whichever one has a snooze set
+        mergedSnoozedUntil = localSnooze ?? remoteSnooze;
+      }
+    }
+
+    // STRATEGY 2: Merge trigger_count (sum from both)
+    final localTriggerCount = local.triggerCount ?? 0;
+    final remoteTriggerCount = _asInt(remote['trigger_count']) ?? 0;
+    final mergedTriggerCount = localTriggerCount + remoteTriggerCount;
+
+    if (localTriggerCount > 0 && remoteTriggerCount > 0) {
+      appliedStrategy = ConflictResolution.mergedTriggerCount;
+    }
+
+    // STRATEGY 3: Prefer is_active=false (turning off takes priority)
+    final localIsActive = local.isActive;
+    final remoteIsActive = remote['is_active'] as bool? ?? true;
+    final mergedIsActive = localIsActive && remoteIsActive; // false wins
+
+    if (!localIsActive || !remoteIsActive) {
+      appliedStrategy = ConflictResolution.preferInactive;
+    }
+
+    // CRITICAL #5: Parse encrypted fields from remote
+    Uint8List? remoteTitleEnc;
+    Uint8List? remoteBodyEnc;
+    Uint8List? remoteLocationNameEnc;
+    int? remoteEncryptionVersion;
+
+    final titleEncBytes = remote['title_enc'];
+    final bodyEncBytes = remote['body_enc'];
+    final locationEncBytes = remote['location_name_enc'];
+
+    if (titleEncBytes != null && bodyEncBytes != null) {
+      remoteTitleEnc = titleEncBytes is Uint8List
+          ? titleEncBytes
+          : Uint8List.fromList((titleEncBytes as List).cast<int>());
+      remoteBodyEnc = bodyEncBytes is Uint8List
+          ? bodyEncBytes
+          : Uint8List.fromList((bodyEncBytes as List).cast<int>());
+      remoteEncryptionVersion = remote['encryption_version'] as int?;
+
+      if (locationEncBytes != null) {
+        remoteLocationNameEnc = locationEncBytes is Uint8List
+            ? locationEncBytes
+            : Uint8List.fromList((locationEncBytes as List).cast<int>());
+      }
+    }
+
+    // STRATEGY 5: Preserve encrypted fields from newer version
+    // This is critical to prevent encryption loss during conflict resolution
+    Uint8List? mergedTitleEnc;
+    Uint8List? mergedBodyEnc;
+    Uint8List? mergedLocationNameEnc;
+    int? mergedEncryptionVersion;
+
+    // Determine which version has valid encryption
+    final localHasEncryption = local.titleEncrypted != null &&
+        local.bodyEncrypted != null &&
+        local.encryptionVersion == 1;
+    final remoteHasEncryption = remoteTitleEnc != null &&
+        remoteBodyEnc != null &&
+        remoteEncryptionVersion == 1;
+
+    if (localHasEncryption && remoteHasEncryption) {
+      // Both encrypted - use newer version's encryption
+      if (useLocalForDefaults) {
+        mergedTitleEnc = local.titleEncrypted;
+        mergedBodyEnc = local.bodyEncrypted;
+        mergedLocationNameEnc = local.locationNameEncrypted;
+        mergedEncryptionVersion = local.encryptionVersion;
+
+        _logger.debug(
+          '[Conflict] Using local encryption (newer)',
+          data: {'reminderId': local.id},
+        );
+      } else {
+        mergedTitleEnc = remoteTitleEnc;
+        mergedBodyEnc = remoteBodyEnc;
+        mergedLocationNameEnc = remoteLocationNameEnc;
+        mergedEncryptionVersion = remoteEncryptionVersion;
+
+        _logger.debug(
+          '[Conflict] Using remote encryption (newer)',
+          data: {'reminderId': local.id},
+        );
+      }
+    } else if (localHasEncryption) {
+      // Only local has encryption - preserve it
+      mergedTitleEnc = local.titleEncrypted;
+      mergedBodyEnc = local.bodyEncrypted;
+      mergedLocationNameEnc = local.locationNameEncrypted;
+      mergedEncryptionVersion = local.encryptionVersion;
+
+      _logger.warning(
+        '[Conflict] Remote missing encryption - preserving local encryption',
+        data: {'reminderId': local.id},
+      );
+    } else if (remoteHasEncryption) {
+      // Only remote has encryption - use it
+      mergedTitleEnc = remoteTitleEnc;
+      mergedBodyEnc = remoteBodyEnc;
+      mergedLocationNameEnc = remoteLocationNameEnc;
+      mergedEncryptionVersion = remoteEncryptionVersion;
+
+      _logger.warning(
+        '[Conflict] Local missing encryption - using remote encryption',
+        data: {'reminderId': local.id},
+      );
+    } else {
+      // Neither has encryption - this is expected for pre-v42 reminders
+      _logger.debug(
+        '[Conflict] Neither version encrypted (pre-v42 reminder)',
+        data: {'reminderId': local.id},
+      );
+    }
+
+    // METRICS: Record conflict resolution
+    _reminderMetrics.recordConflict(
+      reminderId: local.id,
+      resolution: appliedStrategy,
+      metadata: {
+        'localUpdated': localUpdated.toIso8601String(),
+        'remoteUpdated': remoteUpdated.toIso8601String(),
+        'snoozeMerged': mergedSnoozedUntil != null,
+        'triggerCountMerged': mergedTriggerCount > 0,
+        'isActiveMerged': !mergedIsActive,
+        // CRITICAL #5: Track encryption preservation
+        'localHadEncryption': localHasEncryption,
+        'remoteHadEncryption': remoteHasEncryption,
+        'encryptionPreserved': mergedTitleEnc != null,
+      },
+    );
+
+    // STRATEGY 4: Use newer version for other fields
+    return NoteRemindersCompanion(
+      id: Value(local.id),
+      noteId: Value(local.noteId),
+      userId: Value(userId),
+      title: Value(
+        useLocalForDefaults
+            ? local.title
+            : (remote['title'] as String? ?? local.title),
+      ),
+      body: Value(
+        useLocalForDefaults
+            ? local.body
+            : (remote['body'] as String? ?? local.body),
+      ),
+      type: Value(
+        useLocalForDefaults
+            ? local.type
+            : _parseReminderType(remote['type'] as String?),
+      ),
+      remindAt: _valueOrAbsentDate(
+        useLocalForDefaults
+            ? local.remindAt
+            : _parseDate(remote['remind_at']),
+      ),
+      isActive: Value(mergedIsActive), // Strategy 3: prefer false
+      latitude: _valueOrAbsentDouble(
+        useLocalForDefaults ? local.latitude : _asDouble(remote['latitude']),
+      ),
+      longitude: _valueOrAbsentDouble(
+        useLocalForDefaults ? local.longitude : _asDouble(remote['longitude']),
+      ),
+      radius: _valueOrAbsentDouble(
+        useLocalForDefaults ? local.radius : _asDouble(remote['radius']),
+      ),
+      locationName: _valueOrAbsentString(
+        useLocalForDefaults
+            ? local.locationName
+            : (remote['location_name'] as String?),
+      ),
+      recurrencePattern: Value(
+        useLocalForDefaults
+            ? local.recurrencePattern
+            : _parseRecurrencePattern(remote['recurrence_pattern'] as String?),
+      ),
+      recurrenceEndDate: _valueOrAbsentDate(
+        useLocalForDefaults
+            ? local.recurrenceEndDate
+            : _parseDate(remote['recurrence_end_date']),
+      ),
+      recurrenceInterval: Value(
+        useLocalForDefaults
+            ? local.recurrenceInterval
+            : (_asInt(remote['recurrence_interval']) ?? 1),
+      ),
+      snoozedUntil: _valueOrAbsentDate(mergedSnoozedUntil), // Strategy 1
+      snoozeCount: Value(
+        useLocalForDefaults
+            ? local.snoozeCount
+            : (_asInt(remote['snooze_count']) ?? 0),
+      ),
+      notificationTitle: _valueOrAbsentString(
+        useLocalForDefaults
+            ? local.notificationTitle
+            : (remote['notification_title'] as String?),
+      ),
+      notificationBody: _valueOrAbsentString(
+        useLocalForDefaults
+            ? local.notificationBody
+            : (remote['notification_body'] as String?),
+      ),
+      notificationImage: _valueOrAbsentString(
+        useLocalForDefaults
+            ? local.notificationImage
+            : (remote['notification_image'] as String?),
+      ),
+      timeZone: Value(
+        useLocalForDefaults
+            ? local.timeZone
+            : (remote['time_zone'] as String? ?? 'UTC'),
+      ),
+      createdAt: Value(local.createdAt), // Keep local creation time
+      lastTriggered: _valueOrAbsentDate(
+        useLocalForDefaults
+            ? local.lastTriggered
+            : _parseDate(remote['last_triggered']),
+      ),
+      triggerCount: Value(mergedTriggerCount), // Strategy 2: sum both
+
+      // CRITICAL #5: Preserve encrypted fields from newer version
+      titleEncrypted: mergedTitleEnc != null
+          ? Value(mergedTitleEnc)
+          : const Value.absent(),
+      bodyEncrypted: mergedBodyEnc != null
+          ? Value(mergedBodyEnc)
+          : const Value.absent(),
+      locationNameEncrypted: mergedLocationNameEnc != null
+          ? Value(mergedLocationNameEnc)
+          : const Value.absent(),
+      encryptionVersion: mergedEncryptionVersion != null
+          ? Value(mergedEncryptionVersion)
+          : const Value.absent(),
+    );
   }
 
   // Data fetching methods
@@ -1776,7 +2273,70 @@ class UnifiedSyncService {
           continue;
         }
 
-        final task = _adapter!.createTaskFromSync(taskData);
+        var task = await _adapter!.createTaskFromSync(taskData);
+
+        // SYNC INTEGRITY FIX: Validate reminder-task linkage
+        // Ensures tasks don't reference non-existent reminders (Issue #1 from sync analysis)
+        // Also validates UUID format (Issue #2 from sync analysis)
+        if (task is domain.Task && task.metadata['reminderId'] != null) {
+          final reminderIdRaw = task.metadata['reminderId'];
+          final reminderId = reminderIdRaw is String ? reminderIdRaw : null;
+
+          // Validate UUID format
+          if (reminderId == null || !_isValidUuid(reminderId)) {
+            _logger.warning(
+              '[Sync] Task ${task.id} has invalid reminder ID format: $reminderIdRaw. '
+              'Clearing invalid reminder link.',
+              data: {'taskId': task.id, 'invalidReminderId': reminderIdRaw},
+            );
+
+            // Clear the invalid reminder reference
+            final updatedMetadata = Map<String, dynamic>.from(task.metadata);
+            updatedMetadata.remove('reminderId');
+            task = task.copyWith(metadata: updatedMetadata);
+
+            _auditSync(
+              'downloadTasks.invalidReminderId',
+              granted: false,
+              reason: 'task=${task.id} invalidId=$reminderIdRaw',
+            );
+
+            // METRICS: Track invalid UUID detection
+            _reminderMetrics.recordInvalidUuid(
+              context: 'task_download',
+              invalidValue: reminderIdRaw.toString(),
+            );
+          } else {
+            // UUID format is valid, now check if reminder exists
+            final reminderExists = await _db!.getReminderById(reminderId, userId);
+
+            if (reminderExists == null) {
+              _logger.warning(
+                '[Sync] Task ${task.id} references non-existent reminder $reminderId. '
+                'Clearing orphaned reminder link to maintain data integrity.',
+                data: {'taskId': task.id, 'orphanedReminderId': reminderId},
+              );
+
+              // Clear the orphaned reminder reference
+              final updatedMetadata = Map<String, dynamic>.from(task.metadata);
+              updatedMetadata.remove('reminderId');
+              task = task.copyWith(metadata: updatedMetadata);
+
+              _auditSync(
+                'downloadTasks.orphanedReminder',
+                granted: false,
+                reason: 'task=${task.id} reminder=$reminderId',
+              );
+
+              // METRICS: Track orphaned link detection
+              _reminderMetrics.recordOrphanedLink(
+                taskId: task.id,
+                orphanedReminderId: reminderId,
+              );
+            }
+          }
+        }
+
         // Save through appropriate repository
         if (_migrationConfig!.isFeatureEnabled('tasks') &&
             _domainTasksRepo != null) {
@@ -1876,13 +2436,89 @@ class UnifiedSyncService {
     }
   }
 
-  Map<String, dynamic> _serializeReminder(NoteReminder reminder) {
+  /// Serialize reminder for upload with encryption (Migration v42)
+  ///
+  /// SECURITY: Encrypts title, body, and location_name before upload
+  /// BACKWARD COMPATIBILITY: Sends both plaintext AND encrypted during migration
+  /// Once 100% adoption of v42+, plaintext fields will be removed from backend
+  Future<Map<String, dynamic>> _serializeReminder(NoteReminder reminder) async {
+    // CRITICAL #4: Use encryption helper with explicit error handling
+    // This prevents uploading reminders with inconsistent encryption state
+    final userId = _requireUserId('serializeReminder');
+
+    Uint8List? titleEnc;
+    Uint8List? bodyEnc;
+    Uint8List? locationNameEnc;
+
+    if (_syncEncryptionHelper == null) {
+      // No encryption helper - critical error (should never happen after initialize())
+      throw StateError(
+        'SyncEncryptionHelper not initialized - cannot serialize reminder ${reminder.id}',
+      );
+    }
+
+    // Encrypt with validation and retry queue integration
+    final encryptionResult = await _syncEncryptionHelper!.encryptForSync(
+      reminder: reminder,
+      userId: userId,
+    );
+
+    if (!encryptionResult.success) {
+      // Encryption failed - DO NOT upload inconsistent state
+      _logger.error(
+        'Encryption failed for reminder ${reminder.id} - blocking upload',
+        error: encryptionResult.error,
+        data: {
+          'reason': encryptionResult.failureReason,
+          'retryable': encryptionResult.isRetryable,
+          'reminderId': reminder.id,
+          'noteId': reminder.noteId,
+        },
+      );
+
+      // Track metric for monitoring
+      _reminderMetrics.recordEncryptionFailure(
+        isRetryable: encryptionResult.isRetryable,
+      );
+
+      // Throw to prevent upload
+      throw StateError(
+        'Cannot upload reminder ${reminder.id} - encryption failed: '
+        '${encryptionResult.failureReason}',
+      );
+    }
+
+    // Encryption succeeded - safe to use encrypted data
+    titleEnc = encryptionResult.titleEncrypted;
+    bodyEnc = encryptionResult.bodyEncrypted;
+    locationNameEnc = encryptionResult.locationNameEncrypted;
+
+    _logger.debug(
+      'Successfully encrypted reminder for upload',
+      data: {
+        'reminderId': reminder.id,
+        'hasLocationEncrypted': locationNameEnc != null,
+      },
+    );
+
     return {
       'id': reminder.id,
       'note_id': reminder.noteId,
       'user_id': reminder.userId,
+
+      // PLAINTEXT FIELDS (Deprecated - for backward compatibility only)
+      // TODO: Remove after 100% adoption of v42+
       'title': reminder.title,
       'body': reminder.body,
+      'location_name': reminder.locationName,
+
+      // ENCRYPTED FIELDS (Migration v42 - Security Fix)
+      if (titleEnc != null) 'title_enc': titleEnc,
+      if (bodyEnc != null) 'body_enc': bodyEnc,
+      if (locationNameEnc != null) 'location_name_enc': locationNameEnc,
+      if (titleEnc != null) 'encryption_version': 1,
+
+      // SYSTEM FIELDS (unencrypted - required for queries)
       'type': reminder.type.name,
       'remind_at': _toUtcIso(reminder.remindAt),
       'is_active': reminder.isActive,
@@ -1892,7 +2528,6 @@ class UnifiedSyncService {
       'latitude': reminder.latitude,
       'longitude': reminder.longitude,
       'radius': reminder.radius,
-      'location_name': reminder.locationName,
       'snoozed_until': _toUtcIso(reminder.snoozedUntil),
       'snooze_count': reminder.snoozeCount,
       'trigger_count': reminder.triggerCount,
@@ -1902,10 +2537,15 @@ class UnifiedSyncService {
       'notification_image': reminder.notificationImage,
       'time_zone': reminder.timeZone,
       'created_at': _toUtcIso(reminder.createdAt),
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      // MIGRATION v43: Include updatedAt for conflict resolution
+      'updated_at': _toUtcIso(reminder.updatedAt ?? reminder.createdAt),
     };
   }
 
+  /// Upsert remote reminder to local DB with decryption (Migration v42)
+  ///
+  /// SECURITY: Decrypts title, body, and location_name after download
+  /// BACKWARD COMPATIBILITY: Reads encrypted fields if present, falls back to plaintext
   Future<void> _upsertLocalReminder(
     Map<String, dynamic> remote,
     String userId,
@@ -1929,19 +2569,104 @@ class UnifiedSyncService {
       return;
     }
 
+    // MIGRATION v42: Handle encrypted fields (prefer encrypted over plaintext)
+    String title;
+    String body;
+    String? locationName;
+    Uint8List? titleEncrypted;
+    Uint8List? bodyEncrypted;
+    Uint8List? locationNameEncrypted;
+    int? encryptionVersion;
+
+    // Check if remote has encrypted data
+    final titleEncBytes = remote['title_enc'];
+    final bodyEncBytes = remote['body_enc'];
+    final locationEncBytes = remote['location_name_enc'];
+    final remoteEncVersion = remote['encryption_version'] as int?;
+
+    if (titleEncBytes != null && bodyEncBytes != null && _cryptoBox != null) {
+      // Encrypted data available - decrypt it
+      try {
+        titleEncrypted = Uint8List.fromList(titleEncBytes as List<int>);
+        bodyEncrypted = Uint8List.fromList(bodyEncBytes as List<int>);
+        if (locationEncBytes != null) {
+          locationNameEncrypted = Uint8List.fromList(locationEncBytes as List<int>);
+        }
+
+        // Decrypt for plaintext storage (temporary backward compatibility)
+        title = await _cryptoBox!.decryptStringForNote(
+          userId: userId,
+          noteId: noteId,
+          data: titleEncrypted,
+        );
+        body = await _cryptoBox!.decryptStringForNote(
+          userId: userId,
+          noteId: noteId,
+          data: bodyEncrypted,
+        );
+        if (locationNameEncrypted != null) {
+          locationName = await _cryptoBox!.decryptStringForNote(
+            userId: userId,
+            noteId: noteId,
+            data: locationNameEncrypted,
+          );
+        }
+        encryptionVersion = remoteEncVersion ?? 1;
+      } catch (error, stack) {
+        _logger.error(
+          'Failed to decrypt reminder $reminderId',
+          error: error,
+          stackTrace: stack,
+        );
+        // Fallback to plaintext if decryption fails
+        title = remote['title'] as String? ?? '';
+        body = remote['body'] as String? ?? '';
+        locationName = remote['location_name'] as String?;
+        // Keep encrypted data for retry
+        encryptionVersion = null;
+      }
+    } else {
+      // No encrypted data - use plaintext (old app version or pre-migration)
+      title = remote['title'] as String? ?? '';
+      body = remote['body'] as String? ?? '';
+      locationName = remote['location_name'] as String?;
+      titleEncrypted = null;
+      bodyEncrypted = null;
+      locationNameEncrypted = null;
+      encryptionVersion = null;
+    }
+
     final companion = NoteRemindersCompanion(
       id: Value(reminderId),
       noteId: Value(noteId),
       userId: Value(userId),
-      title: Value(remote['title'] as String? ?? ''),
-      body: Value(remote['body'] as String? ?? ''),
+
+      // PLAINTEXT FIELDS (for backward compatibility)
+      title: Value(title),
+      body: Value(body),
+      locationName: _valueOrAbsentString(locationName),
+
+      // ENCRYPTED FIELDS (Migration v42)
+      titleEncrypted: titleEncrypted != null
+          ? Value(titleEncrypted)
+          : const Value.absent(),
+      bodyEncrypted: bodyEncrypted != null
+          ? Value(bodyEncrypted)
+          : const Value.absent(),
+      locationNameEncrypted: locationNameEncrypted != null
+          ? Value(locationNameEncrypted)
+          : const Value.absent(),
+      encryptionVersion: encryptionVersion != null
+          ? Value(encryptionVersion)
+          : const Value.absent(),
+
+      // SYSTEM FIELDS
       type: Value(_parseReminderType(remote['type'] as String?)),
       remindAt: _valueOrAbsentDate(_parseDate(remote['remind_at'])),
       isActive: Value(remote['is_active'] as bool? ?? true),
       latitude: _valueOrAbsentDouble(_asDouble(remote['latitude'])),
       longitude: _valueOrAbsentDouble(_asDouble(remote['longitude'])),
       radius: _valueOrAbsentDouble(_asDouble(remote['radius'])),
-      locationName: _valueOrAbsentString(remote['location_name'] as String?),
       recurrencePattern: Value(
         _parseRecurrencePattern(remote['recurrence_pattern'] as String?),
       ),
@@ -1964,6 +2689,15 @@ class UnifiedSyncService {
       createdAt: Value(
         _parseDate(remote['created_at']) ?? DateTime.now().toUtc(),
       ),
+      // MIGRATION v43: Add updatedAt for conflict resolution
+      updatedAt: _valueOrAbsentDate(
+        _parseDate(remote['updated_at']) ??
+        _parseDate(remote['created_at']),
+      ),
+      // MIGRATION v44: Ensure downloaded reminders are restored (not soft-deleted)
+      // When syncing from remote, reminders should be active unless explicitly deleted on remote
+      deletedAt: const Value(null),
+      scheduledPurgeAt: const Value(null),
       lastTriggered: _valueOrAbsentDate(_parseDate(remote['last_triggered'])),
       triggerCount: Value(_asInt(remote['trigger_count']) ?? 0),
     );
@@ -1971,12 +2705,57 @@ class UnifiedSyncService {
     await _db!.into(_db!.noteReminders).insertOnConflictUpdate(companion);
   }
 
-  int? _parseReminderId(dynamic value) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    if (value is String && value.isNotEmpty) {
-      return int.tryParse(value);
+  // MIGRATION v41: Changed from int? to String? to match UUID schema
+  /// Validate if a string is a valid UUID (RFC 4122 format)
+  ///
+  /// Returns true if the value is a non-empty string matching UUID format:
+  /// xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (where x is hexadecimal digit)
+  ///
+  /// Issue #2 fix: Ensures reminder IDs are valid UUIDs before storage
+  bool _isValidUuid(String? value) {
+    if (value == null || value.isEmpty) {
+      return false;
     }
+    final uuidPattern = RegExp(
+      r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      caseSensitive: false,
+    );
+    return uuidPattern.hasMatch(value);
+  }
+
+  String? _parseReminderId(dynamic value) {
+    // Validate null
+    if (value == null) {
+      _logger.error('Reminder ID is null - invalid data from backend');
+      return null;
+    }
+
+    // Expect UUID string format
+    if (value is String) {
+      if (value.isEmpty) {
+        _logger.error('Reminder ID is empty string');
+        return null;
+      }
+      // Use centralized UUID validation
+      if (_isValidUuid(value)) {
+        return value;
+      }
+      _logger.error('Invalid UUID format for reminder ID: $value');
+      return null;
+    }
+
+    // Legacy: Handle int types from old data (convert to error - should not happen post-migration)
+    if (value is int || value is num) {
+      _logger.error(
+        'Reminder ID is numeric type (expected UUID string): $value. This indicates old data that needs re-sync.',
+      );
+      return null;
+    }
+
+    // Unknown type
+    _logger.error(
+      'Reminder ID has unexpected type: ${value.runtimeType} value: $value',
+    );
     return null;
   }
 

@@ -13,10 +13,17 @@ import 'package:duru_notes/services/reminders/base_reminder_service.dart';
 /// - Managing recurrence end dates and intervals
 /// - Scheduling notifications for time-based reminders
 class RecurringReminderService extends BaseReminderService {
-  RecurringReminderService(super.ref, super.plugin, super.db);
+  RecurringReminderService(
+    super.ref,
+    super.plugin,
+    super.db, {
+    super.cryptoBox,
+    super.reminderConfig,
+  });
 
   @override
-  Future<int?> createReminder(ReminderConfig config) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<String?> createReminder(ReminderConfig config) async {
     try {
       // Validate time
       if (config.scheduledTime.isBefore(DateTime.now())) {
@@ -52,11 +59,8 @@ class RecurringReminderService extends BaseReminderService {
       }
 
       // P0.5 SECURITY: Get current userId
-      final userId = currentUserId;
-      if (userId == null) {
-        logger.warning('Cannot create reminder - no authenticated user');
-        return null;
-      }
+      final userId = validateUserId('create reminder');
+      if (userId == null) return null;
 
       // Create reminder in database using base class method
       final reminderType = config.recurrencePattern != RecurrencePattern.none
@@ -128,8 +132,9 @@ class RecurringReminderService extends BaseReminderService {
   }
 
   /// Schedule next occurrence for recurring reminders
+  // MIGRATION v41: Changed from int to String (UUID)
   Future<void> _scheduleNextRecurrence(
-    int reminderId,
+    String reminderId,
     DateTime currentTime,
     RecurrencePattern pattern,
     int interval,
@@ -332,8 +337,9 @@ class RecurringReminderService extends BaseReminderService {
   }
 
   /// Update a recurring reminder's pattern or interval
+  // MIGRATION v41: Changed from int to String (UUID)
   Future<void> updateRecurrencePattern({
-    required int reminderId,
+    required String reminderId,
     required RecurrencePattern newPattern,
     required int newInterval,
     DateTime? newEndDate,

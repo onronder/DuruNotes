@@ -71,12 +71,65 @@ import UIKit
     channel.setMethodCallHandler { [weak self] call, result in
       if call.method == "getWindowState" {
         result(self?.getWindowStateDictionary() ?? [:])
+      } else if call.method == "logPlatformState" {
+        guard let args = call.arguments as? [String: Any],
+              let context = args["context"] as? String else {
+          result(FlutterError(code: "INVALID_ARGS", message: "Missing context", details: nil))
+          return
+        }
+        self?.logPlatformStateToConsole(context: context)
+        result(nil)
       } else {
         result(FlutterMethodNotImplemented)
       }
     }
 
     NSLog("✅ [Diagnostics] Window diagnostics channel registered")
+  }
+
+  // BLACK SCREEN FIX: Log platform state at specific execution points
+  private func logPlatformStateToConsole(context: String) {
+    NSLog("📊 [PlatformState] ========== \(context) ==========")
+    NSLog("📊 [MainThread] Is main thread: \(Thread.isMainThread)")
+
+    // Window state
+    if let window = self.window {
+      NSLog("📊 [Window] exists=true, isKey=\(window.isKeyWindow), hidden=\(window.isHidden), alpha=\(window.alpha)")
+
+      // Root ViewController
+      if let rootVC = window.rootViewController {
+        NSLog("📊 [RootVC] type=\(String(describing: type(of: rootVC)))")
+        NSLog("📊 [RootVC] view.alpha=\(rootVC.view.alpha), hidden=\(rootVC.view.isHidden)")
+
+        // Presented ViewController (modals)
+        if let presentedVC = rootVC.presentedViewController {
+          NSLog("📊 [PresentedVC] type=\(String(describing: type(of: presentedVC)))")
+          NSLog("📊 [PresentedVC] isBeingDismissed=\(presentedVC.isBeingDismissed)")
+          NSLog("📊 [PresentedVC] view.alpha=\(presentedVC.view.alpha)")
+        } else {
+          NSLog("📊 [PresentedVC] none")
+        }
+
+        // Check if FlutterViewController
+        if rootVC is FlutterViewController {
+          NSLog("📊 [FlutterVC] Confirmed as FlutterViewController")
+        } else {
+          NSLog("📊 [FlutterVC] ⚠️ NOT FlutterViewController!")
+        }
+      } else {
+        NSLog("📊 [RootVC] ❌ DOES NOT EXIST")
+      }
+    } else {
+      NSLog("📊 [Window] ❌ DOES NOT EXIST")
+    }
+
+    // All windows count
+    let allWindows = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+    NSLog("📊 [AllWindows] count=\(allWindows.count)")
+
+    NSLog("📊 [PlatformState] ========================================")
   }
 
   // BLACK SCREEN FIX: Get window state as dictionary

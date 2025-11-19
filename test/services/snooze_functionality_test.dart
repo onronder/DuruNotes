@@ -13,6 +13,7 @@ import 'package:mockito/mockito.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 
+import '../utils/uuid_test_helper.dart';
 import 'snooze_functionality_test.mocks.dart';
 
 final _pluginProvider = Provider<FlutterLocalNotificationsPlugin>((ref) {
@@ -114,7 +115,7 @@ void main() {
   });
 
   NoteReminder reminder0({int snoozeCount = 0}) => NoteReminder(
-    id: 42,
+    id: UuidTestHelper.testReminder1,
     noteId: 'note-123',
     userId: 'user-123',
     title: 'Standup reminder',
@@ -147,7 +148,7 @@ void main() {
       NoteRemindersCompanion? updateCompanion;
 
       when(
-        mockDb.getReminderById(42, 'user-123'),
+        mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123'),
       ).thenAnswer((_) async => reminder);
       when(mockDb.snoozeReminder(any, any, any)).thenAnswer((invocation) async {
         snoozedUntilArg = invocation.positionalArguments[2] as DateTime;
@@ -171,7 +172,7 @@ void main() {
 
       final start = DateTime.now();
       final result = await service.snoozeReminder(
-        42,
+        UuidTestHelper.testReminder1,
         SnoozeDuration.fifteenMinutes,
       );
 
@@ -182,12 +183,12 @@ void main() {
       expect(updateCompanion, isNotNull);
       expect(updateCompanion!.snoozeCount.value, equals(3));
 
-      verify(mockDb.snoozeReminder(42, 'user-123', any)).called(1);
-      verify(mockDb.updateReminder(42, 'user-123', any)).called(1);
-      verify(mockPlugin.cancel(42)).called(1);
+      verify(mockDb.snoozeReminder(UuidTestHelper.testReminder1, 'user-123', any)).called(1);
+      verify(mockDb.updateReminder(UuidTestHelper.testReminder1, 'user-123', any)).called(1);
+      verify(mockPlugin.cancel(UuidTestHelper.testReminder1.hashCode.abs())).called(1);
       verify(
         mockPlugin.zonedSchedule(
-          42,
+          UuidTestHelper.testReminder1.hashCode.abs(),
           'Standup reminder',
           'Join the daily standup',
           any,
@@ -217,11 +218,11 @@ void main() {
       );
 
       when(
-        mockDb.getReminderById(42, 'user-123'),
+        mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123'),
       ).thenAnswer((_) async => reminder);
 
       final result = await service.snoozeReminder(
-        42,
+        UuidTestHelper.testReminder1,
         SnoozeDuration.fiveMinutes,
       );
 
@@ -240,11 +241,11 @@ void main() {
       service.permissionGranted = false;
 
       when(
-        mockDb.getReminderById(42, 'user-123'),
+        mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123'),
       ).thenAnswer((_) async => reminder);
 
       final result = await service.snoozeReminder(
-        42,
+        UuidTestHelper.testReminder1,
         SnoozeDuration.tenMinutes,
       );
 

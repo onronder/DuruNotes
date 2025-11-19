@@ -66,7 +66,7 @@ void main() {
     }
 
     Future<void> seedReminder({
-      required int id,
+      required String id,
       required String noteId,
       required String userId,
     }) async {
@@ -147,7 +147,9 @@ void main() {
       await seedTask(id: 'task-a-2', noteId: 'note-a', userId: 'user-a');
       await seedTask(id: 'task-b-1', noteId: 'note-b', userId: 'user-b');
 
-      await db.deleteTasksForNote('note-a', 'user-b');
+      // Testing database layer directly (allowed in DB-level tests)
+      // ignore: deprecated_member_use
+      await db.hardDeleteTasksForNote('note-a', 'user-b');
 
       final remainingForA = await db.getAllTasks('user-a');
       expect(
@@ -156,7 +158,9 @@ void main() {
         reason: 'Foreign delete must not remove owner tasks',
       );
 
-      await db.deleteTasksForNote('note-a', 'user-a');
+      // Testing database layer directly (allowed in DB-level tests)
+      // ignore: deprecated_member_use
+      await db.hardDeleteTasksForNote('note-a', 'user-a');
       final afterOwnerDelete = await db.getAllTasks('user-a');
       expect(afterOwnerDelete, isEmpty);
       final userBTasks = await db.getAllTasks('user-b');
@@ -166,8 +170,8 @@ void main() {
     test('reminders remain isolated per user', () async {
       await seedNote(id: 'note-a', userId: 'user-a');
       await seedNote(id: 'note-b', userId: 'user-b');
-      await seedReminder(id: 1, noteId: 'note-a', userId: 'user-a');
-      await seedReminder(id: 2, noteId: 'note-b', userId: 'user-b');
+      await seedReminder(id: 'reminder-1', noteId: 'note-a', userId: 'user-a');
+      await seedReminder(id: 'reminder-2', noteId: 'note-b', userId: 'user-b');
 
       final userAReminders = await (db.select(
         db.noteReminders,
@@ -176,14 +180,14 @@ void main() {
         db.noteReminders,
       )..where((r) => r.userId.equals('user-b'))).get();
 
-      expect(userAReminders.map((r) => r.id), [1]);
-      expect(userBReminders.map((r) => r.id), [2]);
+      expect(userAReminders.map((r) => r.id), ['reminder-1']);
+      expect(userBReminders.map((r) => r.id), ['reminder-2']);
     });
 
     test('clearAll purges every user-scoped table', () async {
       await seedNote(id: 'note-a', userId: 'user-a');
       await seedTask(id: 'task-a-1', noteId: 'note-a', userId: 'user-a');
-      await seedReminder(id: 1, noteId: 'note-a', userId: 'user-a');
+      await seedReminder(id: 'reminder-1', noteId: 'note-a', userId: 'user-a');
 
       await db.clearAll();
 

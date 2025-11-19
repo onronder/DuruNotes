@@ -656,6 +656,103 @@ class TaskCoreRepository implements ITaskRepository {
   }
 
   @override
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    // MIGRATION v41: Changed from int to String (UUID)
+    required String? reminderId,
+  }) async {
+    try {
+      final userId = _requireUserId(
+        method: 'updateTaskReminderLink',
+        data: {'taskId': taskId, 'reminderId': reminderId},
+      );
+
+      await db.updateTask(
+        taskId,
+        userId,
+        NoteTasksCompanion(
+          reminderId: Value(reminderId),
+          updatedAt: Value(DateTime.now().toUtc()),
+        ),
+      );
+
+      _auditAccess(
+        'tasks.updateTaskReminderLink',
+        granted: true,
+        reason: 'taskId=$taskId',
+      );
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to update reminder link for task: $taskId',
+        error: e,
+        stackTrace: stack,
+      );
+      _captureRepositoryException(
+        method: 'updateTaskReminderLink',
+        error: e,
+        stackTrace: stack,
+        data: {'taskId': taskId, 'reminderId': reminderId},
+      );
+      _auditAccess(
+        'tasks.updateTaskReminderLink',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> updateTaskPositions(Map<String, int> positions) async {
+    if (positions.isEmpty) {
+      return;
+    }
+
+    try {
+      final userId = _requireUserId(
+        method: 'updateTaskPositions',
+        data: {'count': positions.length},
+      );
+      final now = DateTime.now().toUtc();
+
+      for (final entry in positions.entries) {
+        await db.updateTask(
+          entry.key,
+          userId,
+          NoteTasksCompanion(
+            position: Value(entry.value),
+            updatedAt: Value(now),
+          ),
+        );
+      }
+
+      _auditAccess(
+        'tasks.updateTaskPositions',
+        granted: true,
+        reason: 'count=${positions.length}',
+      );
+    } catch (e, stack) {
+      _logger.error(
+        'Failed to update task positions',
+        error: e,
+        stackTrace: stack,
+      );
+      _captureRepositoryException(
+        method: 'updateTaskPositions',
+        error: e,
+        stackTrace: stack,
+        data: {'count': positions.length},
+      );
+      _auditAccess(
+        'tasks.updateTaskPositions',
+        granted: false,
+        reason: 'error=${e.runtimeType}',
+      );
+      rethrow;
+    }
+  }
+
+  @override
   Future<void> deleteTask(String id) async {
     try {
       final userId = _requireUserId(method: 'deleteTask', data: {'taskId': id});

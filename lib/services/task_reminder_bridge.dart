@@ -136,7 +136,8 @@ class TaskReminderBridge {
   }
 
   /// Create a reminder for a task with due date
-  Future<int?> createTaskReminder({
+  /// MIGRATION v41: Changed return type from Future<int?> to Future<String?> (UUID)
+  Future<String?> createTaskReminder({
     required NoteTask task,
     Duration? beforeDueDate,
   }) async {
@@ -174,11 +175,12 @@ class TaskReminderBridge {
               customNotificationBody: notificationBody,
             );
 
-        final int? reminderId = reminderIdResult is int
+        // MIGRATION v41: Reminder IDs are now UUIDs (String), not int
+        final String? reminderId = reminderIdResult is String
             ? reminderIdResult
-            : int.tryParse('$reminderIdResult');
+            : reminderIdResult?.toString();
 
-        if (reminderId != null) {
+        if (reminderId != null && reminderId.isNotEmpty) {
           // Update task with reminder ID using AppDb directly
           final userId = task.userId.isNotEmpty
               ? task.userId

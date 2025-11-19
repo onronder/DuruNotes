@@ -1436,7 +1436,7 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<List<_i3.NoteReminder>>);
 
   @override
-  _i5.Future<_i3.NoteReminder?> getReminderById(int? id, String? userId) =>
+  _i5.Future<_i3.NoteReminder?> getReminderById(String? id, String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#getReminderById, [id, userId]),
             returnValue: _i5.Future<_i3.NoteReminder?>.value(),
@@ -1445,17 +1445,39 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<_i3.NoteReminder?>);
 
   @override
-  _i5.Future<int> createReminder(_i3.NoteRemindersCompanion? reminder) =>
+  _i5.Future<_i3.NoteReminder?> getReminderByIdIncludingDeleted(
+    String? id,
+    String? userId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getReminderByIdIncludingDeleted, [id, userId]),
+            returnValue: _i5.Future<_i3.NoteReminder?>.value(),
+            returnValueForMissingStub: _i5.Future<_i3.NoteReminder?>.value(),
+          )
+          as _i5.Future<_i3.NoteReminder?>);
+
+  @override
+  _i5.Future<String> createReminder(_i3.NoteRemindersCompanion? reminder) =>
       (super.noSuchMethod(
             Invocation.method(#createReminder, [reminder]),
-            returnValue: _i5.Future<int>.value(0),
-            returnValueForMissingStub: _i5.Future<int>.value(0),
+            returnValue: _i5.Future<String>.value(
+              _i14.dummyValue<String>(
+                this,
+                Invocation.method(#createReminder, [reminder]),
+              ),
+            ),
+            returnValueForMissingStub: _i5.Future<String>.value(
+              _i14.dummyValue<String>(
+                this,
+                Invocation.method(#createReminder, [reminder]),
+              ),
+            ),
           )
-          as _i5.Future<int>);
+          as _i5.Future<String>);
 
   @override
   _i5.Future<void> updateReminder(
-    int? id,
+    String? id,
     String? userId,
     _i3.NoteRemindersCompanion? updates,
   ) =>
@@ -1467,7 +1489,7 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<void>);
 
   @override
-  _i5.Future<void> deleteReminderById(int? id, String? userId) =>
+  _i5.Future<void> deleteReminderById(String? id, String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#deleteReminderById, [id, userId]),
             returnValue: _i5.Future<void>.value(),
@@ -1483,6 +1505,37 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> restoreReminderById(String? id, String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#restoreReminderById, [id, userId]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<List<_i3.NoteReminder>> getDeletedReminders(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getDeletedReminders, [userId]),
+            returnValue: _i5.Future<List<_i3.NoteReminder>>.value(
+              <_i3.NoteReminder>[],
+            ),
+            returnValueForMissingStub: _i5.Future<List<_i3.NoteReminder>>.value(
+              <_i3.NoteReminder>[],
+            ),
+          )
+          as _i5.Future<List<_i3.NoteReminder>>);
+
+  @override
+  _i5.Future<int> purgeExpiredReminders() =>
+      (super.noSuchMethod(
+            Invocation.method(#purgeExpiredReminders, []),
+            returnValue: _i5.Future<int>.value(0),
+            returnValueForMissingStub: _i5.Future<int>.value(0),
+          )
+          as _i5.Future<int>);
 
   @override
   _i5.Future<List<_i3.NoteReminder>> getTimeRemindersToTrigger({
@@ -1707,18 +1760,18 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<void>);
 
   @override
-  _i5.Future<void> deleteTaskById(String? id, String? userId) =>
+  _i5.Future<void> hardDeleteTaskById(String? id, String? userId) =>
       (super.noSuchMethod(
-            Invocation.method(#deleteTaskById, [id, userId]),
+            Invocation.method(#hardDeleteTaskById, [id, userId]),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
 
   @override
-  _i5.Future<void> deleteTasksForNote(String? noteId, String? userId) =>
+  _i5.Future<void> hardDeleteTasksForNote(String? noteId, String? userId) =>
       (super.noSuchMethod(
-            Invocation.method(#deleteTasksForNote, [noteId, userId]),
+            Invocation.method(#hardDeleteTasksForNote, [noteId, userId]),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
@@ -1778,7 +1831,7 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
 
   @override
   _i5.Future<void> markReminderTriggered(
-    int? id,
+    String? id,
     String? userId, {
     DateTime? triggeredAt,
   }) =>
@@ -1795,7 +1848,7 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
 
   @override
   _i5.Future<void> snoozeReminder(
-    int? id,
+    String? id,
     String? userId,
     DateTime? snoozeUntil,
   ) =>
@@ -1807,7 +1860,7 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<void>);
 
   @override
-  _i5.Future<void> clearSnooze(int? id, String? userId) =>
+  _i5.Future<void> clearSnooze(String? id, String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#clearSnooze, [id, userId]),
             returnValue: _i5.Future<void>.value(),
@@ -1816,7 +1869,7 @@ class MockAppDb extends _i1.Mock implements _i3.AppDb {
           as _i5.Future<void>);
 
   @override
-  _i5.Future<void> deactivateReminder(int? id, String? userId) =>
+  _i5.Future<void> deactivateReminder(String? id, String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#deactivateReminder, [id, userId]),
             returnValue: _i5.Future<void>.value(),

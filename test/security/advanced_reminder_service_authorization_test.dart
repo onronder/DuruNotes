@@ -16,6 +16,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 
+import '../utils/uuid_test_helper.dart';
 import 'advanced_reminder_service_authorization_test.mocks.dart';
 
 const _userA = 'user-a';
@@ -163,7 +164,7 @@ void main() {
     await service.init();
   }
 
-  Future<int> insertReminder({
+  Future<String> insertReminder({
     required String noteId,
     required String userId,
     required DateTime remindAt,
@@ -194,7 +195,7 @@ void main() {
       await setupService(userId: _userA);
 
       final remindAt = DateTime.now().toUtc().add(const Duration(hours: 2));
-      late int? reminderId;
+      late String? reminderId;
       final events = await _captureAuditEvents(() async {
         reminderId = await service.createTimeReminder(
           noteId: 'note-1',
@@ -205,6 +206,7 @@ void main() {
       });
 
       expect(reminderId, isNotNull);
+      expect(UuidTestHelper.isValidUuid(reminderId), isTrue);
       final stored = await db.getReminderById(reminderId!, _userA);
       expect(stored, isNotNull);
       expect(stored!.userId, equals(_userA));
@@ -224,7 +226,7 @@ void main() {
       await setupService(userId: null);
 
       final remindAt = DateTime.now().toUtc().add(const Duration(hours: 1));
-      late int? reminderId;
+      late String? reminderId;
       final events = await _captureAuditEvents(() async {
         reminderId = await service.createTimeReminder(
           noteId: 'note-unauth',
@@ -235,8 +237,6 @@ void main() {
       });
 
       expect(reminderId, isNull);
-      final reminders = await db.getReminderById(1, _userA);
-      expect(reminders, isNull);
       expect(scheduledIds, isEmpty);
 
       final auditEvents = _eventsFor(

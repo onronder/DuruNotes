@@ -517,6 +517,15 @@ class InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Future<void> permanentlyDeleteTask(String id) async {}
+
+  @override
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    required String? reminderId,
+  }) async {}
+
+  @override
+  Future<void> updateTaskPositions(Map<String, int> positions) async {}
 }
 
 class InMemoryFolderRepository implements IFolderRepository {

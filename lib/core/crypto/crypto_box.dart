@@ -220,6 +220,20 @@ class CryptoBox {
         jsonString = utf8.decode(data);
       }
 
+      // SYNC FIX: Detect if jsonString is actually Base64-encoded
+      // This happens when backend stores SecretBox JSON as Base64 string
+      if (jsonString.startsWith('eyJ') || _looksLikeBase64(jsonString)) {
+        try {
+          // Decode Base64 to get the actual JSON
+          final base64Decoded = base64Decode(jsonString);
+          jsonString = utf8.decode(base64Decoded);
+          debugPrint('🔧 Detected and decoded Base64-wrapped SecretBox JSON');
+        } catch (e) {
+          // Not actually Base64, continue with original string
+          debugPrint('⚠️ Looked like Base64 but decode failed, using original: $e');
+        }
+      }
+
       final decoded = jsonDecode(jsonString);
       // Removed excessive debug logging to prevent log spam during sync
       // debugPrint('🔍 SecretBox data structure: ${decoded.runtimeType}');
@@ -474,6 +488,28 @@ class CryptoBox {
     throw FormatException(
       'Unsupported SecretBox field type: ${value.runtimeType}',
     );
+  }
+
+  /// Helper to detect if a string looks like Base64 encoding
+  /// Returns true if the string matches Base64 characteristics
+  bool _looksLikeBase64(String str) {
+    if (str.isEmpty || str.length < 4) return false;
+
+    // Base64 uses only these characters: A-Z, a-z, 0-9, +, /, =
+    // Must have length divisible by 4 (with padding)
+    final base64Pattern = RegExp(r'^[A-Za-z0-9+/]+={0,2}$');
+
+    // Check if it matches Base64 pattern
+    if (!base64Pattern.hasMatch(str)) return false;
+
+    // Additional heuristic: Base64-encoded JSON often starts with 'eyJ'
+    // which is Base64 for '{"'
+    if (str.startsWith('eyJ')) return true;
+
+    // Check if length is divisible by 4 (Base64 requirement)
+    if (str.length % 4 != 0) return false;
+
+    return true;
   }
 }
 

@@ -1,8 +1,8 @@
 ---
 **Document**: Service Layer Architecture Audit Log
-**Version**: 1.1.0
+**Version**: 1.5.0
 **Created**: 2025-11-16T22:41:12Z
-**Updated**: 2025-11-17T14:30:00Z
+**Updated**: 2025-11-18T18:00:00Z
 **Author**: Claude Code AI Assistant
 **Git Commit**: 359f30d1
 **Purpose**: Track services with direct AppDb access requiring refactoring
@@ -13,6 +13,35 @@
   - test/architecture/repository_pattern_test.dart (NEW - Phase 1.1)
 
 **CHANGELOG**:
+- 1.5.0 (2025-11-18): ✅ COMPLETED: Reminder INT→UUID Migration (v41)
+  - Migrated local NoteReminders.id from INTEGER to TEXT (UUID)
+  - Migrated NoteTasks.reminder_id foreign key from INTEGER to TEXT
+  - Updated 15 code files: database layer, services, sync, UI, bridge
+  - Updated 60+ methods to use String instead of int for reminder IDs
+  - Created Migration41ReminderUuid with data transformation logic
+  - Schema version: 40 → 41
+  - Status: Code complete, awaiting user testing
+  - Files modified: app_db.dart, 6 service files, sync, bridge, repositories
+  - Generated code rebuilt successfully
+- 1.4.0 (2025-11-18): 🚨 CRITICAL: Discovered Reminder INT→UUID Schema Mismatch
+  - Comprehensive impact analysis: 36 files, 150+ locations, 120+ test changes required
+  - Root cause: Local uses INTEGER IDs (1,2,3...), Supabase uses UUID format
+  - Severity: CRITICAL - Reminder sync completely broken, cannot be quick-fixed
+  - Created REMINDER_UUID_MIGRATION_PLAN.md - 28-day phased migration plan
+  - Created REMINDER_ID_SCHEMA_CHANGE_IMPACT_ANALYSIS.md - 713-line detailed analysis
+  - Decision: Proceeding with complete INT→UUID migration (recommended long-term)
+  - Status: Planning complete, awaiting Phase 1 execution approval
+- 1.3.0 (2025-11-18): ✅ Sync System Critical Fixes - 5 sync errors resolved
+  - Fixed type cast error: Added await to task sync (unified_sync_service.dart:1779)
+  - Fixed schema mismatch: Created migration for 4 missing reminder columns (notification_title, notification_body, notification_image, time_zone)
+  - Fixed reminder ID validation: Enhanced _parseReminderId with comprehensive validation
+  - Fixed SecretBox deserialization: Added Base64 detection and decoding
+  - Fixed two-way sync: Resolved by fixing above errors
+  - Created SYNC_FIX_TESTING_GUIDE.md with comprehensive testing checklist
+- 1.2.0 (2025-11-17): Phase 3-4 remediation shipped, read refactor deferred
+  - EnhancedTaskService delete/complete/toggle/reminder-update paths now call `ITaskRepository`
+  - Added repository APIs for reminder linkage + bulk position updates
+  - Documented decision to bypass Phase 2 (read-only refactor) until TaskReminderBridge redesign
 - 1.1.0 (2025-11-17): ✅ Phase 1 Complete - Architecture tests created
   - Created repository_pattern_test.dart (automated violation detection)
   - Expanded EnhancedTaskService test coverage (11 new tests)
@@ -52,42 +81,44 @@ This document tracks all services in `lib/services/` that have direct `AppDb` de
 **Current State**:
 ```dart
 class EnhancedTaskService {
-  final AppDb _db;  // ❌ Direct database access
-  final TaskReminderBridge _reminderBridge;
-
-  EnhancedTaskService(this._db, this._reminderBridge);
+  EnhancedTaskService({
+    required AppDb database,
+    required ITaskRepository taskRepository,
+    required TaskReminderBridge reminderBridge,
+  })  : _db = database,
+        _taskRepository = taskRepository,
+        _reminderBridge = reminderBridge;
 }
 ```
+_AppDb is now limited to reminder/rich-notification reads; all writes go through `ITaskRepository`._
 
-**Issues Found**:
-- **Line 65**: `await _db.getTaskById()` - Should use `_taskRepository.getTaskById()`
-- **Line 73**: `await _db.getTasksForNote()` - Should use `_taskRepository.getTasksForNote()`
-- **Line 125**: `await _db.createTask()` - Should use `_taskRepository.createTask()`
-- **Line 135**: `await _db.updateTask()` - Should use `_taskRepository.updateTask()`
-- **Line 305**: `await _db.deleteTaskById()` - **CRITICAL** - Bypasses soft delete, should use `_taskRepository.deleteTask()`
-- **20+ total violations** - See ARCHITECTURE_VIOLATIONS.md for complete list
+**Status Update (2025-11-17)**:
+- ✅ Phase 3 & 4 complete — create/update/delete/toggle/reminder-link/position flows call repository helpers (`updateTaskReminderLink`, `updateTaskPositions`)
+- ✅ `deleteTask` now performs soft delete and honors 30-day Trash retention (validated by `test/services/enhanced_task_service_isolation_test.dart`)
+- ⏸️ Phase 2 deferred — `_db.getTaskById()` remains for reminder hydration until TaskReminderBridge exposes repository-backed decrypted payloads (see Section 5)
 
-**Priority**: **P0 - CRITICAL**
+**Remaining Issues (Phase 2 only)**:
+- Read-only calls (`_db.getTaskById`, `_db.getOpenTasks`) bypass repositories to obtain decrypted Drift models for reminders
+- Decision logged to keep these reads temporarily to avoid double encryption/decryption; revisit after TaskReminderBridge refactor
+
+**Priority**: **P0 data-loss fix complete; residual read gap tracked as P2**
 
 **Impact**:
-- Tasks deleted via this service are permanently removed (hard delete)
-- Users cannot recover accidentally deleted tasks
-- Violates 30-day retention policy
-- Breaks trash system functionality
+- ✅ Users regain 30-day recovery for tasks deleted via EnhancedTaskService
+- ⚠️ Reminder flows still couple to database schema, leaving architectural debt but no user-facing regression
 
-**Remediation Plan**:
-1. Inject `TaskCoreRepository` instead of `AppDb`
-2. Replace all 20+ `_db.*` calls with repository methods
-3. Add unit tests to verify repository usage
-4. Add integration tests for trash functionality
+**Remediation Plan (updated)**:
+1. Defer Phase 2 (read refactor) until TaskReminderBridge redesign supplies repository data
+2. Monitor architecture tests — remaining write violations exist only in TaskReminderBridge
+3. Schedule reminder-bridge refactor to remove `_db.*` when decrypted stream is available
 
-**Estimated Effort**: 2-3 hours
+**Estimated Effort**: ~1 day once TaskReminderBridge decision is finalized
 
-**Status**: ⏸️ Pending (documented in ARCHITECTURE_VIOLATIONS.md)
+**Status**: 🚧 Phase 2 deferred (decision logged 2025-11-17)
 
 **Owner**: TBD
 
-**Target Completion**: 2025-11-17
+**Target Completion**: TBD (blocked on TaskReminderBridge redesign)
 
 ---
 
@@ -347,6 +378,15 @@ For each service requiring refactoring, complete these steps:
 
 ---
 
+### Phase 2 Bypass Decision (2025-11-17)
+
+- **Context**: Phase1.1/ARCHITECTURE_VIOLATIONS plans split the EnhancedTaskService work into Phase 2 (reads) + Phase 3/4 (writes/deletes). Reminder flows still require decrypted Drift models until TaskReminderBridge exposes repository-backed payloads.
+- **Decision**: Defer Phase 2 (read refactor) so we can ship Phase 3/4 fixes immediately and avoid duplicating decryption logic in both service and reminder bridge.
+- **Risk**: Architectural debt remains (read bypass), but no user-visible regression. Documented in this log + Phase1.1.md.
+- **Next Review**: Revisit after TaskReminderBridge architectural decision (target 2025-11-18).
+
+---
+
 ## Completion Tracking
 
 | Service | Priority | Status | Start Date | Completion Date | Owner |
@@ -370,12 +410,11 @@ For each service requiring refactoring, complete these steps:
    - ✅ Critical test validates bug exists (deleteTask hard-delete)
    - Git commit: 359f30d1
 
-2. **Fix EnhancedTaskService** (P0) - IN PROGRESS (2-3 hours)
-   - Phase 2: Fix read operations (14 violations) - NEXT
-   - Phase 3: Fix update operations (5 violations)
-   - Phase 4: Fix delete operation (1 CRITICAL violation)
-   - Highest impact - blocking trash system functionality
-   - Clear remediation path with test coverage
+2. **Fix EnhancedTaskService** (P0) - Phase 3/4 ✅, Phase 2 deferred
+   - Phase 3: Update operations fixed (new repository APIs for reminder links + ordering)
+   - Phase 4: Delete path fixed (soft delete restored, tests passing)
+   - Phase 2: Read operations deferred per decision log (needs TaskReminderBridge redesign)
+   - Highest impact user bug resolved; architectural debt tracked for follow-up
 
 ### Short Term (Next 2 Weeks)
 3. **Audit UnifiedShareService** - 2 hours

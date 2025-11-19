@@ -292,7 +292,9 @@ class _HierarchicalTodoBlockWidgetState
         // Phase 11: Re-enabled - now passes decrypted domain.Task
         task: _task,
         taskContent: _text,
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
+        onSave: (metadata) async {
+          Navigator.of(context).pop(metadata);
+        },
       ),
     );
 

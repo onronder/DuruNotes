@@ -1322,7 +1322,7 @@ class MockAdvancedReminderService extends _i1.Mock
           as _i5.Future<bool>);
 
   @override
-  _i5.Future<int?> createTimeReminder({
+  _i5.Future<String?> createTimeReminder({
     required String? noteId,
     required String? title,
     required String? body,
@@ -1345,13 +1345,13 @@ class MockAdvancedReminderService extends _i1.Mock
               #customNotificationTitle: customNotificationTitle,
               #customNotificationBody: customNotificationBody,
             }),
-            returnValue: _i5.Future<int?>.value(),
-            returnValueForMissingStub: _i5.Future<int?>.value(),
+            returnValue: _i5.Future<String?>.value(),
+            returnValueForMissingStub: _i5.Future<String?>.value(),
           )
-          as _i5.Future<int?>);
+          as _i5.Future<String?>);
 
   @override
-  _i5.Future<int?> createLocationReminder({
+  _i5.Future<String?> createLocationReminder({
     required String? noteId,
     required String? title,
     required String? body,
@@ -1374,14 +1374,14 @@ class MockAdvancedReminderService extends _i1.Mock
               #customNotificationTitle: customNotificationTitle,
               #customNotificationBody: customNotificationBody,
             }),
-            returnValue: _i5.Future<int?>.value(),
-            returnValueForMissingStub: _i5.Future<int?>.value(),
+            returnValue: _i5.Future<String?>.value(),
+            returnValueForMissingStub: _i5.Future<String?>.value(),
           )
-          as _i5.Future<int?>);
+          as _i5.Future<String?>);
 
   @override
   _i5.Future<void> snoozeReminder(
-    int? reminderId,
+    String? reminderId,
     _i8.SnoozeDuration? duration,
   ) =>
       (super.noSuchMethod(
@@ -1406,7 +1406,7 @@ class MockAdvancedReminderService extends _i1.Mock
 
   @override
   _i5.Future<void> updateReminder(
-    int? reminderId,
+    String? reminderId,
     _i8.NoteRemindersCompanion? updates,
   ) =>
       (super.noSuchMethod(
@@ -1417,7 +1417,7 @@ class MockAdvancedReminderService extends _i1.Mock
           as _i5.Future<void>);
 
   @override
-  _i5.Future<void> deleteReminder(int? reminderId) =>
+  _i5.Future<void> deleteReminder(String? reminderId) =>
       (super.noSuchMethod(
             Invocation.method(#deleteReminder, [reminderId]),
             returnValue: _i5.Future<void>.value(),

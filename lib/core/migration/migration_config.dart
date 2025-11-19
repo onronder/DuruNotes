@@ -1,3 +1,169 @@
+/// Operational configuration for reminder services
+/// Holds all configurable values for reminder encryption, sync, and geofencing
+class ReminderServiceConfig {
+  // Encryption retry queue configuration
+  final int maxRetries;
+  final int maxQueueSize;
+  final Duration queueMaxAge;
+
+  // Encryption lock configuration
+  final Duration lockTimeout;
+
+  // Sync configuration
+  final int syncBatchSize;
+
+  // Geofence configuration
+  final int geofenceIntervalMs;
+  final int geofenceAccuracyMeters;
+  final int geofenceLoiteringDelayMs;
+  final int geofenceStatusChangeDelayMs;
+  final bool geofenceUseActivityRecognition;
+  final bool geofenceAllowMockLocations;
+  final double geofenceDefaultRadiusMeters;
+
+  const ReminderServiceConfig({
+    this.maxRetries = 10,
+    this.maxQueueSize = 1000,
+    this.queueMaxAge = const Duration(hours: 1),
+    this.lockTimeout = const Duration(seconds: 30),
+    this.syncBatchSize = 10,
+    this.geofenceIntervalMs = 5000,
+    this.geofenceAccuracyMeters = 100,
+    this.geofenceLoiteringDelayMs = 60000,
+    this.geofenceStatusChangeDelayMs = 10000,
+    this.geofenceUseActivityRecognition = true,
+    this.geofenceAllowMockLocations = false,
+    this.geofenceDefaultRadiusMeters = 100.0,
+  });
+
+  /// Creates default reminder configuration with production-safe defaults
+  factory ReminderServiceConfig.defaultConfig() {
+    return const ReminderServiceConfig();
+  }
+
+  /// Creates development configuration with more relaxed limits
+  factory ReminderServiceConfig.developmentConfig() {
+    return const ReminderServiceConfig(
+      maxRetries: 20, // Allow more retries in development
+      maxQueueSize: 5000, // Larger queue for testing
+      queueMaxAge: Duration(hours: 24), // Keep entries longer
+      lockTimeout: Duration(minutes: 1), // Longer timeout for debugging
+      syncBatchSize: 50, // Larger batches for faster syncing
+      geofenceIntervalMs: 10000, // Less frequent updates to save battery
+      geofenceAccuracyMeters: 200, // Lower accuracy for testing
+      geofenceLoiteringDelayMs: 30000, // Shorter delay for testing
+      geofenceStatusChangeDelayMs: 5000, // Shorter delay for testing
+      geofenceAllowMockLocations: true, // Allow mock locations for testing
+      geofenceDefaultRadiusMeters: 50.0, // Smaller radius for easier testing
+    );
+  }
+
+  /// Creates conservative configuration for production rollout
+  factory ReminderServiceConfig.productionRollout() {
+    return const ReminderServiceConfig(
+      maxRetries: 5, // Conservative retry limit
+      maxQueueSize: 500, // Smaller queue
+      queueMaxAge: Duration(minutes: 30), // Shorter retention
+      lockTimeout: Duration(seconds: 15), // Faster timeout
+      syncBatchSize: 5, // Smaller batches
+      geofenceIntervalMs: 7000, // Slightly less aggressive for battery life
+      geofenceAccuracyMeters: 150, // Moderate accuracy
+      geofenceLoiteringDelayMs: 90000, // Longer delay to prevent false triggers
+      geofenceStatusChangeDelayMs: 15000, // Longer delay for stability
+      geofenceDefaultRadiusMeters: 150.0, // Larger radius for reliability
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReminderServiceConfig &&
+          runtimeType == other.runtimeType &&
+          maxRetries == other.maxRetries &&
+          maxQueueSize == other.maxQueueSize &&
+          queueMaxAge == other.queueMaxAge &&
+          lockTimeout == other.lockTimeout &&
+          syncBatchSize == other.syncBatchSize &&
+          geofenceIntervalMs == other.geofenceIntervalMs &&
+          geofenceAccuracyMeters == other.geofenceAccuracyMeters &&
+          geofenceLoiteringDelayMs == other.geofenceLoiteringDelayMs &&
+          geofenceStatusChangeDelayMs == other.geofenceStatusChangeDelayMs &&
+          geofenceUseActivityRecognition == other.geofenceUseActivityRecognition &&
+          geofenceAllowMockLocations == other.geofenceAllowMockLocations &&
+          geofenceDefaultRadiusMeters == other.geofenceDefaultRadiusMeters;
+
+  @override
+  int get hashCode =>
+      maxRetries.hashCode ^
+      maxQueueSize.hashCode ^
+      queueMaxAge.hashCode ^
+      lockTimeout.hashCode ^
+      syncBatchSize.hashCode ^
+      geofenceIntervalMs.hashCode ^
+      geofenceAccuracyMeters.hashCode ^
+      geofenceLoiteringDelayMs.hashCode ^
+      geofenceStatusChangeDelayMs.hashCode ^
+      geofenceUseActivityRecognition.hashCode ^
+      geofenceAllowMockLocations.hashCode ^
+      geofenceDefaultRadiusMeters.hashCode;
+
+  @override
+  String toString() {
+    return 'ReminderServiceConfig('
+        'maxRetries: $maxRetries, '
+        'maxQueueSize: $maxQueueSize, '
+        'queueMaxAge: $queueMaxAge, '
+        'lockTimeout: $lockTimeout, '
+        'syncBatchSize: $syncBatchSize, '
+        'geofenceIntervalMs: $geofenceIntervalMs, '
+        'geofenceAccuracyMeters: $geofenceAccuracyMeters, '
+        'geofenceLoiteringDelayMs: $geofenceLoiteringDelayMs, '
+        'geofenceStatusChangeDelayMs: $geofenceStatusChangeDelayMs, '
+        'geofenceUseActivityRecognition: $geofenceUseActivityRecognition, '
+        'geofenceAllowMockLocations: $geofenceAllowMockLocations, '
+        'geofenceDefaultRadiusMeters: $geofenceDefaultRadiusMeters'
+        ')';
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'maxRetries': maxRetries,
+      'maxQueueSize': maxQueueSize,
+      'queueMaxAge': queueMaxAge.inMilliseconds,
+      'lockTimeout': lockTimeout.inMilliseconds,
+      'syncBatchSize': syncBatchSize,
+      'geofenceIntervalMs': geofenceIntervalMs,
+      'geofenceAccuracyMeters': geofenceAccuracyMeters,
+      'geofenceLoiteringDelayMs': geofenceLoiteringDelayMs,
+      'geofenceStatusChangeDelayMs': geofenceStatusChangeDelayMs,
+      'geofenceUseActivityRecognition': geofenceUseActivityRecognition,
+      'geofenceAllowMockLocations': geofenceAllowMockLocations,
+      'geofenceDefaultRadiusMeters': geofenceDefaultRadiusMeters,
+    };
+  }
+
+  factory ReminderServiceConfig.fromJson(Map<String, dynamic> json) {
+    return ReminderServiceConfig(
+      maxRetries: json['maxRetries'] as int? ?? 10,
+      maxQueueSize: json['maxQueueSize'] as int? ?? 1000,
+      queueMaxAge: Duration(
+        milliseconds: json['queueMaxAge'] as int? ?? 3600000,
+      ),
+      lockTimeout: Duration(
+        milliseconds: json['lockTimeout'] as int? ?? 30000,
+      ),
+      syncBatchSize: json['syncBatchSize'] as int? ?? 10,
+      geofenceIntervalMs: json['geofenceIntervalMs'] as int? ?? 5000,
+      geofenceAccuracyMeters: json['geofenceAccuracyMeters'] as int? ?? 100,
+      geofenceLoiteringDelayMs: json['geofenceLoiteringDelayMs'] as int? ?? 60000,
+      geofenceStatusChangeDelayMs: json['geofenceStatusChangeDelayMs'] as int? ?? 10000,
+      geofenceUseActivityRecognition: json['geofenceUseActivityRecognition'] as bool? ?? true,
+      geofenceAllowMockLocations: json['geofenceAllowMockLocations'] as bool? ?? false,
+      geofenceDefaultRadiusMeters: (json['geofenceDefaultRadiusMeters'] as num?)?.toDouble() ?? 100.0,
+    );
+  }
+}
+
 /// Production-grade migration configuration system for gradual domain model migration
 /// Provides feature flags and configuration for safe, incremental migration
 class MigrationConfig {
@@ -5,13 +171,16 @@ class MigrationConfig {
   final Map<String, bool> enabledFeatures;
   final int version;
   final DateTime configurationDate;
+  final ReminderServiceConfig reminderConfig;
 
   MigrationConfig({
     required this.useDomainModels,
     required this.enabledFeatures,
     this.version = 1,
     DateTime? configurationDate,
-  }) : configurationDate = configurationDate ?? DateTime.now();
+    ReminderServiceConfig? reminderConfig,
+  })  : configurationDate = configurationDate ?? DateTime.now(),
+        reminderConfig = reminderConfig ?? ReminderServiceConfig.defaultConfig();
 
   /// Creates a default configuration with all features disabled
   factory MigrationConfig.defaultConfig() {
@@ -59,6 +228,7 @@ class MigrationConfig {
         'sync': true,
       },
       configurationDate: DateTime.now(),
+      reminderConfig: ReminderServiceConfig.developmentConfig(),
     );
   }
 
@@ -187,6 +357,7 @@ class MigrationConfig {
       'enabledFeatures': enabledFeatures,
       'version': version,
       'configurationDate': configurationDate.toIso8601String(),
+      'reminderConfig': reminderConfig.toJson(),
     };
   }
 
@@ -201,6 +372,9 @@ class MigrationConfig {
       configurationDate:
           DateTime.tryParse(json['configurationDate'] as String? ?? '') ??
           DateTime.now(),
+      reminderConfig: json['reminderConfig'] != null
+          ? ReminderServiceConfig.fromJson(json['reminderConfig'] as Map<String, dynamic>)
+          : ReminderServiceConfig.defaultConfig(),
     );
   }
 }

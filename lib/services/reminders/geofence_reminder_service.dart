@@ -15,7 +15,13 @@ import 'package:geolocator/geolocator.dart' as geo;
 /// - Managing location permissions
 /// - Cleanup and disposal of geofence resources
 class GeofenceReminderService extends BaseReminderService {
-  GeofenceReminderService(super.ref, super.plugin, super.db);
+  GeofenceReminderService(
+    super.ref,
+    super.plugin,
+    super.db, {
+    super.cryptoBox,
+    super.reminderConfig,
+  });
 
   GeofenceService? _geofenceService;
   bool _geofenceInitialized = false;
@@ -44,12 +50,12 @@ class GeofenceReminderService extends BaseReminderService {
   Future<void> _initializeGeofenceService() async {
     try {
       _geofenceService = GeofenceService.instance.setup(
-        interval: 5000,
-        accuracy: 100,
-        loiteringDelayMs: 60000,
-        statusChangeDelayMs: 10000,
-        useActivityRecognition: true,
-        allowMockLocations: false,
+        interval: config.geofenceIntervalMs,
+        accuracy: config.geofenceAccuracyMeters,
+        loiteringDelayMs: config.geofenceLoiteringDelayMs,
+        statusChangeDelayMs: config.geofenceStatusChangeDelayMs,
+        useActivityRecognition: config.geofenceUseActivityRecognition,
+        allowMockLocations: config.geofenceAllowMockLocations,
         geofenceRadiusSortType: GeofenceRadiusSortType.DESC,
       );
 
@@ -74,8 +80,12 @@ class GeofenceReminderService extends BaseReminderService {
       final permission = await geo.Geolocator.checkPermission();
       return permission == geo.LocationPermission.whileInUse ||
           permission == geo.LocationPermission.always;
-    } catch (e) {
-      logger.error('Failed to check location permissions', error: e);
+    } catch (e, stack) {
+      logger.error(
+        'Failed to check location permissions',
+        error: e,
+        stackTrace: stack,
+      );
       return false;
     }
   }
@@ -115,7 +125,8 @@ class GeofenceReminderService extends BaseReminderService {
   }
 
   @override
-  Future<int?> createReminder(ReminderConfig config) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<String?> createReminder(ReminderConfig config) async {
     if (!_geofenceInitialized) {
       logger.warning('GeofenceReminderService not initialized');
       return null;
@@ -134,7 +145,7 @@ class GeofenceReminderService extends BaseReminderService {
       // Extract location data from metadata
       final latitude = config.metadata?['latitude'] as double?;
       final longitude = config.metadata?['longitude'] as double?;
-      final radius = config.metadata?['radius'] as double? ?? 100.0;
+      final radius = config.metadata?['radius'] as double? ?? this.config.geofenceDefaultRadiusMeters;
       final locationName = config.metadata?['locationName'] as String?;
 
       if (latitude == null || longitude == null) {
@@ -146,13 +157,8 @@ class GeofenceReminderService extends BaseReminderService {
       }
 
       // P0.5 SECURITY: Get current userId
-      final userId = currentUserId;
-      if (userId == null) {
-        logger.warning(
-          'Cannot create location reminder - no authenticated user',
-        );
-        return null;
-      }
+      final userId = validateUserId('create location reminder');
+      if (userId == null) return null;
 
       // Create reminder in database using base class method
       final companion = NoteRemindersCompanion.insert(
@@ -221,8 +227,9 @@ class GeofenceReminderService extends BaseReminderService {
   }
 
   /// Set up geofence for location reminder
+  // MIGRATION v41: Changed from int to String (UUID)
   Future<void> _setupGeofence(
-    int reminderId,
+    String reminderId,
     double latitude,
     double longitude,
     double radius,
@@ -261,17 +268,23 @@ class GeofenceReminderService extends BaseReminderService {
       final geofenceId = geofence.id;
       if (geofenceId.startsWith('reminder_')) {
         final reminderIdStr = geofenceId.substring('reminder_'.length);
-        final reminderId = int.tryParse(reminderIdStr);
+        // MIGRATION v41: Changed from int.tryParse() to UUID validation
+        // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        final uuidPattern = RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+          caseSensitive: false,
+        );
 
-        if (reminderId != null) {
-          await _triggerLocationReminder(reminderId);
+        if (uuidPattern.hasMatch(reminderIdStr)) {
+          await _triggerLocationReminder(reminderIdStr);
         }
       }
     }
   }
 
   /// Trigger a location-based reminder
-  Future<void> _triggerLocationReminder(int reminderId) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> _triggerLocationReminder(String reminderId) async {
     try {
       // P0.5 SECURITY: Get current userId
       final userId = currentUserId;
@@ -336,7 +349,8 @@ class GeofenceReminderService extends BaseReminderService {
   }
 
   /// Remove a geofence for a reminder
-  Future<void> removeGeofence(int reminderId) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> removeGeofence(String reminderId) async {
     if (_geofenceService == null) return;
 
     try {
@@ -352,7 +366,8 @@ class GeofenceReminderService extends BaseReminderService {
   }
 
   @override
-  Future<void> cancelReminder(int id) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> cancelReminder(String id) async {
     await removeGeofence(id);
     await super.cancelReminder(id);
   }
@@ -381,8 +396,12 @@ class GeofenceReminderService extends BaseReminderService {
       await _geofenceService?.stop();
       await super.dispose();
       logger.info('GeofenceReminderService disposed');
-    } catch (e) {
-      logger.warning('Error disposing geofence service: $e');
+    } catch (e, stack) {
+      logger.error(
+        'Error disposing geofence service',
+        error: e,
+        stackTrace: stack,
+      );
     }
   }
 }

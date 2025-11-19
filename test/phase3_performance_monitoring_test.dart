@@ -269,6 +269,15 @@ class _InMemoryTaskRepository implements ITaskRepository {
   ) async {}
 
   @override
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    required String? reminderId,
+  }) async {}
+
+  @override
+  Future<void> updateTaskPositions(Map<String, int> positions) async {}
+
+  @override
   Future<domain.Task> createSubtask({
     required String parentTaskId,
     required String title,

@@ -241,6 +241,15 @@ class MockINotesRepository extends _i1.Mock implements _i5.INotesRepository {
           as _i6.Future<void>);
 
   @override
+  _i6.Future<void> restoreNote(String? id) =>
+      (super.noSuchMethod(
+            Invocation.method(#restoreNote, [id]),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
   _i6.Future<void> permanentlyDeleteNote(String? id) =>
       (super.noSuchMethod(
             Invocation.method(#permanentlyDeleteNote, [id]),

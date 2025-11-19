@@ -133,7 +133,9 @@ class _DomainTaskItemWithActionsState
       builder: (context) => TaskMetadataDialog(
         task: _task,
         taskContent: _task.title,
-        onSave: (metadata) => Navigator.of(context).pop(metadata),
+        onSave: (metadata) async {
+          Navigator.of(context).pop(metadata);
+        },
       ),
     );
 

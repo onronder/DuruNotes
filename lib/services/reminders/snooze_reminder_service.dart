@@ -16,13 +16,20 @@ import 'package:flutter/material.dart';
 /// - Rescheduling snoozed reminders when snooze period expires
 /// - Managing snooze counts and limits
 class SnoozeReminderService extends BaseReminderService {
-  SnoozeReminderService(super.ref, super.plugin, super.db);
+  SnoozeReminderService(
+    super.ref,
+    super.plugin,
+    super.db, {
+    super.cryptoBox,
+    super.reminderConfig,
+  });
 
   /// Maximum number of times a reminder can be snoozed
   static const int maxSnoozeCount = 5;
 
   @override
-  Future<int?> createReminder(ReminderConfig config) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<String?> createReminder(ReminderConfig config) async {
     // Snooze service doesn't create new reminders, it only modifies existing ones
     // This method is required by base class but not used
     logger.warning(
@@ -32,14 +39,12 @@ class SnoozeReminderService extends BaseReminderService {
   }
 
   /// Snooze a reminder for the specified duration
-  Future<bool> snoozeReminder(int reminderId, SnoozeDuration duration) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<bool> snoozeReminder(String reminderId, SnoozeDuration duration) async {
     try {
       // P0.5 SECURITY: Get current userId
-      final userId = currentUserId;
-      if (userId == null) {
-        logger.warning('Cannot snooze reminder - no authenticated user');
-        return false;
-      }
+      final userId = validateUserId('snooze reminder');
+      if (userId == null) return false;
 
       final reminder = await db.getReminderById(reminderId, userId);
       if (reminder == null) {
@@ -258,7 +263,8 @@ class SnoozeReminderService extends BaseReminderService {
   Future<void> handleSnoozeAction(String action, String payload) async {
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      final reminderId = data['reminderId'] as int?;
+      // MIGRATION v41: Changed from int to String (UUID)
+      final reminderId = data['reminderId'] as String?;
 
       if (reminderId == null) {
         logger.warning('Invalid payload for snooze action: missing reminderId');
@@ -340,7 +346,8 @@ class SnoozeReminderService extends BaseReminderService {
   }
 
   /// Clear all snooze data for a reminder (when manually edited)
-  Future<void> clearSnooze(int reminderId) async {
+  // MIGRATION v41: Changed from int to String (UUID)
+  Future<void> clearSnooze(String reminderId) async {
     try {
       // P0.5 SECURITY: Get current userId
       final userId = currentUserId;

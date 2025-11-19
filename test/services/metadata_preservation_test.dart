@@ -194,13 +194,13 @@ void main() {
         created.id,
         userId,
         db.NoteTasksCompanion(
-          reminderId: const Value(99),
+          reminderId: const Value('reminder-99'), // MIGRATION v41: UUID String
           updatedAt: Value(timestamp),
         ),
       );
 
       final withReminder = await repository.getTaskById(created.id);
-      expect(withReminder?.metadata['reminderId'], 99);
+      expect(withReminder?.metadata['reminderId'], 'reminder-99'); // MIGRATION v41: UUID String
 
       final updated = withReminder!.copyWith(
         title: 'Moved task to new section',
@@ -209,7 +209,7 @@ void main() {
 
       expect(
         result.metadata['reminderId'],
-        99,
+        'reminder-99',
         reason: 'Reminder linkage must not be cleared by content updates',
       );
       expect(result.metadata['estimatedMinutes'], 30);

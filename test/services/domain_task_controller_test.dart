@@ -171,6 +171,15 @@ class _FakeTaskRepository implements ITaskRepository {
       const <domain.Task>[];
 
   @override
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    required String? reminderId,
+  }) async {}
+
+  @override
+  Future<void> updateTaskPositions(Map<String, int> positions) async {}
+
+  @override
   Future<List<domain.Task>> getDeletedTasks() async => const [];
 
   @override
@@ -239,7 +248,7 @@ class _RecordingEnhancedTaskService extends EnhancedTaskService {
     String? notes,
     int? estimatedMinutes,
     int? actualMinutes,
-    int? reminderId,
+    String? reminderId,
     String? parentTaskId,
     bool updateReminder = true,
     bool clearReminderId = false,
@@ -361,6 +370,9 @@ void main() {
           tags: const ['focus'],
         );
 
+        // Wait for async reminder scheduling to complete
+        await Future.delayed(Duration.zero);
+
         expect(task.id, taskId);
 
         final createArgs = enhancedService.lastCreateArgs;
@@ -391,7 +403,7 @@ void main() {
         updatedAt: now,
         dueDate: dueDate,
         metadata: const {
-          'reminderId': 42,
+          'reminderId': 'reminder-42',
           'estimatedMinutes': 15,
           'actualMinutes': 5,
         },

@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:uuid/uuid.dart';
 import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/domain/entities/note.dart' as domain;
@@ -20,6 +21,10 @@ import 'package:duru_notes/data/migrations/migration_37_note_tags_links_userid.d
 import 'package:duru_notes/data/migrations/migration_38_note_folders_userid.dart';
 import 'package:duru_notes/data/migrations/migration_39_soft_delete_indexes.dart';
 import 'package:duru_notes/data/migrations/migration_40_soft_delete_timestamps.dart';
+import 'package:duru_notes/data/migrations/migration_41_reminder_uuid.dart';
+import 'package:duru_notes/data/migrations/migration_42_reminder_encryption.dart';
+import 'package:duru_notes/data/migrations/migration_43_reminder_updated_at.dart';
+import 'package:duru_notes/data/migrations/migration_44_reminder_soft_delete.dart';
 import 'package:duru_notes/models/note_kind.dart';
 
 part 'app_db.g.dart';
@@ -123,14 +128,30 @@ enum SnoozeDuration {
 
 @DataClassName('NoteReminder')
 class NoteReminders extends Table {
-  IntColumn get id => integer().autoIncrement()(); // Primary key
+  // MIGRATION v41: Changed from INTEGER to TEXT (UUID) to match Supabase schema
+  TextColumn get id => text().clientDefault(() => const Uuid().v4())(); // Primary key UUID
   TextColumn get noteId => text()(); // Foreign key to note
+
+  @override
+  Set<Column> get primaryKey => {id};
 
   /// User ID who owns this reminder (P0.5 SECURITY: prevents cross-user access)
   TextColumn get userId => text()();
 
+  // PLAINTEXT COLUMNS (Pre-Migration v42 - DEPRECATED)
+  // TODO: Remove after 100% adoption of v42 (encryption enabled)
+  // These columns exist only for zero-downtime migration compatibility
   TextColumn get title => text().withDefault(const Constant(''))();
   TextColumn get body => text().withDefault(const Constant(''))();
+
+  // ENCRYPTED COLUMNS (Migration v42 - Security Fix)
+  // XChaCha20-Poly1305 AEAD encryption with user master key
+  BlobColumn get titleEncrypted => blob().named('title_encrypted').nullable()();
+  BlobColumn get bodyEncrypted => blob().named('body_encrypted').nullable()();
+  BlobColumn get locationNameEncrypted =>
+      blob().named('location_name_encrypted').nullable()();
+  IntColumn get encryptionVersion =>
+      integer().named('encryption_version').nullable()();
 
   // Reminder type and timing
   IntColumn get type => intEnum<ReminderType>()(); // time, location, recurring
@@ -142,6 +163,9 @@ class NoteReminders extends Table {
   RealColumn get latitude => real().nullable()();
   RealColumn get longitude => real().nullable()();
   RealColumn get radius => real().nullable()(); // in meters
+
+  // PLAINTEXT COLUMN (Pre-Migration v42 - DEPRECATED)
+  // TODO: Remove after 100% adoption of v42 (encryption enabled)
   TextColumn get locationName => text().nullable()();
 
   // Recurring reminder fields
@@ -164,6 +188,17 @@ class NoteReminders extends Table {
   // Metadata
   TextColumn get timeZone => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  // MIGRATION v43: Added to support conflict resolution
+  // updatedAt tracks the last modification time for reminders
+  // Nullable for backward compatibility - will be backfilled with createdAt
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  // MIGRATION v44: Soft delete support (30-day recovery window)
+  // Nullable for backward compatibility - NULL means reminder is active
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  DateTimeColumn get scheduledPurgeAt => dateTime().nullable()();
+
   DateTimeColumn get lastTriggered => dateTime().nullable()();
   IntColumn get triggerCount => integer().withDefault(const Constant(0))();
 }
@@ -224,7 +259,8 @@ class NoteTasks extends Table {
   TextColumn get contentHash => text()();
 
   /// Optional reminder ID if a reminder is set for this task
-  IntColumn get reminderId => integer().nullable()();
+  /// MIGRATION v41: Changed from INTEGER to TEXT (UUID) to match NoteReminders.id
+  TextColumn get reminderId => text().nullable()();
 
   /// Time estimate in minutes
   IntColumn get estimatedMinutes => integer().nullable()();
@@ -582,7 +618,7 @@ class AppDb extends _$AppDb {
   AppDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 40; // Migration 40: soft delete timestamps for Trash system
+  int get schemaVersion => 44; // Migration 44: Add soft delete to reminders (30-day recovery window)
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -612,6 +648,7 @@ class AppDb extends _$AppDb {
       await Migration32Phase1PerformanceIndexes.apply(this);
       await Migration39SoftDeleteIndexes.apply(this);
       await Migration40SoftDeleteTimestamps.apply(this);
+      // Migration 41 only applies to existing databases (schema changes already in table definition)
 
       // FTS seed removed – index is populated from the application after
       // notes are decrypted (see FTSIndexingService).
@@ -901,6 +938,30 @@ class AppDb extends _$AppDb {
       if (from < 40) {
         // Migration 40: Add soft delete timestamps for Phase 1.1 Trash system
         await Migration40SoftDeleteTimestamps.apply(this);
+      }
+
+      if (from < 41) {
+        // Migration 41: Convert reminder IDs from INTEGER to UUID
+        // This fixes critical schema mismatch between local (INT) and remote (UUID)
+        await Migration41ReminderUuid.apply(this);
+      }
+
+      if (from < 42) {
+        // Migration 42: Add encryption to reminders (Security Fix)
+        // Adds encrypted columns and migrates existing plaintext data
+        await Migration42ReminderEncryption.apply(this);
+      }
+
+      if (from < 43) {
+        // Migration 43: Add updatedAt to reminders (Conflict Resolution Fix)
+        // Adds updatedAt column to track reminder modification time
+        await Migration43ReminderUpdatedAt.apply(this);
+      }
+
+      if (from < 44) {
+        // Migration 44: Add soft delete to reminders (30-day recovery window)
+        // Adds deleted_at and scheduled_purge_at columns for soft delete support
+        await Migration44ReminderSoftDelete.apply(this);
       }
 
       // Always attempt Migration 12 (idempotent) to handle edge cases where
@@ -2032,6 +2093,7 @@ class AppDb extends _$AppDb {
   /// Get all reminders for a specific note
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
+  /// MIGRATION v44: Excludes soft-deleted reminders
   Future<List<NoteReminder>> getRemindersForNote(
     String noteId,
     String userId,
@@ -2040,7 +2102,8 @@ class AppDb extends _$AppDb {
             (r) =>
                 r.noteId.equals(noteId) &
                 r.userId.equals(userId) &
-                r.isActive.equals(true),
+                r.isActive.equals(true) &
+                r.deletedAt.isNull(),
           ))
           .get();
 
@@ -2056,19 +2119,41 @@ class AppDb extends _$AppDb {
   /// Get a specific reminder by ID
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
-  Future<NoteReminder?> getReminderById(int id, String userId) => (select(
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
+  /// MIGRATION v44: Excludes soft-deleted reminders (use getReminderByIdIncludingDeleted for trash)
+  Future<NoteReminder?> getReminderById(String id, String userId) => (select(
     noteReminders,
-  )..where((r) => r.id.equals(id) & r.userId.equals(userId))).getSingleOrNull();
+  )..where((r) => r.id.equals(id) & r.userId.equals(userId) & r.deletedAt.isNull()))
+      .getSingleOrNull();
+
+  /// Get a specific reminder by ID, including soft-deleted ones (for trash view)
+  ///
+  /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
+  /// MIGRATION v44: Includes soft-deleted reminders
+  Future<NoteReminder?> getReminderByIdIncludingDeleted(
+    String id,
+    String userId,
+  ) =>
+      (select(noteReminders)..where((r) => r.id.equals(id) & r.userId.equals(userId)))
+          .getSingleOrNull();
 
   /// Create a new reminder
-  Future<int> createReminder(NoteRemindersCompanion reminder) =>
-      into(noteReminders).insert(reminder);
+  /// MIGRATION v41: Returns String (UUID) instead of int
+  Future<String> createReminder(NoteRemindersCompanion reminder) async {
+    // Generate UUID if not provided
+    final companion = reminder.id.present
+        ? reminder
+        : reminder.copyWith(id: Value(const Uuid().v4()));
+    await into(noteReminders).insert(companion);
+    return companion.id.value;
+  }
 
   /// Update an existing reminder
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder modification
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
   Future<void> updateReminder(
-    int id,
+    String id,
     String userId,
     NoteRemindersCompanion updates,
   ) => (update(
@@ -2078,20 +2163,99 @@ class AppDb extends _$AppDb {
   /// Delete a specific reminder
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder deletion
-  Future<void> deleteReminderById(int id, String userId) => (delete(
-    noteReminders,
-  )..where((r) => r.id.equals(id) & r.userId.equals(userId))).go();
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
+  /// MIGRATION v44: Changed to soft delete (30-day recovery window)
+  Future<void> deleteReminderById(String id, String userId) async {
+    final now = DateTime.now();
+    final purgeAt = now.add(const Duration(days: 30));
+
+    await (update(noteReminders)..where(
+            (r) => r.id.equals(id) & r.userId.equals(userId),
+          ))
+        .write(NoteRemindersCompanion(
+      deletedAt: Value(now),
+      scheduledPurgeAt: Value(purgeAt),
+    ));
+  }
 
   /// Delete all reminders for a note
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder deletion
-  Future<void> deleteRemindersForNote(String noteId, String userId) => (delete(
-    noteReminders,
-  )..where((r) => r.noteId.equals(noteId) & r.userId.equals(userId))).go();
+  /// MIGRATION v44: Changed to soft delete (30-day recovery window)
+  Future<void> deleteRemindersForNote(String noteId, String userId) async {
+    final now = DateTime.now();
+    final purgeAt = now.add(const Duration(days: 30));
+
+    await (update(noteReminders)..where(
+            (r) => r.noteId.equals(noteId) & r.userId.equals(userId),
+          ))
+        .write(NoteRemindersCompanion(
+      deletedAt: Value(now),
+      scheduledPurgeAt: Value(purgeAt),
+    ));
+  }
+
+  /// Restore a soft-deleted reminder (undo deletion within 30-day window)
+  ///
+  /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
+  /// MIGRATION v44: Recovery functionality for soft delete
+  Future<void> restoreReminderById(String id, String userId) async {
+    await (update(noteReminders)..where(
+            (r) => r.id.equals(id) & r.userId.equals(userId),
+          ))
+        .write(const NoteRemindersCompanion(
+      deletedAt: Value(null),
+      scheduledPurgeAt: Value(null),
+    ));
+  }
+
+  /// Get all deleted reminders for a user (trash view)
+  ///
+  /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
+  /// MIGRATION v44: Trash view functionality
+  Future<List<NoteReminder>> getDeletedReminders(String userId) async {
+    return (select(noteReminders)..where(
+            (r) => r.userId.equals(userId) & r.deletedAt.isNotNull(),
+          )..orderBy([
+            (r) => OrderingTerm(
+                  expression: r.deletedAt,
+                  mode: OrderingMode.desc,
+                ),
+          ]))
+        .get();
+  }
+
+  /// Permanently delete reminders that have expired their 30-day recovery window
+  ///
+  /// This should be called by a background job daily
+  /// MIGRATION v44: Auto-purge functionality
+  Future<int> purgeExpiredReminders() async {
+    final now = DateTime.now();
+
+    // Count before deletion
+    final countBefore = await (select(noteReminders)..where(
+            (r) =>
+                r.scheduledPurgeAt.isNotNull() &
+                r.scheduledPurgeAt.isSmallerOrEqualValue(now),
+          ))
+        .get()
+        .then((list) => list.length);
+
+    // Permanently delete
+    await (delete(noteReminders)..where(
+            (r) =>
+                r.scheduledPurgeAt.isNotNull() &
+                r.scheduledPurgeAt.isSmallerOrEqualValue(now),
+          ))
+        .go();
+
+    return countBefore;
+  }
 
   /// Get all active time-based reminders due before a specific time
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
+  /// MIGRATION v44: Excludes soft-deleted reminders
   Future<List<NoteReminder>> getTimeRemindersToTrigger({
     required DateTime before,
     required String userId,
@@ -2101,6 +2265,7 @@ class AppDb extends _$AppDb {
                 r.type.equals(ReminderType.time.index) &
                 r.isActive.equals(true) &
                 r.userId.equals(userId) &
+                r.deletedAt.isNull() &
                 r.remindAt.isSmallerOrEqualValue(before) &
                 (r.snoozedUntil.isNull() |
                     r.snoozedUntil.isSmallerOrEqualValue(before)),
@@ -2110,12 +2275,14 @@ class AppDb extends _$AppDb {
   /// Get all active location-based reminders
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
+  /// MIGRATION v44: Excludes soft-deleted reminders
   Future<List<NoteReminder>> getLocationReminders(String userId) =>
       (select(noteReminders)..where(
             (r) =>
                 r.type.equals(ReminderType.location.index) &
                 r.isActive.equals(true) &
                 r.userId.equals(userId) &
+                r.deletedAt.isNull() &
                 r.latitude.isNotNull() &
                 r.longitude.isNotNull(),
           ))
@@ -2330,13 +2497,36 @@ class AppDb extends _$AppDb {
     }
   }
 
-  /// Delete a specific task
-  Future<void> deleteTaskById(String id, String userId) => (delete(
+  /// Delete a specific task (HARD DELETE - permanent removal)
+  ///
+  /// ⚠️ REPOSITORY-ONLY METHOD - Only call from repository layer for purge automation
+  ///
+  /// This method performs HARD DELETE (permanent removal from database).
+  /// Services must use TaskCoreRepository.deleteTask() for soft delete.
+  /// Only TaskCoreRepository.permanentlyDeleteTask() should call this.
+  ///
+  /// See: ARCHITECTURE_VIOLATIONS.md v1.1.0 "Priority 1" section
+  /// See: DELETION_PATTERNS.md v1.0.0 for correct deletion patterns
+  ///
+  /// @nodoc - Internal use only, not part of public API
+  @Deprecated('Repository-only: Use TaskCoreRepository.deleteTask() for soft delete')
+  Future<void> hardDeleteTaskById(String id, String userId) => (delete(
     noteTasks,
   )..where((t) => t.id.equals(id) & t.userId.equals(userId))).go();
 
-  /// Delete all tasks for a note
-  Future<void> deleteTasksForNote(String noteId, String userId) => (delete(
+  /// Delete all tasks for a note (HARD DELETE - permanent removal)
+  ///
+  /// ⚠️ REPOSITORY-ONLY METHOD - Only call from repository layer for purge automation
+  ///
+  /// This method performs HARD DELETE (permanent removal from database).
+  /// Services must use TaskCoreRepository methods for soft delete.
+  /// Only called by repository layer during note purge operations.
+  ///
+  /// See: ARCHITECTURE_VIOLATIONS.md v1.1.0 "Priority 1" section
+  ///
+  /// @nodoc - Internal use only, not part of public API
+  @Deprecated('Repository-only: Use TaskCoreRepository methods for soft delete')
+  Future<void> hardDeleteTasksForNote(String noteId, String userId) => (delete(
     noteTasks,
   )..where((t) => t.noteId.equals(noteId) & t.userId.equals(userId))).go();
 
@@ -2493,8 +2683,9 @@ class AppDb extends _$AppDb {
   /// Mark a reminder as triggered
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder modification
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
   Future<void> markReminderTriggered(
-    int id,
+    String id,
     String userId, {
     DateTime? triggeredAt,
   }) =>
@@ -2510,7 +2701,8 @@ class AppDb extends _$AppDb {
   /// Snooze a reminder
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder modification
-  Future<void> snoozeReminder(int id, String userId, DateTime snoozeUntil) =>
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
+  Future<void> snoozeReminder(String id, String userId, DateTime snoozeUntil) =>
       (update(
         noteReminders,
       )..where((r) => r.id.equals(id) & r.userId.equals(userId))).write(
@@ -2523,7 +2715,8 @@ class AppDb extends _$AppDb {
   /// Clear snooze for a reminder
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder modification
-  Future<void> clearSnooze(int id, String userId) =>
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
+  Future<void> clearSnooze(String id, String userId) =>
       (update(noteReminders)
             ..where((r) => r.id.equals(id) & r.userId.equals(userId)))
           .write(const NoteRemindersCompanion(snoozedUntil: Value(null)));
@@ -2531,7 +2724,8 @@ class AppDb extends _$AppDb {
   /// Deactivate a reminder
   ///
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder modification
-  Future<void> deactivateReminder(int id, String userId) =>
+  /// MIGRATION v41: Changed parameter from int to String (UUID)
+  Future<void> deactivateReminder(String id, String userId) =>
       (update(noteReminders)
             ..where((r) => r.id.equals(id) & r.userId.equals(userId)))
           .write(const NoteRemindersCompanion(isActive: Value(false)));

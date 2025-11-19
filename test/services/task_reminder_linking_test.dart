@@ -23,6 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 
+import '../utils/uuid_test_helper.dart';
 import 'task_reminder_linking_test.mocks.dart';
 
 final _pluginProvider = Provider<FlutterLocalNotificationsPlugin>((ref) {
@@ -74,10 +75,10 @@ class _FakeReminderCoordinator {
   String? lastTitle;
   String? lastBody;
   DateTime? lastRemindAt;
-  int reminderIdToReturn = 321;
+  String reminderIdToReturn = UuidTestHelper.testReminder1;
   SnoozeReminderService snoozeService;
 
-  Future<int?> createTimeReminder({
+  Future<String?> createTimeReminder({
     required String noteId,
     required String title,
     required String body,
@@ -189,7 +190,7 @@ void main() {
     );
   }
 
-  NoteTask noteTask({int? reminderId}) {
+  NoteTask noteTask({String? reminderId}) {
     final now = DateTime.now();
     return NoteTask(
       id: 'task-1',
@@ -219,7 +220,7 @@ void main() {
   NoteReminder noteReminder({required DateTime snoozedUntil, int count = 2}) {
     final now = DateTime.now();
     return NoteReminder(
-      id: 321,
+      id: UuidTestHelper.testReminder1,
       noteId: 'note-1',
       userId: 'user-123',
       title: 'Reminder title',
@@ -356,7 +357,7 @@ void main() {
 
       expect(result, equals(fakeCoordinator.reminderIdToReturn));
       expect(capturedUpdate, isNotNull);
-      expect(capturedUpdate!.reminderId.value, equals(321));
+      expect(capturedUpdate!.reminderId.value, equals(UuidTestHelper.testReminder1));
       expect(capturedUpdate!.updatedAt.present, isTrue);
       verify(mockDb.updateTask('task-1', 'user-123', any)).called(1);
     });
@@ -364,12 +365,12 @@ void main() {
 
   group('cancelTaskReminder', () {
     test('clears reminder id and deletes remote reminder', () async {
-      when(mockAdvancedService.deleteReminder(321)).thenAnswer((_) async {});
+      when(mockAdvancedService.deleteReminder(UuidTestHelper.testReminder1)).thenAnswer((_) async {});
       when(mockDb.updateTask(any, any, any)).thenAnswer((_) async {});
 
-      await bridge.cancelTaskReminder(noteTask(reminderId: 321));
+      await bridge.cancelTaskReminder(noteTask(reminderId: UuidTestHelper.testReminder1));
 
-      verify(mockAdvancedService.deleteReminder(321)).called(1);
+      verify(mockAdvancedService.deleteReminder(UuidTestHelper.testReminder1)).called(1);
       verify(mockDb.updateTask('task-1', 'user-123', any)).called(1);
     });
   });
@@ -377,11 +378,11 @@ void main() {
   group('snoozeTaskReminder', () {
     test('delegates to snooze service and syncs updated reminder', () async {
       when(
-        mockSnoozeService.snoozeReminder(321, any),
+        mockSnoozeService.snoozeReminder(UuidTestHelper.testReminder1, any),
       ).thenAnswer((_) async => true);
 
       int getReminderCall = 0;
-      when(mockDb.getReminderById(321, 'user-123')).thenAnswer((_) async {
+      when(mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123')).thenAnswer((_) async {
         getReminderCall++;
         if (getReminderCall == 1) {
           return noteReminder(
@@ -396,15 +397,15 @@ void main() {
       });
 
       await bridge.snoozeTaskReminder(
-        task: noteTask(reminderId: 321),
+        task: noteTask(reminderId: UuidTestHelper.testReminder1),
         snoozeDuration: const Duration(minutes: 15),
       );
 
       verify(
-        mockSnoozeService.snoozeReminder(321, SnoozeDuration.fifteenMinutes),
+        mockSnoozeService.snoozeReminder(UuidTestHelper.testReminder1, SnoozeDuration.fifteenMinutes),
       ).called(1);
       verify(
-        mockDb.getReminderById(321, 'user-123'),
+        mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123'),
       ).called(greaterThanOrEqualTo(2));
     });
   });
