@@ -58,11 +58,15 @@ class EnhancedTaskService {
     return userId;
   }
 
+  /// Migrate tasks from standalone note to parent note (infrastructure operation)
+  /// This is a data migration utility, not business logic
   Future<void> migrateStandaloneNoteId({
     required String fromNoteId,
     required String toNoteId,
   }) async {
+    // Infrastructure: Data migration operation (not business logic)
     await _db.migrateNoteId(fromNoteId, toNoteId);
+
     final userId = _currentUserId;
     if (userId == null) {
       debugPrint(
@@ -70,6 +74,8 @@ class EnhancedTaskService {
       );
       return;
     }
+
+    // Infrastructure: Sync queue management (not business logic)
     await _db.enqueue(userId: userId, entityId: toNoteId, kind: 'upsert_note');
   }
 
@@ -129,11 +135,8 @@ class EnhancedTaskService {
         Future(() async {
           final reminderStopwatch = Stopwatch()..start();
           try {
-            final userId = _requireUserIdFor('createTask.linkReminder');
-            if (userId == null) {
-              return;
-            }
-            final localTask = await _db.getTaskById(taskId, userId: userId);
+            // Infrastructure: Get NoteTask for reminder bridge coordination
+            final localTask = await _getTaskForReminder(taskId);
             if (localTask != null) {
               // Create reminder and get its ID
               final reminderId = await _reminderBridge.createTaskReminder(
@@ -184,10 +187,10 @@ class EnhancedTaskService {
     if (userId == null) {
       throw StateError('Task update requires authenticated user');
     }
-    // Get old task for comparison and reminder updates
-    final oldLocalTask = await _db.getTaskById(taskId, userId: userId);
+    // Infrastructure: Get old task for reminder comparison (platform coordination)
+    final oldLocalTask = await _getTaskForReminder(taskId);
 
-    // Get current domain task
+    // Business Logic: Get current domain task from repository
     final currentTask = await _taskRepository.getTaskById(taskId);
     if (currentTask == null) {
       throw Exception('Task not found: $taskId');
@@ -235,7 +238,8 @@ class EnhancedTaskService {
     // Handle reminder updates if enabled
     if (updateReminder && oldLocalTask != null) {
       try {
-        final newLocalTask = await _db.getTaskById(taskId, userId: userId);
+        // Infrastructure: Get updated task for reminder bridge coordination
+        final newLocalTask = await _getTaskForReminder(taskId);
         if (newLocalTask != null) {
           await _reminderBridge.onTaskUpdated(oldLocalTask, newLocalTask);
         }
@@ -253,10 +257,10 @@ class EnhancedTaskService {
     if (userId == null) {
       return;
     }
-    // Get task before completion for reminder cleanup
-    final task = await _db.getTaskById(taskId, userId: userId);
+    // Infrastructure: Get task for reminder cleanup (platform coordination)
+    final task = await _getTaskForReminder(taskId);
 
-    // Complete the task using repository (handles soft-delete, sync)
+    // Business Logic: Complete task via repository (handles soft-delete, sync)
     await _taskRepository.completeTask(taskId);
 
     // Cancel reminder if task had one
@@ -279,16 +283,17 @@ class EnhancedTaskService {
     if (userId == null) {
       return;
     }
-    // Get task before toggle for reminder management
-    final oldTask = await _db.getTaskById(taskId, userId: userId);
+    // Infrastructure: Get task before toggle for reminder management
+    final oldTask = await _getTaskForReminder(taskId);
 
-    // Toggle using repository (handles soft-delete, sync)
+    // Business Logic: Toggle using repository (handles soft-delete, sync)
     await _taskRepository.toggleTaskStatus(taskId);
 
     // Handle reminder updates
     if (oldTask != null) {
       try {
-        final newTask = await _db.getTaskById(taskId, userId: userId);
+        // Infrastructure: Get updated task for reminder bridge coordination
+        final newTask = await _getTaskForReminder(taskId);
         if (newTask != null) {
           await _reminderBridge.onTaskUpdated(oldTask, newTask);
         }
@@ -307,11 +312,10 @@ class EnhancedTaskService {
     if (userId == null) {
       return;
     }
-    // Get task before deletion for reminder cleanup
-    final task = await _db.getTaskById(taskId, userId: userId);
+    // Infrastructure: Get task for reminder cleanup (platform coordination)
+    final task = await _getTaskForReminder(taskId);
 
-    // CRITICAL FIX: Use repository for SOFT DELETE instead of hard delete
-    // This enables 30-day trash retention and recovery
+    // Business Logic: Use repository for SOFT DELETE (30-day trash retention)
     await _taskRepository.deleteTask(taskId);
 
     // Cancel reminder if task had one
@@ -351,11 +355,8 @@ class EnhancedTaskService {
 
     // Create custom reminder
     try {
-      final userId = _requireUserIdFor('createTaskWithReminder.loadTask');
-      if (userId == null) {
-        return taskId;
-      }
-      final task = await _db.getTaskById(taskId, userId: userId);
+      // Infrastructure: Get task for reminder bridge coordination
+      final task = await _getTaskForReminder(taskId);
       if (task != null) {
         final reminderDuration = reminderTime.difference(dueDate);
         final reminderId = await _reminderBridge.createTaskReminder(
@@ -365,7 +366,7 @@ class EnhancedTaskService {
               : reminderDuration.abs(),
         );
 
-        // Link reminder to task
+        // Business Logic: Link reminder to task via repository
         if (reminderId != null) {
           await updateTask(taskId: taskId, reminderId: reminderId);
         }
@@ -379,9 +380,8 @@ class EnhancedTaskService {
 
   /// Cancel any reminder associated with the task.
   Future<void> clearTaskReminder(String taskId) async {
-    final userId = _requireUserIdFor('clearTaskReminder');
-    if (userId == null) return;
-    final task = await _db.getTaskById(taskId, userId: userId);
+    // Infrastructure: Get task for reminder bridge coordination
+    final task = await _getTaskForReminder(taskId);
     if (task == null) return;
 
     await _reminderBridge.cancelTaskReminder(task);
@@ -393,9 +393,8 @@ class EnhancedTaskService {
     required DateTime dueDate,
     required DateTime reminderTime,
   }) async {
-    final userId = _requireUserIdFor('setCustomTaskReminder');
-    if (userId == null) return;
-    final task = await _db.getTaskById(taskId, userId: userId);
+    // Infrastructure: Get task for reminder bridge coordination
+    final task = await _getTaskForReminder(taskId);
     if (task == null) return;
 
     final effectiveTask = task.copyWith(dueDate: Value(dueDate));
@@ -413,9 +412,8 @@ class EnhancedTaskService {
 
   /// Refresh the reminder so it matches the latest due date using default lead time.
   Future<void> refreshDefaultTaskReminder(String taskId) async {
-    final userId = _requireUserIdFor('refreshDefaultTaskReminder');
-    if (userId == null) return;
-    final task = await _db.getTaskById(taskId, userId: userId);
+    // Infrastructure: Get task for reminder bridge coordination
+    final task = await _getTaskForReminder(taskId);
     if (task == null || task.dueDate == null) return;
 
     await _reminderBridge.updateTaskReminder(task);
@@ -427,9 +425,8 @@ class EnhancedTaskService {
     required Duration snoozeDuration,
   }) async {
     try {
-      final userId = _requireUserIdFor('snoozeTaskReminder');
-      if (userId == null) return;
-      final task = await _db.getTaskById(taskId, userId: userId);
+      // Infrastructure: Get task for reminder bridge coordination
+      final task = await _getTaskForReminder(taskId);
       if (task != null) {
         await _reminderBridge.snoozeTaskReminder(
           task: task,
@@ -510,15 +507,21 @@ class EnhancedTaskService {
   }
 
   /// Get subtasks for a parent task
-  Future<List<NoteTask>> getSubtasks(String parentTaskId) async {
-    final userId = _requireUserIdFor('getSubtasks');
-    if (userId == null) return [];
-    return _db.getOpenTasks(userId: userId, parentTaskId: parentTaskId);
+  /// PRODUCTION: Uses TaskCoreRepository for efficient, encrypted queries
+  /// Returns domain entities (not database objects) per clean architecture
+  Future<List<domain.Task>> getSubtasks(String parentTaskId) async {
+    try {
+      return await _taskRepository.getSubtasks(parentTaskId);
+    } catch (e) {
+      debugPrint('Failed to get subtasks for $parentTaskId: $e');
+      return [];
+    }
   }
 
   /// Get all child tasks recursively
-  Future<List<NoteTask>> _getAllChildTasks(String parentTaskId) async {
-    final allChildren = <NoteTask>[];
+  /// PRODUCTION: Works with domain entities from repository layer
+  Future<List<domain.Task>> _getAllChildTasks(String parentTaskId) async {
+    final allChildren = <domain.Task>[];
     final directChildren = await getSubtasks(parentTaskId);
 
     for (final child in directChildren) {
@@ -596,6 +599,33 @@ class EnhancedTaskService {
   }
 
   // ===== Helper Methods =====
+
+  /// Get NoteTask for reminder bridge coordination (infrastructure concern)
+  ///
+  /// ARCHITECTURAL NOTE: This method exists to bridge the gap between domain layer
+  /// and platform-specific reminder APIs. The TaskReminderBridge requires NoteTask
+  /// (database layer objects) to interface with platform notification systems.
+  ///
+  /// For business logic operations, use _taskRepository methods instead.
+  /// This is acceptable technical debt documented in ARCHITECTURE_VIOLATIONS.md v1.1.0
+  ///
+  /// Returns null if user is not authenticated or task not found
+  Future<NoteTask?> _getTaskForReminder(String taskId) async {
+    final userId = _currentUserId;
+    if (userId == null) {
+      debugPrint(
+        'EnhancedTaskService: Cannot fetch task for reminder - no userId',
+      );
+      return null;
+    }
+
+    try {
+      return await _db.getTaskById(taskId, userId: userId);
+    } catch (e) {
+      debugPrint('EnhancedTaskService: Failed to fetch task for reminder: $e');
+      return null;
+    }
+  }
 
   /// Map local TaskStatus to domain TaskStatus
   domain.TaskStatus _mapStatusToDomain(TaskStatus status) {

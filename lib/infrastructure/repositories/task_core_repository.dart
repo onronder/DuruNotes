@@ -1813,14 +1813,30 @@ class TaskCoreRepository implements ITaskRepository {
     }
   }
 
-  /// Get subtasks for a parent task
   @override
+  /// Get subtasks for a parent task
+  /// OPTIMIZED: Uses efficient DB query instead of loading all tasks into memory
+  /// Related: ARCHITECTURE_VIOLATIONS.md v1.1.0 - Production-grade service layer fix
   Future<List<domain.Task>> getSubtasks(String parentTaskId) async {
+    final userId = _requireUserId(
+      method: 'getSubtasks',
+      data: {'parentTaskId': parentTaskId},
+    );
+
     try {
-      final allTasks = await getAllTasks();
-      return allTasks
-          .where((task) => task.metadata['parentTaskId'] == parentTaskId)
-          .toList();
+      // Use efficient DB query with WHERE clause (not in-memory filtering)
+      final dbTasks = await db.getOpenTasks(
+        userId: userId,
+        parentTaskId: parentTaskId,
+      );
+
+      // Decrypt and map to domain entities using existing helper
+      final domainTasks = await _decryptTasks(dbTasks);
+
+      _logger.info(
+        '[TaskRepository] Retrieved ${domainTasks.length} subtasks for parent: $parentTaskId',
+      );
+      return domainTasks;
     } catch (e, stack) {
       _logger.error(
         'Failed to get subtasks for: $parentTaskId',
