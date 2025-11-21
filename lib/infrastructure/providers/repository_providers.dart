@@ -12,6 +12,7 @@ import 'package:duru_notes/core/security/security_initialization.dart';
 import 'package:duru_notes/data/remote/secure_api_wrapper.dart';
 import 'package:duru_notes/domain/repositories/i_folder_repository.dart';
 import 'package:duru_notes/domain/repositories/i_inbox_repository.dart';
+import 'package:duru_notes/domain/repositories/i_saved_search_repository.dart';
 import 'package:duru_notes/domain/repositories/i_search_repository.dart';
 import 'package:duru_notes/domain/repositories/i_tag_repository.dart';
 import 'package:duru_notes/domain/repositories/i_template_repository.dart';
@@ -21,6 +22,7 @@ import 'package:duru_notes/features/folders/providers/folders_repository_provide
 import 'package:duru_notes/infrastructure/repositories/inbox_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/quick_capture_repository.dart';
+import 'package:duru_notes/infrastructure/repositories/saved_search_core_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/search_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/tag_repository.dart';
 import 'package:duru_notes/infrastructure/repositories/template_core_repository.dart';
@@ -151,4 +153,19 @@ final quickCaptureRepositoryProvider = Provider((ref) {
   final crypto = ref.watch(cryptoBoxProvider);
 
   return QuickCaptureRepository(db: db, crypto: crypto);
+});
+
+/// Provider for saved search repository
+/// Phase 2.1: Organization Features - Saved Searches
+final savedSearchRepositoryProvider = Provider<ISavedSearchRepository>((ref) {
+  if (!SecurityInitialization.isInitialized) {
+    throw StateError(
+      '[savedSearchRepositoryProvider] Security services must be initialized before creating repositories.',
+    );
+  }
+
+  final db = ref.watch(appDbProvider);
+  final client = ref.watch(supabaseClientProvider);
+
+  return SavedSearchCoreRepository(db: db, client: client);
 });
