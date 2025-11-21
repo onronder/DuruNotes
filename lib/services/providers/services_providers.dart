@@ -12,7 +12,8 @@ import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
     show
         notesCoreRepositoryProvider,
         inboxRepositoryProvider,
-        quickCaptureRepositoryProvider;
+        quickCaptureRepositoryProvider,
+        savedSearchRepositoryProvider;
 import 'package:duru_notes/features/templates/providers/templates_providers.dart'
     show templateCoreRepositoryProvider;
 // Phase 4: Migrated to organized provider imports
@@ -40,6 +41,8 @@ import 'package:duru_notes/services/undo_redo_service.dart';
 import 'package:duru_notes/services/unified_export_service.dart';
 import 'package:duru_notes/services/purge_scheduler_service.dart';
 import 'package:duru_notes/services/trash_service.dart';
+import 'package:duru_notes/services/search/saved_search_service.dart';
+import 'package:duru_notes/services/search/saved_search_query_parser.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart' show LoggerFactory;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -351,4 +354,27 @@ final trashServiceProvider = Provider<TrashService>((ref) {
 final purgeSchedulerServiceProvider = Provider<PurgeSchedulerService>((ref) {
   final trashService = ref.watch(trashServiceProvider);
   return PurgeSchedulerService(ref, trashService: trashService);
+});
+
+/// SavedSearchQueryParser provider
+/// Phase 2.1: Organization Features - Query Parsing
+final savedSearchQueryParserProvider = Provider<SavedSearchQueryParser>((ref) {
+  final logger = ref.watch(loggerProvider);
+  return SavedSearchQueryParser(logger: logger);
+});
+
+/// SavedSearchService provider
+/// Phase 2.1: Organization Features - Service Layer
+final savedSearchServiceProvider = Provider<SavedSearchService>((ref) {
+  final savedSearchRepo = ref.watch(savedSearchRepositoryProvider);
+  final notesRepo = ref.watch(notesCoreRepositoryProvider);
+  final queryParser = ref.watch(savedSearchQueryParserProvider);
+  final logger = ref.watch(loggerProvider);
+
+  return SavedSearchService(
+    savedSearchRepository: savedSearchRepo,
+    notesRepository: notesRepo,
+    queryParser: queryParser,
+    logger: logger,
+  );
 });
