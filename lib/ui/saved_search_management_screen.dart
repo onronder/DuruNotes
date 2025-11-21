@@ -4,7 +4,7 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
 import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
-import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
+import 'package:duru_notes/services/providers/services_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,8 +36,8 @@ class _SavedSearchManagementScreenState
   Future<void> _loadSavedSearches() async {
     setState(() => _isLoading = true);
     try {
-      final repo = ref.read(searchRepositoryProvider);
-      final searches = await repo.getSavedSearches();
+      final service = ref.read(savedSearchServiceProvider);
+      final searches = await service.getAllSavedSearches();
       if (mounted) {
         setState(() {
           _savedSearches = searches;
@@ -77,17 +77,12 @@ class _SavedSearchManagementScreenState
 
     if (result != null) {
       try {
-        final repo = ref.read(searchRepositoryProvider);
-        final savedSearch = domain.SavedSearch(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+        final service = ref.read(savedSearchServiceProvider);
+        final savedSearch = await service.createSavedSearch(
           name: result['name'] as String,
           query: result['query'] as String,
           isPinned: false,
-          createdAt: DateTime.now(),
-          usageCount: 0,
-          displayOrder: 0,
         );
-        await repo.createOrUpdateSavedSearch(savedSearch);
         await _loadSavedSearches();
         if (mounted) {
           HapticFeedback.mediumImpact();
@@ -133,12 +128,12 @@ class _SavedSearchManagementScreenState
 
     if (result != null) {
       try {
-        final repo = ref.read(searchRepositoryProvider);
+        final service = ref.read(savedSearchServiceProvider);
         final updatedSearch = search.copyWith(
           name: result['name'] as String,
           query: result['query'] as String,
         );
-        await repo.createOrUpdateSavedSearch(updatedSearch);
+        await service.updateSavedSearch(updatedSearch);
         await _loadSavedSearches();
         if (mounted) {
           HapticFeedback.mediumImpact();
@@ -197,8 +192,8 @@ class _SavedSearchManagementScreenState
 
     if (confirmed ?? false) {
       try {
-        final repo = ref.read(searchRepositoryProvider);
-        await repo.deleteSavedSearch(search.id);
+        final service = ref.read(savedSearchServiceProvider);
+        await service.deleteSavedSearch(search.id);
         await _loadSavedSearches();
         if (mounted) {
           HapticFeedback.mediumImpact();
@@ -235,8 +230,8 @@ class _SavedSearchManagementScreenState
 
   Future<void> _togglePin(domain.SavedSearch search) async {
     try {
-      final repo = ref.read(searchRepositoryProvider);
-      await repo.toggleSavedSearchPin(search.id);
+      final service = ref.read(savedSearchServiceProvider);
+      await service.togglePin(search.id);
       await _loadSavedSearches();
       HapticFeedback.lightImpact();
       _logger.info(
@@ -270,8 +265,8 @@ class _SavedSearchManagementScreenState
 
   Future<void> _saveReorder() async {
     try {
-      final repo = ref.read(searchRepositoryProvider);
-      await repo.reorderSavedSearches(_savedSearches.map((s) => s.id).toList());
+      final service = ref.read(savedSearchServiceProvider);
+      await service.reorderSavedSearches(_savedSearches.map((s) => s.id).toList());
       setState(() => _isReordering = false);
       HapticFeedback.mediumImpact();
       if (mounted) {
@@ -460,11 +455,8 @@ class _SavedSearchManagementScreenState
         ],
       ),
       onTap: () async {
-        // Track usage
-        final repo = ref.read(searchRepositoryProvider);
-        await repo.trackSavedSearchUsage(search.id);
-
-        // Execute search
+        // Return search to caller for execution
+        // Usage tracking will happen when executeSavedSearch is called
         if (mounted) {
           Navigator.pop(context, search);
         }
