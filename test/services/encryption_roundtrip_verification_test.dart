@@ -320,7 +320,7 @@ void main() {
         // ASSERT
         expect(result.success, isFalse);
         expect(result.failureReason, contains('Encryption verification failed'));
-        expect(result.failureReason, contains('title'));
+        expect(result.failureReason, contains('Title'));
         expect(result.isRetryable, isTrue);
       });
 
@@ -377,7 +377,7 @@ void main() {
         // ASSERT
         expect(result.success, isFalse);
         expect(result.failureReason, contains('Encryption verification failed'));
-        expect(result.failureReason, contains('body'));
+        expect(result.failureReason, contains('Body'));
         expect(result.isRetryable, isTrue);
       });
 
@@ -452,7 +452,7 @@ void main() {
         // ASSERT
         expect(result.success, isFalse);
         expect(result.failureReason, contains('Encryption verification failed'));
-        expect(result.failureReason, contains('location'));
+        expect(result.failureReason, contains('Location'));
         expect(result.isRetryable, isTrue);
       });
 

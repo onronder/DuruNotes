@@ -21,11 +21,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('UserConfirmations', () {
     const testUserId = 'user_123';
-    const validToken = 'ANONYMIZE_ACCOUNT_user_123';
+    const validToken = 'DELETE MY ACCOUNT';
 
     test('generateConfirmationToken creates correct format', () {
       final token = UserConfirmations.generateConfirmationToken(testUserId);
-      expect(token, equals('ANONYMIZE_ACCOUNT_$testUserId'));
+      expect(token, equals('DELETE MY ACCOUNT'));
     });
 
     test('validateToken returns true for correct token', () {
@@ -33,6 +33,7 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: true,
         finalConfirmationToken: validToken,
+        acknowledgesRisks: true,
       );
 
       expect(confirmations.validateToken(testUserId), isTrue);
@@ -43,19 +44,21 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: true,
         finalConfirmationToken: 'WRONG_TOKEN',
+        acknowledgesRisks: true,
       );
 
       expect(confirmations.validateToken(testUserId), isFalse);
     });
 
-    test('validateToken returns false for different userId', () {
+    test('validateToken is case-insensitive', () {
       final confirmations = UserConfirmations(
         dataBackupComplete: true,
         understandsIrreversibility: true,
-        finalConfirmationToken: validToken,
+        finalConfirmationToken: 'delete my account',  // lowercase
+        acknowledgesRisks: true,
       );
 
-      expect(confirmations.validateToken('different_user'), isFalse);
+      expect(confirmations.validateToken(testUserId), isTrue);
     });
 
     test('allConfirmed returns true when all confirmations provided', () {
@@ -63,6 +66,7 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: true,
         finalConfirmationToken: validToken,
+        acknowledgesRisks: true,
       );
 
       expect(confirmations.allConfirmed, isTrue);
@@ -73,6 +77,7 @@ void main() {
         dataBackupComplete: false,
         understandsIrreversibility: true,
         finalConfirmationToken: validToken,
+        acknowledgesRisks: true,
       );
 
       expect(confirmations.allConfirmed, isFalse);
@@ -83,6 +88,7 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: false,
         finalConfirmationToken: validToken,
+        acknowledgesRisks: true,
       );
 
       expect(confirmations.allConfirmed, isFalse);
@@ -93,6 +99,7 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: true,
         finalConfirmationToken: '',
+        acknowledgesRisks: true,
       );
 
       expect(confirmations.allConfirmed, isFalse);
@@ -103,6 +110,7 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: true,
         finalConfirmationToken: validToken,
+        acknowledgesRisks: true,
       );
 
       final json = confirmations.toJson();
@@ -117,6 +125,7 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: true,
         finalConfirmationToken: '',
+        acknowledgesRisks: true,
       );
 
       final json = confirmations.toJson();

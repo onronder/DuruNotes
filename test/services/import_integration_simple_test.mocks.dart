@@ -1480,6 +1480,7 @@ class MockSupabaseNoteApi extends _i1.Mock implements _i8.SupabaseNoteApi {
     required _i7.Uint8List? propsEnc,
     required bool? deleted,
     DateTime? createdAt,
+    DateTime? updatedAt,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#upsertEncryptedNote, [], {
@@ -1488,6 +1489,7 @@ class MockSupabaseNoteApi extends _i1.Mock implements _i8.SupabaseNoteApi {
               #propsEnc: propsEnc,
               #deleted: deleted,
               #createdAt: createdAt,
+              #updatedAt: updatedAt,
             }),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
