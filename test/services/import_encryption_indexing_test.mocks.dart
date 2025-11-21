@@ -365,6 +365,15 @@ class MockNotesCoreRepository extends _i1.Mock
             ),
           )
           as _i6.Future<List<String>>);
+
+  @override
+  _i6.Future<int> anonymizeAllNotesForUser(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#anonymizeAllNotesForUser, [userId]),
+            returnValue: _i6.Future<int>.value(0),
+            returnValueForMissingStub: _i6.Future<int>.value(0),
+          )
+          as _i6.Future<int>);
 }
 
 /// A class which mocks [NoteIndexer].

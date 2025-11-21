@@ -37,6 +37,7 @@ import 'package:duru_notes/services/export_service.dart';
 import 'package:duru_notes/ui/components/ios_style_toggle.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:duru_notes/ui/help_screen.dart';
+import 'package:duru_notes/ui/dialogs/gdpr_anonymization_dialog.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -945,6 +946,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   minLeadingWidth: 0,
                 ),
                 const Divider(height: 1),
+                // GDPR Anonymization Option
+                ListTile(
+                  leading: Icon(
+                    Icons.privacy_tip_outlined,
+                    color: Theme.of(context).colorScheme.tertiary,
+                  ),
+                  title: Text(
+                    'GDPR Anonymization',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.tertiary,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Permanently anonymize your account data',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  onTap: () => _showGDPRAnonymizationDialog(context, l10n),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: isCompact ? 6 : 10,
+                  ),
+                  visualDensity: isCompact
+                      ? const VisualDensity(vertical: -2)
+                      : null,
+                  minLeadingWidth: 0,
+                ),
+                const Divider(height: 1),
               ],
               ListTile(
                 leading: Icon(
@@ -1608,6 +1642,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           );
         }
+      }
+    }
+  }
+
+  /// Show GDPR anonymization dialog
+  Future<void> _showGDPRAnonymizationDialog(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be signed in to anonymize your account'),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final result = await showDialog<AnonymizationDialogResult>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => GDPRAnonymizationDialog(userId: user.id),
+      );
+
+      if (mounted && result != null && result.confirmed) {
+        if (result.report != null) {
+          _logger.info(
+            'GDPR anonymization completed successfully',
+            data: {
+              'anonymizationId': result.report!.anonymizationId,
+              'success': result.report!.success,
+            },
+          );
+
+          // Immediately sign out the user
+          if (mounted) {
+            await Supabase.instance.client.auth.signOut();
+          }
+        }
+      }
+    } catch (e, stack) {
+      _logger.error(
+        'GDPR anonymization dialog failed',
+        error: e,
+        stackTrace: stack,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Anonymization failed: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     }
   }

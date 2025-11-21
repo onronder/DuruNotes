@@ -128,6 +128,9 @@ class _RecordingFolderRepository implements IFolderRepository {
   Future<void> permanentlyDeleteFolder(String folderId) async {}
   @override
   String? getCurrentUserId() => 'user-1';
+
+  @override
+  Future<int> anonymizeAllFoldersForUser(String userId) async => 0;
 }
 
 class _AllNotesHarness {

@@ -525,7 +525,17 @@ class FolderSyncCoordinator {
       return false;
     }
 
-    final remoteUpdatedAt = DateTime.parse(remote['updated_at'] as String);
+    // NULL SAFETY FIX: Check if updated_at exists before casting
+    final updatedAtStr = remote['updated_at'] as String?;
+    if (updatedAtStr == null) {
+      logger.warning(
+        'Remote folder missing updated_at field',
+        data: {'folderId': folder.id, 'remote': remote},
+      );
+      return false;
+    }
+
+    final remoteUpdatedAt = DateTime.parse(updatedAtStr);
     return remoteUpdatedAt.isAfter(folder.updatedAt);
   }
 
@@ -533,7 +543,17 @@ class FolderSyncCoordinator {
     LocalFolder local,
     Map<String, dynamic> remote,
   ) async {
-    final remoteUpdatedAt = DateTime.parse(remote['updated_at'] as String);
+    // NULL SAFETY FIX: Check if updated_at exists before casting
+    final updatedAtStr = remote['updated_at'] as String?;
+    if (updatedAtStr == null) {
+      logger.warning(
+        'Remote folder payload missing updated_at field',
+        data: {'folderId': local.id, 'remote': remote},
+      );
+      return false;
+    }
+
+    final remoteUpdatedAt = DateTime.parse(updatedAtStr);
     return local.updatedAt.isAfter(
       remoteUpdatedAt.subtract(const Duration(seconds: 1)),
     );
@@ -711,10 +731,22 @@ class FolderSyncCoordinator {
   }
 
   Future<void> _createFolderFromRemote(Map<String, dynamic> remote) async {
+    // NULL SAFETY FIX: Validate required fields before processing
+    final id = remote['id'] as String?;
+    final name = remote['name'] as String?;
+
+    if (id == null || name == null) {
+      logger.error(
+        'Cannot create folder from remote: missing required fields',
+        data: {'remote': remote, 'missingId': id == null, 'missingName': name == null},
+      );
+      throw ArgumentError('Remote folder data missing required fields (id or name)');
+    }
+
     // Use createOrUpdateFolder which accepts id parameter for sync
     await repository.createOrUpdateFolder(
-      id: remote['id'] as String,
-      name: remote['name'] as String,
+      id: id,
+      name: name,
       parentId: remote['parent_id'] as String?,
       color: remote['color'] as String?,
       icon: remote['icon'] as String?,
@@ -726,10 +758,21 @@ class FolderSyncCoordinator {
     LocalFolder local,
     Map<String, dynamic> remote,
   ) async {
+    // NULL SAFETY FIX: Validate required name field before processing
+    final name = remote['name'] as String?;
+
+    if (name == null) {
+      logger.error(
+        'Cannot update folder from remote: missing required name field',
+        data: {'folderId': local.id, 'remote': remote},
+      );
+      throw ArgumentError('Remote folder data missing required name field');
+    }
+
     final updatedFolder = LocalFolder(
       id: local.id,
       userId: local.userId,
-      name: remote['name'] as String,
+      name: name,
       parentId: remote['parent_id'] as String?,
       path: local.path, // Keep existing path
       sortOrder: local.sortOrder,

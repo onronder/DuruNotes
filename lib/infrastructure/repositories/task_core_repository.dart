@@ -1866,4 +1866,52 @@ class TaskCoreRepository implements ITaskRepository {
         return TaskPriority.urgent;
     }
   }
+
+  @override
+  Future<int> anonymizeAllTasksForUser(String userId) async {
+    try {
+      _logger.info(
+        'GDPR: Starting task anonymization for user',
+        data: {'userId': userId},
+      );
+
+      // Call Supabase RPC function for atomic anonymization
+      // This executes a DoD 5220.22-M compliant overwrite of all encrypted data
+      final response = await client.rpc<List<Map<String, dynamic>>>(
+        'anonymize_user_tasks',
+        params: {'target_user_id': userId},
+      );
+
+      // Extract count from response
+      final count = (response as List).isNotEmpty
+          ? ((response.first as Map<String, dynamic>)['count'] as int? ?? 0)
+          : 0;
+
+      _logger.info(
+        'GDPR: Task anonymization complete',
+        data: {'userId': userId, 'tasksAnonymized': count},
+      );
+
+      // Invalidate local cache - tasks are now tombstoned
+      await (db.delete(db.noteTasks)
+        ..where((tbl) => tbl.userId.equals(userId))
+      ).go();
+
+      return count;
+    } catch (error, stackTrace) {
+      _logger.error(
+        'GDPR: Task anonymization failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      _captureRepositoryException(
+        method: 'anonymizeAllTasksForUser',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      rethrow;
+    }
+  }
 }

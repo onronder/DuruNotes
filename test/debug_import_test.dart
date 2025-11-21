@@ -230,6 +230,9 @@ class _FakeNotesRepository implements INotesRepository {
 
   @override
   Future<List<note_domain.Note>> getDeletedNotes() async => [];
+
+  @override
+  Future<int> anonymizeAllNotesForUser(String userId) async => 0;
 }
 
 class _FakeFolderRepository implements IFolderRepository {
@@ -339,6 +342,9 @@ class _FakeFolderRepository implements IFolderRepository {
       throw UnsupportedError('permanentlyDeleteFolder not supported');
   @override
   String? getCurrentUserId() => 'user-test';
+
+  @override
+  Future<int> anonymizeAllFoldersForUser(String userId) async => 0;
 }
 
 void main() {

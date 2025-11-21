@@ -319,6 +319,9 @@ class _InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Future<void> permanentlyDeleteTask(String id) async {}
+
+  @override
+  Future<int> anonymizeAllTasksForUser(String userId) async => 0;
 }
 
 domain.Task _makeTask(

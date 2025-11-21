@@ -79,6 +79,20 @@ abstract class INotesRepository {
   /// List all notes
   Future<List<Note>> list({int? limit});
 
+  /// GDPR Article 17: Anonymize all notes for a user by overwriting encrypted data
+  ///
+  /// This method irreversibly overwrites all encrypted content with random data,
+  /// making the original content permanently inaccessible. This is part of the
+  /// GDPR Right to Erasure implementation.
+  ///
+  /// **Security**: Uses DoD 5220.22-M 3-pass overwrite pattern
+  /// - Pass 1: Random data
+  /// - Pass 2: Complement of pass 1
+  /// - Pass 3: Random data again
+  ///
+  /// Returns the count of notes anonymized.
+  Future<int> anonymizeAllNotesForUser(String userId);
+
   /// Get count of notes in a folder
   Future<int> getNotesCountInFolder(String folderId);
 

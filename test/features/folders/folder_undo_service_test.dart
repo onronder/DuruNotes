@@ -108,6 +108,9 @@ class _RecordingFolderRepository implements IFolderRepository {
 
   @override
   Future<void> permanentlyDeleteFolder(String folderId) async {}
+
+  @override
+  Future<int> anonymizeAllFoldersForUser(String userId) async => 0;
 }
 
 domain.Folder _buildFolder({

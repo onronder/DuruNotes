@@ -59,11 +59,10 @@ class DuruNoteCard extends StatelessWidget {
     final theme = Theme.of(context);
     final title = note.title;
     final isPinned = note.isPinned;
-    final updatedAt = note.updatedAt;
 
     return A11yHelper.noteCard(
       title: title,
-      date: _formatDate(updatedAt),
+      date: _formatDate(),
       isPinned: isPinned,
       isSelected: isSelected,
       onTap: onTap,
@@ -120,7 +119,7 @@ class DuruNoteCard extends StatelessWidget {
                   ),
                   ExcludeSemantics(
                     child: Text(
-                      _formatDate(updatedAt),
+                      _formatDate(),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -143,12 +142,11 @@ class DuruNoteCard extends StatelessWidget {
     final title = note.title;
     final content = note.body;
     final isPinned = note.isPinned;
-    final updatedAt = note.updatedAt;
 
     return A11yHelper.noteCard(
       title: title,
       content: content,
-      date: _formatDate(updatedAt),
+      date: _formatDate(),
       isPinned: isPinned,
       hasAttachments: _hasAttachments(),
       hasTasks: _hasTaskIndicator(),
@@ -272,7 +270,7 @@ class DuruNoteCard extends StatelessWidget {
                           child: Row(
                             children: [
                               Text(
-                                _formatDate(updatedAt),
+                                _formatDate(),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant
                                       .withValues(alpha: 0.7),
@@ -505,18 +503,31 @@ class DuruNoteCard extends StatelessWidget {
     );
   }
 
-  String _formatDate(DateTime date) {
+  /// Format date: Show createdAt unless note was actually edited
+  /// If updatedAt is different from createdAt, show updatedAt (note was edited)
+  /// Otherwise show createdAt (note was never edited)
+  String _formatDate() {
+    final createdAt = note.createdAt;
+    final updatedAt = note.updatedAt;
+
+    // Check if note was actually edited (timestamps differ by more than 1 second)
+    final timeDiff = updatedAt.difference(createdAt).abs();
+    final wasEdited = timeDiff.inSeconds > 1;
+
+    // Show updatedAt only if note was actually edited, otherwise show createdAt
+    final displayDate = wasEdited ? updatedAt : createdAt;
+
     final now = DateTime.now();
-    final diff = now.difference(date);
+    final diff = now.difference(displayDate);
 
     if (diff.inDays == 0) {
-      return DateFormat.jm().format(date);
+      return DateFormat.jm().format(displayDate);
     } else if (diff.inDays == 1) {
       return 'Yesterday';
     } else if (diff.inDays < 7) {
-      return DateFormat.E().format(date);
+      return DateFormat.E().format(displayDate);
     } else {
-      return DateFormat.MMMd().format(date);
+      return DateFormat.MMMd().format(displayDate);
     }
   }
 

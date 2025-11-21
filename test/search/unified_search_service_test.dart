@@ -395,6 +395,9 @@ class InMemoryNotesRepository implements INotesRepository {
 
   @override
   Future<List<Note>> getDeletedNotes() async => [];
+
+  @override
+  Future<int> anonymizeAllNotesForUser(String userId) async => 0;
 }
 
 class InMemoryTaskRepository implements ITaskRepository {
@@ -526,6 +529,9 @@ class InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Future<void> updateTaskPositions(Map<String, int> positions) async {}
+
+  @override
+  Future<int> anonymizeAllTasksForUser(String userId) async => 0;
 }
 
 class InMemoryFolderRepository implements IFolderRepository {
@@ -652,6 +658,9 @@ class InMemoryFolderRepository implements IFolderRepository {
 
   @override
   Future<void> resolveFolderConflicts() => throw UnimplementedError();
+
+  @override
+  Future<int> anonymizeAllFoldersForUser(String userId) async => 0;
 }
 
 class InMemoryTemplateRepository implements ITemplateRepository {

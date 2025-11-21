@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:duru_notes/core/crypto/key_destruction_report.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 import 'package:duru_notes/infrastructure/repositories/notes_core_repository.dart';
@@ -440,5 +441,359 @@ class AccountKeyService {
     }
 
     return queued;
+  }
+
+  /// GDPR Anonymization: Securely destroy Account Master Key (AMK)
+  ///
+  /// ⚠️ **WARNING: This is IRREVERSIBLE. All AMK-encrypted data becomes permanently inaccessible.**
+  ///
+  /// This method is **ONLY** for GDPR Article 17 anonymization. For normal sign-out,
+  /// use [clearLocalAmk] instead.
+  ///
+  /// **What this destroys:**
+  /// 1. Local Account Master Key (`amk:{userId}`) from secure storage
+  /// 2. Local AMK metadata/salt (`amk_meta:{userId}`) from secure storage
+  /// 3. Remote wrapped AMK from `user_keys` database table
+  ///
+  /// **What this does NOT destroy:**
+  /// - Legacy device master key - use [KeyManager.securelyDestroyAllKeys]
+  /// - Cross-device keys - use [EncryptionSyncService.securelyDestroyCrossDeviceKeys]
+  ///
+  /// **Safety measures:**
+  /// - Requires explicit confirmation token (prevents accidental invocation)
+  /// - Verifies keys exist before destruction (optional)
+  /// - Overwrites memory with zeros before deletion (DoD 5220.22-M inspired)
+  /// - Verifies deletion succeeded (local and remote)
+  /// - Comprehensive audit logging
+  /// - Returns detailed destruction report
+  ///
+  /// **GDPR Compliance:**
+  /// - Article 17 (Right to Erasure): Provides proof of deletion
+  /// - Recital 26 (True Anonymization): Ensures irreversibility
+  /// - ISO 27001:2022: Secure data disposal with audit trail
+  ///
+  /// **Usage:**
+  /// ```dart
+  /// // Generate confirmation token (must match user ID)
+  /// final token = 'DESTROY_AMK_$userId';
+  ///
+  /// // Destroy AMK
+  /// final report = await accountKeyService.securelyDestroyAccountMasterKey(
+  ///   userId: userId,
+  ///   confirmationToken: token,
+  ///   verifyBeforeDestroy: true,
+  /// );
+  ///
+  /// // Check result
+  /// if (report.localAmkDestroyed && report.remoteAmkDestroyed) {
+  ///   print('✅ AMK destroyed');
+  /// } else {
+  ///   print('❌ Destruction failed: ${report.errors}');
+  /// }
+  /// ```
+  ///
+  /// **Parameters:**
+  /// - [userId]: User whose AMK should be destroyed
+  /// - [confirmationToken]: Must be exactly `'DESTROY_AMK_$userId'`
+  /// - [verifyBeforeDestroy]: If true, checks keys exist before destruction (default: true)
+  ///
+  /// **Returns:**
+  /// [KeyDestructionReport] with:
+  /// - Pre-destruction state (which keys existed)
+  /// - Destruction results (which keys were destroyed)
+  /// - Error list (empty if successful)
+  /// - Partial success flag (localAmkDestroyed && remoteAmkDestroyed)
+  ///
+  /// **Throws:**
+  /// - [SecurityException] if confirmation token is invalid
+  /// - [SecurityException] if keys still exist after deletion attempt
+  ///
+  /// **Point of No Return:**
+  /// After this method completes successfully, AMK-encrypted data is PERMANENTLY
+  /// INACCESSIBLE. There is NO way to recover it. Make sure user has confirmed
+  /// their intent before calling this method.
+  ///
+  /// See also:
+  /// - [KeyManager.securelyDestroyAllKeys] for legacy key destruction
+  /// - [EncryptionSyncService.securelyDestroyCrossDeviceKeys] for cross-device key destruction
+  Future<KeyDestructionReport> securelyDestroyAccountMasterKey({
+    required String userId,
+    required String confirmationToken,
+    bool verifyBeforeDestroy = true,
+  }) async {
+    // ========================================================================
+    // Step 1: Validate Confirmation Token
+    // ========================================================================
+    //
+    // Prevents accidental invocation. Token must match user ID exactly.
+    final expectedToken = 'DESTROY_AMK_$userId';
+    if (confirmationToken != expectedToken) {
+      _logger.error(
+        'Invalid confirmation token for AMK destruction',
+        data: {
+          'userId': userId,
+          'expected': expectedToken,
+          'received': confirmationToken,
+        },
+      );
+      throw SecurityException(
+        'Invalid confirmation token for AMK destruction. '
+        'Expected: $expectedToken',
+      );
+    }
+
+    final report = KeyDestructionReport(userId: userId);
+
+    _logger.warning(
+      'GDPR Anonymization: Starting Account Master Key destruction',
+      data: {
+        'userId': userId,
+        'timestamp': DateTime.now().toIso8601String(),
+        'verifyBeforeDestroy': verifyBeforeDestroy,
+      },
+    );
+
+    try {
+      final localAmkKey = '$_amkKeyPrefix$userId';
+      final localMetaKey = '$_amkMetaPrefix$userId';
+
+      // ======================================================================
+      // Step 2: Verify Keys Exist (Optional but Recommended)
+      // ======================================================================
+      //
+      // Checks if keys exist before attempting destruction.
+      // Helps detect unexpected state (keys already destroyed, never existed, etc.)
+      if (verifyBeforeDestroy) {
+        // Check local AMK
+        final localAmk = await _storage.read(key: localAmkKey);
+        report.amkExistedBeforeDestruction = (localAmk != null);
+
+        // Check remote AMK
+        try {
+          final remoteData = await _client
+              .from('user_keys')
+              .select('wrapped_key')
+              .eq('user_id', userId)
+              .maybeSingle();
+          report.remoteAmkExistedBeforeDestruction = (remoteData != null);
+
+          _logger.debug(
+            'Pre-destruction verification complete',
+            data: {
+              'userId': userId,
+              'localAmkExists': report.amkExistedBeforeDestruction,
+              'remoteAmkExists': report.remoteAmkExistedBeforeDestruction,
+            },
+          );
+        } catch (error, stackTrace) {
+          // Remote verification failed - log but continue with local destruction
+          final errorMsg = 'Failed to verify remote AMK existence: $error';
+          report.errors.add(errorMsg);
+          _logger.warning(
+            errorMsg,
+            data: {'userId': userId, 'error': error.toString()},
+          );
+          _captureAccountKeyException(
+            operation: 'securelyDestroyAmk.verifyRemote',
+            error: error,
+            stackTrace: stackTrace,
+            data: {'userId': userId},
+            level: SentryLevel.warning,
+          );
+        }
+
+        if (!report.amkExistedBeforeDestruction && !report.remoteAmkExistedBeforeDestruction) {
+          _logger.info(
+            'No AMK found (local or remote) before destruction',
+            data: {'userId': userId},
+          );
+        }
+      }
+
+      // ======================================================================
+      // Step 3: Overwrite Local AMK Memory (Defense in Depth)
+      // ======================================================================
+      //
+      // DoD 5220.22-M inspired: Overwrite before deletion to prevent forensic recovery.
+      final existingAmk = await _storage.read(key: localAmkKey);
+      if (existingAmk != null) {
+        // Overwrite with zeros (Base64-encoded zeros for 32-byte key)
+        await _storage.write(
+          key: localAmkKey,
+          value: base64Encode(List<int>.filled(32, 0)),
+        );
+
+        _logger.debug(
+          'Overwritten local AMK with zeros',
+          data: {'userId': userId},
+        );
+      }
+
+      // ======================================================================
+      // Step 4: Delete Local AMK from Secure Storage
+      // ======================================================================
+      //
+      // Delete from iOS Keychain or Android EncryptedSharedPreferences.
+      await _storage.delete(key: localAmkKey);
+      await _storage.delete(key: localMetaKey);
+
+      _logger.debug(
+        'Deleted local AMK and metadata from secure storage',
+        data: {'userId': userId, 'localAmkKey': localAmkKey, 'localMetaKey': localMetaKey},
+      );
+
+      // ======================================================================
+      // Step 5: Verify Local Deletion Succeeded
+      // ======================================================================
+      //
+      // Confirm keys no longer exist in local secure storage.
+      final stillExistsLocal = await _storage.read(key: localAmkKey);
+      final stillExistsMeta = await _storage.read(key: localMetaKey);
+
+      if (stillExistsLocal != null || stillExistsMeta != null) {
+        final error = 'Local AMK still exists after deletion attempt';
+        report.errors.add(error);
+        _logger.error(
+          error,
+          data: {
+            'userId': userId,
+            'amkExists': stillExistsLocal != null,
+            'metaExists': stillExistsMeta != null,
+          },
+        );
+        throw SecurityException(error);
+      }
+
+      report.localAmkDestroyed = true;
+
+      _logger.debug(
+        'Verified local AMK deletion',
+        data: {'userId': userId},
+      );
+
+      // ======================================================================
+      // Step 6: Delete Remote Wrapped AMK from Database
+      // ======================================================================
+      //
+      // Delete from user_keys table in Supabase.
+      try {
+        await _client
+            .from('user_keys')
+            .delete()
+            .eq('user_id', userId);
+
+        _logger.debug(
+          'Deleted remote wrapped AMK from user_keys table',
+          data: {'userId': userId},
+        );
+
+        // ====================================================================
+        // Step 7: Verify Remote Deletion Succeeded
+        // ====================================================================
+        //
+        // Confirm key no longer exists in remote database.
+        final stillExistsRemote = await _client
+            .from('user_keys')
+            .select('wrapped_key')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (stillExistsRemote != null) {
+          final error = 'Remote AMK still exists after deletion attempt';
+          report.errors.add(error);
+          _logger.error(
+            error,
+            data: {'userId': userId},
+          );
+          throw SecurityException(error);
+        }
+
+        report.remoteAmkDestroyed = true;
+
+        _logger.debug(
+          'Verified remote AMK deletion',
+          data: {'userId': userId},
+        );
+      } catch (error, stackTrace) {
+        // Remote deletion/verification failed
+        final errorMsg = 'Failed to destroy remote AMK: $error';
+        report.errors.add(errorMsg);
+
+        _logger.error(
+          'Remote AMK destruction failed',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'userId': userId},
+        );
+
+        _captureAccountKeyException(
+          operation: 'securelyDestroyAmk.destroyRemote',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'userId': userId},
+        );
+
+        // Re-throw security exceptions (verification failures)
+        if (error is SecurityException) {
+          rethrow;
+        }
+
+        // For other errors (network, database), continue with partial success
+        _logger.warning(
+          'Continuing with partial destruction (local succeeded, remote failed)',
+          data: {'userId': userId, 'report': report.toJson()},
+        );
+      }
+
+      // ======================================================================
+      // Step 8: Audit Log (CRITICAL for GDPR Compliance)
+      // ======================================================================
+      //
+      // Log destruction event with full details for compliance audit trail.
+      _logger.error(
+        'GDPR Anonymization: Account Master Key destruction completed',
+        data: {
+          'userId': userId,
+          'timestamp': DateTime.now().toIso8601String(),
+          'report': report.toJson(),
+          'summary': report.toSummary(),
+          'level': 'CRITICAL',
+        },
+      );
+
+      return report;
+    } catch (error, stackTrace) {
+      // ======================================================================
+      // Error Handling
+      // ======================================================================
+      //
+      // Log error and add to report, but don't throw unless it's a security exception.
+      // This allows destruction to continue even if one location fails.
+      final errorMessage = 'Failed to destroy Account Master Key: $error';
+      if (!report.errors.contains(errorMessage)) {
+        report.errors.add(errorMessage);
+      }
+
+      _logger.error(
+        'Account Master Key destruction failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId, 'report': report.toJson()},
+      );
+
+      _captureAccountKeyException(
+        operation: 'securelyDestroyAmk',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId, 'report': report.toJson()},
+      );
+
+      // Re-throw security exceptions (invalid token, verification failures)
+      if (error is SecurityException) {
+        rethrow;
+      }
+
+      return report;
+    }
   }
 }

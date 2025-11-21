@@ -167,6 +167,9 @@ class _FakeFolderRepository implements IFolderRepository {
 
   @override
   Future<void> permanentlyDeleteFolder(String folderId) async {}
+
+  @override
+  Future<int> anonymizeAllFoldersForUser(String userId) async => 0;
 }
 
 class _TestNotesCoreRepository extends Fake implements NotesCoreRepository {

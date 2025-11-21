@@ -333,6 +333,14 @@ class MockINotesRepository extends _i1.Mock implements _i4.INotesRepository {
           as _i3.Future<List<_i5.Note>>);
 
   @override
+  _i3.Future<int> anonymizeAllNotesForUser(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#anonymizeAllNotesForUser, [userId]),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
   _i3.Future<int> getNotesCountInFolder(String? folderId) =>
       (super.noSuchMethod(
             Invocation.method(#getNotesCountInFolder, [folderId]),

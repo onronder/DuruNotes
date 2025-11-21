@@ -189,6 +189,9 @@ class _FakeTaskRepository implements ITaskRepository {
 
   @override
   Future<void> permanentlyDeleteTask(String id) async {}
+
+  @override
+  Future<int> anonymizeAllTasksForUser(String userId) async => 0;
 }
 
 /// Mock notes repository (minimal implementation)

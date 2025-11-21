@@ -694,6 +694,7 @@ class SyncRecoveryManager {
           propsEnc: propsBytes,
           deleted: localNote.deleted,
           createdAt: localNote.createdAt,
+          updatedAt: localNote.updatedAt, // TIMESTAMP FIX: Preserve timestamp in sync recovery
         );
         return true;
       }
@@ -809,6 +810,7 @@ class SyncRecoveryManager {
             propsEnc: propsBytes,
             deleted: localNote.deleted,
             createdAt: localNote.createdAt,
+            updatedAt: localNote.updatedAt, // TIMESTAMP FIX: Preserve timestamp in conflict recovery
           );
         } else {
           // Remote is newer, pull to local

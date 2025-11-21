@@ -1773,4 +1773,13 @@ class MockIFolderRepository extends _i1.Mock implements _i8.IFolderRepository {
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+
+  @override
+  _i5.Future<int> anonymizeAllFoldersForUser(String? userId) =>
+      (super.noSuchMethod(
+            Invocation.method(#anonymizeAllFoldersForUser, [userId]),
+            returnValue: _i5.Future<int>.value(0),
+            returnValueForMissingStub: _i5.Future<int>.value(0),
+          )
+          as _i5.Future<int>);
 }

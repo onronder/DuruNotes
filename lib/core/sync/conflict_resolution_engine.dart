@@ -469,6 +469,7 @@ class ConflictResolutionEngine {
         ),
         deleted: localNote.deleted,
         createdAt: localNote.createdAt,
+        updatedAt: localNote.updatedAt, // TIMESTAMP FIX: Preserve timestamp in conflict resolution
       );
     }
   }

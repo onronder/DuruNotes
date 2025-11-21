@@ -78,6 +78,17 @@ abstract class ITaskRepository {
   /// Get tasks by priority
   Future<List<Task>> getTasksByPriority(TaskPriority priority);
 
+  /// GDPR Article 17: Anonymize all tasks for a user by overwriting encrypted data
+  ///
+  /// This method irreversibly overwrites all encrypted content with random data,
+  /// making the original content permanently inaccessible. This is part of the
+  /// GDPR Right to Erasure implementation.
+  ///
+  /// **Security**: Uses DoD 5220.22-M 3-pass overwrite pattern
+  ///
+  /// Returns the count of tasks anonymized.
+  Future<int> anonymizeAllTasksForUser(String userId);
+
   /// Add tag to task
   Future<void> addTagToTask(String taskId, String tag);
 

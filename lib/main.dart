@@ -7,8 +7,10 @@ import 'package:duru_notes/core/monitoring/error_boundary.dart';
 // Phase 10: Migrated to organized provider imports
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show analyticsProvider;
+import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/ui/widgets/blocks/feature_flagged_block_factory.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -228,6 +230,17 @@ class BootstrapFailureApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      // GDPR FIX: Add localization delegates to prevent "No MaterialLocalizations found" errors
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('tr', ''),
+      ],
       home: BootstrapFailureContent(
         failures: failures,
         warnings: warnings,

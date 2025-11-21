@@ -217,6 +217,9 @@ class _FakeNotesRepository implements INotesRepository {
     List<String>? noneTags,
     bool pinnedFirst = true,
   }) => throw UnimplementedError();
+
+  @override
+  Future<int> anonymizeAllNotesForUser(String userId) async => 0;
 }
 
 class _FakeAttachmentService implements AttachmentUploader {

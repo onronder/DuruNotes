@@ -800,8 +800,9 @@ class NotesCoreRepository implements INotesRepository {
         props: props,
       );
 
-      // Get createdAt from domain note or local note to preserve timestamp
+      // Get createdAt and updatedAt from domain note or local note to preserve timestamps
       final createdAt = domainNote?.createdAt ?? localNote?.createdAt;
+      final updatedAt = domainNote?.updatedAt ?? localNote?.updatedAt;
 
       final upsertSuccess = await _executeWithRetry(
         operation: 'notes.upsert',
@@ -812,6 +813,7 @@ class NotesCoreRepository implements INotesRepository {
           propsEnc: propsEnc,
           deleted: isDeletion,
           createdAt: createdAt,
+          updatedAt: updatedAt, // TIMESTAMP FIX: Preserve timestamp during pending ops sync
         ),
       );
 
@@ -1949,8 +1951,9 @@ class NotesCoreRepository implements INotesRepository {
       final now = DateTime.now().toUtc();
       // SYNC FIX: Use provided timestamps if available (from sync), otherwise use now (user creation)
       final finalCreatedAt = createdAt ?? existingNote?.createdAt ?? now;
-      // TIMESTAMP FIX: Preserve existing updated_at unless explicitly provided or creating new note
-      final finalUpdatedAt = updatedAt ?? existingNote?.updatedAt ?? now;
+      // TIMESTAMP FIX: For user modifications, ALWAYS use now
+      // Only preserve old timestamp if explicitly provided by sync (updatedAt parameter)
+      final finalUpdatedAt = updatedAt ?? now;
       _logger.info(
         'Creating/updating note locally',
         data: {
@@ -3399,6 +3402,54 @@ class NotesCoreRepository implements INotesRepository {
         data: {'folderId': folderId},
       );
       return const <String>[];
+    }
+  }
+
+  @override
+  Future<int> anonymizeAllNotesForUser(String userId) async {
+    try {
+      _logger.info(
+        'GDPR: Starting note anonymization for user',
+        data: {'userId': userId},
+      );
+
+      // Call Supabase RPC function for atomic anonymization
+      // This executes a DoD 5220.22-M compliant overwrite of all encrypted data
+      final response = await _supabase.rpc<List<Map<String, dynamic>>>(
+        'anonymize_user_notes',
+        params: {'target_user_id': userId},
+      );
+
+      // Extract count from response
+      final count = response.isNotEmpty
+          ? (response.first['count'] as int? ?? 0)
+          : 0;
+
+      _logger.info(
+        'GDPR: Note anonymization complete',
+        data: {'userId': userId, 'notesAnonymized': count},
+      );
+
+      // Invalidate local cache - notes are now tombstoned
+      await (db.delete(db.localNotes)
+        ..where((tbl) => tbl.userId.equals(userId))
+      ).go();
+
+      return count;
+    } catch (error, stackTrace) {
+      _logger.error(
+        'GDPR: Note anonymization failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      _captureRepositoryException(
+        method: 'anonymizeAllNotesForUser',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      rethrow;
     }
   }
 }

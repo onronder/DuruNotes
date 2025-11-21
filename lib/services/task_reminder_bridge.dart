@@ -1248,6 +1248,13 @@ class TaskReminderBridge {
 
   /// Dispose and cleanup
   void dispose() {
-    _logger.info('TaskReminderBridge disposed');
+    try {
+      // Try to log disposal, but don't fail if logger is unavailable
+      // (provider may be invalidated during disposal)
+      _logger.info('TaskReminderBridge disposed');
+    } catch (_) {
+      // Ignore - logger provider may be invalidated during disposal
+      debugPrint('[TaskReminderBridge] Disposed (logger unavailable)');
+    }
   }
 }

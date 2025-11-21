@@ -350,19 +350,16 @@ class UnifiedSyncService {
             'Sync blocked by other active operations: ${error.activeSyncs}',
       );
     } on SyncRateLimitedException catch (error, stack) {
-      _logger.warning(
-        'Unified sync rate limited: ${error.timeSinceLastSync.inMilliseconds}ms since last',
+      // Rate limiting is expected behavior, not an error condition
+      // Log at debug level to avoid polluting logs with warnings
+      _logger.debug(
+        'Sync rate limited (working as intended): ${error.timeSinceLastSync.inMilliseconds}ms since last',
       );
-      _captureSyncException(
-        operation: 'syncAll.rateLimited',
-        error: error,
-        stackTrace: stack,
-        level: SentryLevel.warning,
-        data: {'timeSinceLastSyncMs': error.timeSinceLastSync.inMilliseconds},
-      );
+      // Don't capture rate limiting as an exception - it's normal behavior
+      // This prevents Sentry spam and log pollution
       return SyncResult(
-        success: false,
-        message: 'Sync rate limited, try again in a moment',
+        success: true, // Rate limiting is not a failure
+        message: 'Sync skipped due to rate limit (recent sync completed)',
       );
     }
   }
@@ -514,7 +511,12 @@ class UnifiedSyncService {
       }
 
       for (final remote in remoteFolders) {
-        final remoteId = remote['id'] as String;
+        final remoteId = remote['id'] as String?;
+        if (remoteId == null) {
+          // Skip tombstoned/anonymized folders with null ID
+          _logger.warning('Skipping remote folder with null ID (likely anonymized)');
+          continue;
+        }
         final hasLocal = localFolders.any((l) => _getFolderId(l) == remoteId);
         if (!hasLocal) {
           toDownload.add(remote);
@@ -613,7 +615,12 @@ class UnifiedSyncService {
       }
 
       for (final remote in remoteNotes) {
-        final remoteId = remote['id'] as String;
+        final remoteId = remote['id'] as String?;
+        if (remoteId == null) {
+          // Skip tombstoned/anonymized notes with null ID
+          _logger.warning('Skipping remote note with null ID (likely anonymized)');
+          continue;
+        }
         final hasLocal = localNotes.any((l) => _getNoteId(l) == remoteId);
         if (!hasLocal) {
           _logger.info(
@@ -715,7 +722,12 @@ class UnifiedSyncService {
       }
 
       for (final remote in remoteTasks) {
-        final remoteId = remote['id'] as String;
+        final remoteId = remote['id'] as String?;
+        if (remoteId == null) {
+          // Skip tombstoned/anonymized tasks with null ID
+          _logger.warning('Skipping remote task with null ID (likely anonymized)');
+          continue;
+        }
         final hasLocal = localTasks.any((l) => _getTaskId(l) == remoteId);
         if (!hasLocal) {
           toDownload.add(remote);
@@ -1236,21 +1248,31 @@ class UnifiedSyncService {
     String entityType,
   ) {
     try {
+      // Check for tombstoned/anonymized remote entities
+      final remoteId = remote['id'] as String?;
+      final remoteUpdatedStr = remote['updated_at'] as String?;
+
+      if (remoteId == null || remoteUpdatedStr == null) {
+        // Skip tombstoned/anonymized entities with null fields
+        _logger.warning('Skipping conflict detection for $entityType with null ID or updated_at (likely anonymized)');
+        return null;
+      }
+
       DateTime localUpdated;
       DateTime remoteUpdated;
 
       switch (entityType) {
         case 'note':
           localUpdated = _getNoteUpdatedAt(local);
-          remoteUpdated = DateTime.parse(remote['updated_at'] as String);
+          remoteUpdated = DateTime.parse(remoteUpdatedStr);
           break;
         case 'task':
           localUpdated = _getTaskUpdatedAt(local);
-          remoteUpdated = DateTime.parse(remote['updated_at'] as String);
+          remoteUpdated = DateTime.parse(remoteUpdatedStr);
           break;
         case 'folder':
           localUpdated = _getFolderUpdatedAt(local);
-          remoteUpdated = DateTime.parse(remote['updated_at'] as String);
+          remoteUpdated = DateTime.parse(remoteUpdatedStr);
           break;
         default:
           return null;
@@ -1261,7 +1283,7 @@ class UnifiedSyncService {
           const Duration(seconds: 5)) {
         return SyncConflict(
           entityType: entityType,
-          entityId: remote['id'] as String,
+          entityId: remoteId,
           localVersion: localUpdated,
           remoteVersion: remoteUpdated,
           resolution: localUpdated.isAfter(remoteUpdated)
@@ -1636,7 +1658,12 @@ class UnifiedSyncService {
 
         for (final note in batch) {
           try {
-            final noteId = note['id'] as String;
+            final noteId = note['id'] as String?;
+            if (noteId == null) {
+              // Skip tombstoned/anonymized notes with null ID
+              _logger.warning('Skipping note with null ID during decryption (likely anonymized)');
+              continue;
+            }
             final rawTitle = note['title_enc'];
             final rawProps = note['props_enc'];
             final titleEnc = _decodeCipher(
@@ -1987,7 +2014,12 @@ class UnifiedSyncService {
 
         for (final note in batch) {
           final noteData = _adapter!.getNoteDataForSync(note);
-          final noteId = noteData['id'] as String;
+          final noteId = noteData['id'] as String?;
+          if (noteId == null) {
+            // Skip notes with null ID (should not happen for local uploads, but be defensive)
+            _logger.warning('Skipping note upload with null ID');
+            continue;
+          }
           _logger.info(
             '📤 Uploading note: $noteId (title: ${noteData['title']})',
           );
@@ -2018,10 +2050,17 @@ class UnifiedSyncService {
             json: propsJson,
           );
 
-          // Parse createdAt from noteData to preserve timestamp across devices
+          // Parse createdAt and updatedAt from noteData to preserve timestamps across devices
           final createdAtStr = noteData['created_at']?.toString();
           final createdAt = createdAtStr != null
               ? DateTime.tryParse(createdAtStr)
+              : null;
+
+          // TIMESTAMP FIX: Preserve existing updated_at from local DB during sync
+          // This prevents all notes from getting updated_at = NOW() during sync
+          final updatedAtStr = noteData['updated_at']?.toString();
+          final updatedAt = updatedAtStr != null
+              ? DateTime.tryParse(updatedAtStr)
               : null;
 
           // Upload using the encrypted API
@@ -2031,6 +2070,7 @@ class UnifiedSyncService {
             propsEnc: encryptedProps,
             deleted: (noteData['deleted'] ?? false) as bool,
             createdAt: createdAt,
+            updatedAt: updatedAt, // Pass existing timestamp to preserve it
           );
           _logger.info('✅ Successfully uploaded note: $noteId');
           uploadedCount++;
@@ -2394,6 +2434,12 @@ class UnifiedSyncService {
         }
 
         final folder = _adapter!.createFolderFromSync(folderData);
+
+        // Skip if folder creation returned null (anonymized data)
+        if (folder == null) {
+          _logger.warning('Skipping null folder from sync (likely anonymized)');
+          continue;
+        }
 
         // Handle both domain.Folder and LocalFolder types correctly
         LocalFolder localFolder;

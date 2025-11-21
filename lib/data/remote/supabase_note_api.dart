@@ -35,12 +35,15 @@ class SupabaseNoteApi {
   ///
   /// [createdAt] should be provided for new notes to ensure timestamp consistency
   /// across all devices. For existing notes being updated, this can be null.
+  /// [updatedAt] should ONLY be provided when explicitly modifying the note.
+  /// If null, the database trigger will preserve the original timestamp for sync operations.
   Future<void> upsertEncryptedNote({
     required String id,
     required Uint8List titleEnc,
     required Uint8List propsEnc,
     required bool deleted,
     DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
     final row = <String, dynamic>{
       'id': id,
@@ -48,13 +51,18 @@ class SupabaseNoteApi {
       'title_enc': titleEnc,
       'props_enc': propsEnc,
       'deleted': deleted,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
 
     // Include created_at if provided (for new notes) to ensure exact
     // timestamp consistency across all devices during sync
     if (createdAt != null) {
       row['created_at'] = createdAt.toIso8601String();
+    }
+
+    // Only include updated_at if explicitly provided (e.g., during actual modifications)
+    // For sync operations, omit this field to let the database trigger preserve timestamps
+    if (updatedAt != null) {
+      row['updated_at'] = updatedAt.toIso8601String();
     }
 
     // onConflict: 'id' çoğu kurulumda opsiyoneldir; tablo PK/UK doğruysa plain upsert yeterli.

@@ -145,6 +145,7 @@ class SecureApiWrapper {
     required Uint8List propsEnc,
     required bool deleted,
     DateTime? createdAt,
+    DateTime? updatedAt, // TIMESTAMP FIX: Add updatedAt parameter
   }) async {
     return _executeWithProtection(
       endpoint: '/api/notes/upsert',
@@ -154,6 +155,7 @@ class SecureApiWrapper {
         propsEnc: propsEnc,
         deleted: deleted,
         createdAt: createdAt,
+        updatedAt: updatedAt, // TIMESTAMP FIX: Pass updatedAt through
       ),
       metadata: {'noteId': id, 'deleted': deleted},
     );

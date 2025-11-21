@@ -31,9 +31,8 @@ class SyncCoordinator {
     if (lastSync != null) {
       final timeSinceLastSync = DateTime.now().difference(lastSync);
       if (timeSinceLastSync < _minSyncInterval) {
-        debugPrint(
-          '🚫 Sync rate limited: $syncType (${timeSinceLastSync.inMilliseconds}ms since last)',
-        );
+        // Rate limiting is expected behavior - throw exception without logging
+        // Logging is handled at the service layer with proper context
         throw SyncRateLimitedException(syncType, timeSinceLastSync);
       }
     }

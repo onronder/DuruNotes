@@ -17,7 +17,7 @@ import 'package:duru_notes/features/templates/providers/templates_providers.dart
     show templateCoreRepositoryProvider;
 // Phase 4: Migrated to organized provider imports
 import 'package:duru_notes/core/providers/security_providers.dart'
-    show cryptoBoxProvider, accountKeyServiceProvider;
+    show cryptoBoxProvider, accountKeyServiceProvider, keyManagerProvider;
 import 'package:duru_notes/core/providers/search_providers.dart'
     show noteIndexerProvider;
 import 'package:duru_notes/services/attachment_service.dart';
@@ -26,6 +26,7 @@ import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/services/email_alias_service.dart';
 import 'package:duru_notes/services/encryption_sync_service.dart';
 import 'package:duru_notes/services/export_service.dart';
+import 'package:duru_notes/services/gdpr_anonymization_service.dart';
 import 'package:duru_notes/services/gdpr_compliance_service.dart';
 import 'package:duru_notes/services/import_service.dart';
 import 'package:duru_notes/services/inbox_management_service.dart';
@@ -288,6 +289,33 @@ final encryptionSyncServiceProvider = Provider<EncryptionSyncService>((ref) {
     supabase: client,
     secureStorage: secureStorage,
     accountKeyService: accountKeyService,
+  );
+});
+
+/// GDPR Anonymization Service provider for GDPR Article 17 compliance
+///
+/// Orchestrates complete 7-phase user anonymization process:
+/// 1. Pre-Anonymization Validation
+/// 2. Account Metadata Anonymization
+/// 3. Encryption Key Destruction (POINT OF NO RETURN)
+/// 4. Encrypted Content Tombstoning
+/// 5. Unencrypted Metadata Clearing
+/// 6. Cross-Device Sync Invalidation
+/// 7. Final Audit Trail & Compliance Proof
+///
+/// WARNING: Phase 3 is irreversible - all encrypted data becomes permanently inaccessible
+final gdprAnonymizationServiceProvider = Provider<GDPRAnonymizationService>((ref) {
+  final keyManager = ref.watch(keyManagerProvider);
+  final accountKeyService = ref.watch(accountKeyServiceProvider);
+  final encryptionSyncService = ref.watch(encryptionSyncServiceProvider);
+  final client = Supabase.instance.client;
+
+  return GDPRAnonymizationService(
+    ref,
+    keyManager: keyManager,
+    accountKeyService: accountKeyService,
+    encryptionSyncService: encryptionSyncService,
+    client: client,
   );
 });
 

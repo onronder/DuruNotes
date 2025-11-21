@@ -2023,4 +2023,55 @@ class FolderCoreRepository implements IFolderRepository {
   String? getCurrentUserId() {
     return _currentUserId();
   }
+
+  @override
+  Future<int> anonymizeAllFoldersForUser(String userId) async {
+    try {
+      _logger.info(
+        'GDPR: Starting folder anonymization for user',
+        data: {'userId': userId},
+      );
+
+      // Call Supabase RPC function for atomic anonymization
+      // This executes a DoD 5220.22-M compliant overwrite of all encrypted data
+      final response = await client.rpc<List<Map<String, dynamic>>>(
+        'anonymize_user_folders',
+        params: {'target_user_id': userId},
+      );
+
+      // Extract count from response
+      final count = (response as List).isNotEmpty
+          ? ((response.first as Map<String, dynamic>)['count'] as int? ?? 0)
+          : 0;
+
+      _logger.info(
+        'GDPR: Folder anonymization complete',
+        data: {'userId': userId, 'foldersAnonymized': count},
+      );
+
+      // Invalidate local cache - folders are now tombstoned
+      await (db.delete(db.localFolders)
+        ..where((tbl) => tbl.userId.equals(userId))
+      ).go();
+
+      // Clear decryption cache
+      _decryptionCache.clear();
+
+      return count;
+    } catch (error, stackTrace) {
+      _logger.error(
+        'GDPR: Folder anonymization failed',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      _captureRepositoryException(
+        method: 'anonymizeAllFoldersForUser',
+        error: error,
+        stackTrace: stackTrace,
+        data: {'userId': userId},
+      );
+      rethrow;
+    }
+  }
 }

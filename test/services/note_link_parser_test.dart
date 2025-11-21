@@ -224,6 +224,9 @@ class InMemoryNotesRepository implements INotesRepository {
 
   @override
   Future<List<Note>> getDeletedNotes() async => [];
+
+  @override
+  Future<int> anonymizeAllNotesForUser(String userId) async => 0;
 }
 
 class _NoOpLogger implements AppLogger {

@@ -781,8 +781,74 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           // This allows us to detect actual logout vs cold start
           _hadPreviousSession = true;
           _signOutCleanupScheduled = false;
-          // Check if AMK is present locally
-          return FutureBuilder<EncryptionGateState>(
+
+          // GDPR: Check if user has been anonymized
+          return FutureBuilder<bool>(
+            future: _checkAnonymizationStatus(),
+            builder: (context, anonymizedSnap) {
+              if (anonymizedSnap.connectionState != ConnectionState.done) {
+                return Scaffold(
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  body: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Verifying account status...'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final isAnonymized = anonymizedSnap.data ?? false;
+              if (isAnonymized) {
+                // CRITICAL: User has been anonymized - IMMEDIATELY force logout
+                // Do NOT wait for user interaction, do NOT show encryption screens
+                debugPrint('[GDPR] ❌ Account is anonymized - forcing immediate logout');
+
+                // Force logout immediately
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  try {
+                    await Supabase.instance.client.auth.signOut();
+                    debugPrint('[GDPR] ✅ Forced logout successful');
+                  } catch (e) {
+                    debugPrint('[GDPR] ⚠️ Forced logout error: $e');
+                    // Even if logout fails, show the dialog
+                  }
+                  if (context.mounted) {
+                    _showAccountDeletedDialog(context);
+                  }
+                });
+
+                // Show blocking screen immediately
+                return Scaffold(
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  body: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.block, size: 64, color: Colors.red),
+                        SizedBox(height: 24),
+                        Text(
+                          'Account Deleted',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 8),
+                        Text('This account has been permanently deleted.'),
+                        SizedBox(height: 16),
+                        CircularProgressIndicator(),
+                        SizedBox(height: 8),
+                        Text('Signing out...', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              // Check if AMK is present locally
+              return FutureBuilder<EncryptionGateState>(
             key: ValueKey(_amkCheckKey),
             future: _checkForAmkWithRetry(),
             builder: (context, amkSnap) {
@@ -955,6 +1021,8 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                   return const AppShell();
                 },
               );
+            },
+          );
             },
           );
         } else {
@@ -1287,6 +1355,95 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       debugPrint('[AuthWrapper] ⏱️  Returning needsUnlock (legacy fallback, total time: ${totalStopwatch.elapsedMilliseconds}ms)');
     }
     return EncryptionGateState.needsUnlock;
+  }
+
+  /// GDPR: Check if user account has been anonymized
+  /// Returns true if user is anonymized and should be logged out
+  Future<bool> _checkAnonymizationStatus() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        return false; // Not logged in
+      }
+
+      debugPrint('[GDPR] Checking anonymization status for user $userId');
+
+      // Call the database function to get anonymization status
+      final response = await Supabase.instance.client
+          .rpc<Map<String, dynamic>>('get_anonymization_status_summary', params: {'check_user_id': userId});
+
+      if (response == null) {
+        debugPrint('[GDPR] No anonymization status found');
+        return false;
+      }
+
+      final isAnonymized = response['is_anonymized'] as bool? ?? false;
+      final anonymizationCompletedAt = response['anonymization_completed_at'] as String?;
+      final authDeletionCompletedAt = response['auth_deletion_completed_at'] as String?;
+
+      if (isAnonymized) {
+        debugPrint(
+          '[GDPR] ⚠️  User is anonymized! '
+          'Completed at: $anonymizationCompletedAt, '
+          'Auth deleted at: $authDeletionCompletedAt',
+        );
+      }
+
+      return isAnonymized;
+    } catch (error) {
+      debugPrint('[GDPR] Error checking anonymization status: $error');
+      // On error, assume not anonymized to avoid blocking legitimate users
+      // RLS policies will still block access if truly anonymized
+      return false;
+    }
+  }
+
+  /// Show "Account Deleted" dialog and force logout
+  void _showAccountDeletedDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.block, color: Colors.red, size: 32),
+            SizedBox(width: 12),
+            Text('Account Permanently Deleted'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This account has been permanently deleted and cannot be accessed.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 16),
+            Text('What happened:'),
+            SizedBox(height: 8),
+            Text('• All encryption keys were destroyed'),
+            Text('• All data was anonymized'),
+            Text('• Your account was removed from the system'),
+            SizedBox(height: 16),
+            Text(
+              'This action is irreversible and complies with GDPR Article 17 (Right to Erasure).',
+              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // User is already signed out at this point
+              debugPrint('[GDPR] User acknowledged account deletion');
+            },
+            child: const Text('I Understand'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<bool> _hasLocalAmk() async {

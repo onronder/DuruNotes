@@ -416,16 +416,35 @@ class ServiceAdapter {
   /// Create folder from sync data
   dynamic createFolderFromSync(Map<String, dynamic> data) {
     if (useDomainModels) {
+      // Validate required fields (handle anonymized/tombstoned data)
+      final id = data['id'] as String?;
+      final name = data['name'] as String?;
+      final createdAt = data['created_at'] as String?;
+      final updatedAt = data['updated_at'] as String?;
+
+      if (id == null || name == null || createdAt == null || updatedAt == null) {
+        _logger.warning(
+          'Skipping folder with null required fields (likely anonymized)',
+          data: {
+            'hasId': id != null,
+            'hasName': name != null,
+            'hasCreatedAt': createdAt != null,
+            'hasUpdatedAt': updatedAt != null,
+          },
+        );
+        return null; // Return null for anonymized folders
+      }
+
       return domain.Folder(
-        id: data['id'] as String,
-        name: data['name'] as String,
+        id: id,
+        name: name,
         parentId: data['parent_id'] as String?,
         color: data['color'] as String?,
         icon: data['icon'] as String?,
         description: data['description'] as String?,
         sortOrder: (data['sort_order'] ?? 0) as int,
-        createdAt: DateTime.parse(data['created_at'] as String),
-        updatedAt: DateTime.parse(data['updated_at'] as String),
+        createdAt: DateTime.parse(createdAt),
+        updatedAt: DateTime.parse(updatedAt),
         deletedAt: data['deleted_at'] != null
             ? DateTime.parse(data['deleted_at'] as String)
             : null,

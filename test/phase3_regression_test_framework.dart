@@ -103,7 +103,7 @@ class _StubEnhancedTaskService extends Mock
     String? notes,
     int? estimatedMinutes,
     int? actualMinutes,
-    int? reminderId,
+    String? reminderId,
     String? parentTaskId,
     bool updateReminder = true,
     bool clearReminderId = false,
@@ -362,6 +362,18 @@ class _InMemoryTaskRepository implements ITaskRepository {
 
   @override
   Future<void> permanentlyDeleteTask(String id) async {}
+
+  @override
+  Future<void> updateTaskReminderLink({
+    required String taskId,
+    required String? reminderId,
+  }) async {}
+
+  @override
+  Future<void> updateTaskPositions(Map<String, int> positions) async {}
+
+  @override
+  Future<int> anonymizeAllTasksForUser(String userId) async => 0;
 }
 
 domain.Task _makeTask(String id, domain.TaskStatus status) {

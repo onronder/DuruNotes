@@ -133,10 +133,14 @@ final unifiedSyncServiceProvider = Provider<UnifiedSyncService>((ref) {
 });
 
 /// Sync mode provider - simplified without old NotesRepository
-final syncModeProvider = StateNotifierProvider<SyncModeNotifier, SyncMode>((
+///
+/// CRITICAL FIX: Uses autoDispose to prevent disposal errors during logout
+/// When user logs out, SecurityInitialization is cleared and this provider
+/// needs to be disposed immediately before trying to rebuild with invalid dependencies
+final syncModeProvider = StateNotifierProvider.autoDispose<SyncModeNotifier, SyncMode>((
   ref,
 ) {
-  // Use domain repository - always available
+  // Use domain repository - always available when security is initialized
   // Repository handles auth internally and returns empty data when not authenticated
   final notesRepo = ref.watch(notesCoreRepositoryProvider);
 
