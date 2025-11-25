@@ -34,6 +34,13 @@ class AttachmentLimits {
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ];
+
+  static const List<String> supportedAudioTypes = [
+    'audio/m4a',
+    'audio/aac',
+    'audio/mp3',
+    'audio/mpeg',
+  ];
 }
 
 /// Exception thrown when attachment operations fail
@@ -116,18 +123,30 @@ class AttachmentService implements AttachmentUploader {
 
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
+        print('[ATTACHMENT_DEBUG] ERROR: User not authenticated!');
         throw const AttachmentException('User not authenticated');
       }
+
+      print('[ATTACHMENT_DEBUG] ========== STARTING UPLOAD ==========');
+      print('[ATTACHMENT_DEBUG] User ID: $userId');
+      print('[ATTACHMENT_DEBUG] Filename: $filename');
+      print('[ATTACHMENT_DEBUG] File size: ${bytes.length} bytes');
 
       // Generate unique filename
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final uniqueFilename = '${timestamp}_$filename';
       final storagePath = '$userId/attachments/$uniqueFilename';
 
+      print('[ATTACHMENT_DEBUG] Storage path: $storagePath');
+      print('[ATTACHMENT_DEBUG] Target bucket: attachments');
+      print('[ATTACHMENT_DEBUG] Attempting upload...');
+
       // Upload to Supabase Storage
       await _client.storage
           .from('attachments')
           .uploadBinary(storagePath, bytes);
+
+      print('[ATTACHMENT_DEBUG] Upload successful!');
 
       // Get public URL
       final url = _client.storage.from('attachments').getPublicUrl(storagePath);
@@ -168,7 +187,46 @@ class AttachmentService implements AttachmentUploader {
       );
 
       return attachment;
-    } catch (e) {
+    } on StorageException catch (e, stackTrace) {
+      print('[ATTACHMENT_DEBUG] ========== STORAGE EXCEPTION ==========');
+      print('[ATTACHMENT_DEBUG] Error type: StorageException');
+      print('[ATTACHMENT_DEBUG] Message: ${e.message}');
+      print('[ATTACHMENT_DEBUG] Status code: ${e.statusCode}');
+      print('[ATTACHMENT_DEBUG] Error: ${e.error}');
+      print('[ATTACHMENT_DEBUG] Stack trace:');
+      print(stackTrace);
+      print('[ATTACHMENT_DEBUG] ==========================================');
+
+      _logger.error(
+        'Failed to upload file (StorageException)',
+        error: e,
+        data: {
+          'filename': filename,
+          'size': bytes.length,
+          'statusCode': e.statusCode,
+          'message': e.message,
+        },
+      );
+
+      _analytics.endTiming(
+        'attachment_upload',
+        properties: {'success': false, 'error': e.toString()},
+      );
+
+      _analytics.trackError(
+        'Attachment upload failed',
+        properties: {'filename': filename, 'size': bytes.length},
+      );
+
+      rethrow;
+    } catch (e, stackTrace) {
+      print('[ATTACHMENT_DEBUG] ========== GENERAL EXCEPTION ==========');
+      print('[ATTACHMENT_DEBUG] Error type: ${e.runtimeType}');
+      print('[ATTACHMENT_DEBUG] Error message: $e');
+      print('[ATTACHMENT_DEBUG] Stack trace:');
+      print(stackTrace);
+      print('[ATTACHMENT_DEBUG] ==========================================');
+
       _logger.error(
         'Failed to upload file',
         error: e,
@@ -338,6 +396,12 @@ class AttachmentService implements AttachmentUploader {
         return 'application/msword';
       case 'docx':
         return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'm4a':
+        return 'audio/m4a';
+      case 'aac':
+        return 'audio/aac';
+      case 'mp3':
+        return 'audio/mp3';
       default:
         return 'application/octet-stream';
     }
@@ -347,7 +411,8 @@ class AttachmentService implements AttachmentUploader {
   bool isSupported(String mimeType) {
     return AttachmentLimits.supportedImageTypes.contains(mimeType) ||
         AttachmentLimits.supportedVideoTypes.contains(mimeType) ||
-        AttachmentLimits.supportedDocumentTypes.contains(mimeType);
+        AttachmentLimits.supportedDocumentTypes.contains(mimeType) ||
+        AttachmentLimits.supportedAudioTypes.contains(mimeType);
   }
 
   /// Get human-readable file size

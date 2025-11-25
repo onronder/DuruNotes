@@ -3,12 +3,12 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i6;
 import 'dart:typed_data' as _i13;
 
 import 'package:duru_notes/core/crypto/crypto_box.dart' as _i3;
 import 'package:flutter_local_notifications/src/flutter_local_notifications_plugin.dart'
-    as _i6;
+    as _i5;
 import 'package:flutter_local_notifications/src/initialization_settings.dart'
     as _i7;
 import 'package:flutter_local_notifications/src/notification_details.dart'
@@ -19,7 +19,7 @@ import 'package:flutter_local_notifications/src/types.dart' as _i12;
 import 'package:flutter_local_notifications_platform_interface/flutter_local_notifications_platform_interface.dart'
     as _i8;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i5;
+import 'package:mockito/src/dummies.dart' as _i4;
 import 'package:riverpod/src/internals.dart' as _i2;
 import 'package:timezone/timezone.dart' as _i10;
 
@@ -38,21 +38,20 @@ import 'package:timezone/timezone.dart' as _i10;
 // ignore_for_file: subtype_of_sealed_class
 // ignore_for_file: invalid_use_of_internal_member
 
-class _FakeProviderScheduler_0 extends _i1.SmartFake
-    implements _i2.ProviderScheduler {
-  _FakeProviderScheduler_0(Object parent, Invocation parentInvocation)
+class _FakeProviderContainer_0 extends _i1.SmartFake
+    implements _i2.ProviderContainer {
+  _FakeProviderContainer_0(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeProviderSubscription_1<State1> extends _i1.SmartFake
+class _FakeKeepAliveLink_1 extends _i1.SmartFake implements _i2.KeepAliveLink {
+  _FakeKeepAliveLink_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeProviderSubscription_2<State1> extends _i1.SmartFake
     implements _i2.ProviderSubscription<State1> {
-  _FakeProviderSubscription_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-class _FakeProviderElementBase_2<StateT> extends _i1.SmartFake
-    implements _i2.ProviderElementBase<StateT> {
-  _FakeProviderElementBase_2(Object parent, Invocation parentInvocation)
+  _FakeProviderSubscription_2(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -62,106 +61,112 @@ class _FakeDecryptResult_3<T> extends _i1.SmartFake
     : super(parent, parentInvocation);
 }
 
-/// A class which mocks [ProviderContainer].
+/// A class which mocks [Ref].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockProviderContainer extends _i1.Mock implements _i2.ProviderContainer {
+class MockRef<State extends Object?> extends _i1.Mock
+    implements _i2.Ref<State> {
   @override
-  void Function(void Function()) get vsync =>
+  _i2.ProviderContainer get container =>
       (super.noSuchMethod(
-            Invocation.getter(#vsync),
-            returnValue: (void Function() task) {},
-            returnValueForMissingStub: (void Function() task) {},
-          )
-          as void Function(void Function()));
-
-  @override
-  _i2.ProviderScheduler get scheduler =>
-      (super.noSuchMethod(
-            Invocation.getter(#scheduler),
-            returnValue: _FakeProviderScheduler_0(
+            Invocation.getter(#container),
+            returnValue: _FakeProviderContainer_0(
               this,
-              Invocation.getter(#scheduler),
+              Invocation.getter(#container),
             ),
-            returnValueForMissingStub: _FakeProviderScheduler_0(
+            returnValueForMissingStub: _FakeProviderContainer_0(
               this,
-              Invocation.getter(#scheduler),
+              Invocation.getter(#container),
             ),
           )
-          as _i2.ProviderScheduler);
+          as _i2.ProviderContainer);
 
   @override
-  int get depth =>
+  T refresh<T>(_i2.Refreshable<T>? provider) =>
       (super.noSuchMethod(
-            Invocation.getter(#depth),
-            returnValue: 0,
-            returnValueForMissingStub: 0,
+            Invocation.method(#refresh, [provider]),
+            returnValue: _i4.dummyValue<T>(
+              this,
+              Invocation.method(#refresh, [provider]),
+            ),
+            returnValueForMissingStub: _i4.dummyValue<T>(
+              this,
+              Invocation.method(#refresh, [provider]),
+            ),
           )
-          as int);
+          as T);
 
   @override
-  List<_i2.ProviderContainer> get debugChildren =>
-      (super.noSuchMethod(
-            Invocation.getter(#debugChildren),
-            returnValue: <_i2.ProviderContainer>[],
-            returnValueForMissingStub: <_i2.ProviderContainer>[],
-          )
-          as List<_i2.ProviderContainer>);
-
-  @override
-  List<_i2.ProviderObserver> get observers =>
-      (super.noSuchMethod(
-            Invocation.getter(#observers),
-            returnValue: <_i2.ProviderObserver>[],
-            returnValueForMissingStub: <_i2.ProviderObserver>[],
-          )
-          as List<_i2.ProviderObserver>);
-
-  @override
-  set vsyncOverride(void Function(void Function())? value) =>
-      super.noSuchMethod(
-        Invocation.setter(#vsyncOverride, value),
-        returnValueForMissingStub: null,
-      );
-
-  @override
-  set debugCanModifyProviders(void Function()? value) => super.noSuchMethod(
-    Invocation.setter(#debugCanModifyProviders, value),
+  void invalidate(_i2.ProviderOrFamily? provider) => super.noSuchMethod(
+    Invocation.method(#invalidate, [provider]),
     returnValueForMissingStub: null,
   );
 
   @override
-  bool hasStateReaderFor(_i2.ProviderListenable<Object?>? provider) =>
-      (super.noSuchMethod(
-            Invocation.method(#hasStateReaderFor, [provider]),
-            returnValue: false,
-            returnValueForMissingStub: false,
-          )
-          as bool);
+  void notifyListeners() => super.noSuchMethod(
+    Invocation.method(#notifyListeners, []),
+    returnValueForMissingStub: null,
+  );
 
   @override
-  _i4.Future<void> pump() =>
-      (super.noSuchMethod(
-            Invocation.method(#pump, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
-          )
-          as _i4.Future<void>);
+  void listenSelf(
+    void Function(State?, State)? listener, {
+    void Function(Object, StackTrace)? onError,
+  }) => super.noSuchMethod(
+    Invocation.method(#listenSelf, [listener], {#onError: onError}),
+    returnValueForMissingStub: null,
+  );
 
   @override
-  Result read<Result>(_i2.ProviderListenable<Result>? provider) =>
+  void invalidateSelf() => super.noSuchMethod(
+    Invocation.method(#invalidateSelf, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onAddListener(void Function()? cb) => super.noSuchMethod(
+    Invocation.method(#onAddListener, [cb]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onRemoveListener(void Function()? cb) => super.noSuchMethod(
+    Invocation.method(#onRemoveListener, [cb]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onResume(void Function()? cb) => super.noSuchMethod(
+    Invocation.method(#onResume, [cb]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onCancel(void Function()? cb) => super.noSuchMethod(
+    Invocation.method(#onCancel, [cb]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onDispose(void Function()? cb) => super.noSuchMethod(
+    Invocation.method(#onDispose, [cb]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  T read<T>(_i2.ProviderListenable<T>? provider) =>
       (super.noSuchMethod(
             Invocation.method(#read, [provider]),
-            returnValue: _i5.dummyValue<Result>(
+            returnValue: _i4.dummyValue<T>(
               this,
               Invocation.method(#read, [provider]),
             ),
-            returnValueForMissingStub: _i5.dummyValue<Result>(
+            returnValueForMissingStub: _i4.dummyValue<T>(
               this,
               Invocation.method(#read, [provider]),
             ),
           )
-          as Result);
+          as T);
 
   @override
   bool exists(_i2.ProviderBase<Object?>? provider) =>
@@ -173,119 +178,75 @@ class MockProviderContainer extends _i1.Mock implements _i2.ProviderContainer {
           as bool);
 
   @override
-  void debugReassemble() => super.noSuchMethod(
-    Invocation.method(#debugReassemble, []),
-    returnValueForMissingStub: null,
-  );
+  T watch<T>(_i2.ProviderListenable<T>? provider) =>
+      (super.noSuchMethod(
+            Invocation.method(#watch, [provider]),
+            returnValue: _i4.dummyValue<T>(
+              this,
+              Invocation.method(#watch, [provider]),
+            ),
+            returnValueForMissingStub: _i4.dummyValue<T>(
+              this,
+              Invocation.method(#watch, [provider]),
+            ),
+          )
+          as T);
 
   @override
-  _i2.ProviderSubscription<State> listen<State>(
-    _i2.ProviderListenable<State>? provider,
-    void Function(State?, State)? listener, {
-    bool? fireImmediately = false,
+  _i2.KeepAliveLink keepAlive() =>
+      (super.noSuchMethod(
+            Invocation.method(#keepAlive, []),
+            returnValue: _FakeKeepAliveLink_1(
+              this,
+              Invocation.method(#keepAlive, []),
+            ),
+            returnValueForMissingStub: _FakeKeepAliveLink_1(
+              this,
+              Invocation.method(#keepAlive, []),
+            ),
+          )
+          as _i2.KeepAliveLink);
+
+  @override
+  _i2.ProviderSubscription<T> listen<T>(
+    _i2.ProviderListenable<T>? provider,
+    void Function(T?, T)? listener, {
     void Function(Object, StackTrace)? onError,
+    bool? fireImmediately,
   }) =>
       (super.noSuchMethod(
             Invocation.method(
               #listen,
               [provider, listener],
-              {#fireImmediately: fireImmediately, #onError: onError},
+              {#onError: onError, #fireImmediately: fireImmediately},
             ),
-            returnValue: _FakeProviderSubscription_1<State>(
+            returnValue: _FakeProviderSubscription_2<T>(
               this,
               Invocation.method(
                 #listen,
                 [provider, listener],
-                {#fireImmediately: fireImmediately, #onError: onError},
+                {#onError: onError, #fireImmediately: fireImmediately},
               ),
             ),
-            returnValueForMissingStub: _FakeProviderSubscription_1<State>(
+            returnValueForMissingStub: _FakeProviderSubscription_2<T>(
               this,
               Invocation.method(
                 #listen,
                 [provider, listener],
-                {#fireImmediately: fireImmediately, #onError: onError},
+                {#onError: onError, #fireImmediately: fireImmediately},
               ),
             ),
           )
-          as _i2.ProviderSubscription<State>);
-
-  @override
-  void invalidate(_i2.ProviderOrFamily? provider) => super.noSuchMethod(
-    Invocation.method(#invalidate, [provider]),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  State refresh<State>(_i2.Refreshable<State>? provider) =>
-      (super.noSuchMethod(
-            Invocation.method(#refresh, [provider]),
-            returnValue: _i5.dummyValue<State>(
-              this,
-              Invocation.method(#refresh, [provider]),
-            ),
-            returnValueForMissingStub: _i5.dummyValue<State>(
-              this,
-              Invocation.method(#refresh, [provider]),
-            ),
-          )
-          as State);
-
-  @override
-  void updateOverrides(List<_i2.Override>? overrides) => super.noSuchMethod(
-    Invocation.method(#updateOverrides, [overrides]),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  _i2.ProviderElementBase<State> readProviderElement<State>(
-    _i2.ProviderBase<State>? provider,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#readProviderElement, [provider]),
-            returnValue: _FakeProviderElementBase_2<State>(
-              this,
-              Invocation.method(#readProviderElement, [provider]),
-            ),
-            returnValueForMissingStub: _FakeProviderElementBase_2<State>(
-              this,
-              Invocation.method(#readProviderElement, [provider]),
-            ),
-          )
-          as _i2.ProviderElementBase<State>);
-
-  @override
-  void dispose() => super.noSuchMethod(
-    Invocation.method(#dispose, []),
-    returnValueForMissingStub: null,
-  );
-
-  @override
-  Iterable<_i2.ProviderElementBase<dynamic>> getAllProviderElements() =>
-      (super.noSuchMethod(
-            Invocation.method(#getAllProviderElements, []),
-            returnValue: <_i2.ProviderElementBase<dynamic>>[],
-            returnValueForMissingStub: <_i2.ProviderElementBase<dynamic>>[],
-          )
-          as Iterable<_i2.ProviderElementBase<dynamic>>);
-
-  @override
-  Iterable<_i2.ProviderElementBase<dynamic>> getAllProviderElementsInOrder() =>
-      (super.noSuchMethod(
-            Invocation.method(#getAllProviderElementsInOrder, []),
-            returnValue: <_i2.ProviderElementBase<dynamic>>[],
-            returnValueForMissingStub: <_i2.ProviderElementBase<dynamic>>[],
-          )
-          as Iterable<_i2.ProviderElementBase<dynamic>>);
+          as _i2.ProviderSubscription<T>);
 }
 
 /// A class which mocks [FlutterLocalNotificationsPlugin].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockFlutterLocalNotificationsPlugin extends _i1.Mock
-    implements _i6.FlutterLocalNotificationsPlugin {
+    implements _i5.FlutterLocalNotificationsPlugin {
   @override
-  _i4.Future<bool?> initialize(
+  _i6.Future<bool?> initialize(
     _i7.InitializationSettings? initializationSettings, {
     _i8.DidReceiveNotificationResponseCallback?
     onDidReceiveNotificationResponse,
@@ -303,24 +264,24 @@ class MockFlutterLocalNotificationsPlugin extends _i1.Mock
                     onDidReceiveBackgroundNotificationResponse,
               },
             ),
-            returnValue: _i4.Future<bool?>.value(),
-            returnValueForMissingStub: _i4.Future<bool?>.value(),
+            returnValue: _i6.Future<bool?>.value(),
+            returnValueForMissingStub: _i6.Future<bool?>.value(),
           )
-          as _i4.Future<bool?>);
+          as _i6.Future<bool?>);
 
   @override
-  _i4.Future<_i8.NotificationAppLaunchDetails?>
+  _i6.Future<_i8.NotificationAppLaunchDetails?>
   getNotificationAppLaunchDetails() =>
       (super.noSuchMethod(
             Invocation.method(#getNotificationAppLaunchDetails, []),
-            returnValue: _i4.Future<_i8.NotificationAppLaunchDetails?>.value(),
+            returnValue: _i6.Future<_i8.NotificationAppLaunchDetails?>.value(),
             returnValueForMissingStub:
-                _i4.Future<_i8.NotificationAppLaunchDetails?>.value(),
+                _i6.Future<_i8.NotificationAppLaunchDetails?>.value(),
           )
-          as _i4.Future<_i8.NotificationAppLaunchDetails?>);
+          as _i6.Future<_i8.NotificationAppLaunchDetails?>);
 
   @override
-  _i4.Future<void> show(
+  _i6.Future<void> show(
     int? id,
     String? title,
     String? body,
@@ -333,40 +294,40 @@ class MockFlutterLocalNotificationsPlugin extends _i1.Mock
               [id, title, body, notificationDetails],
               {#payload: payload},
             ),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i4.Future<void> cancel(int? id, {String? tag}) =>
+  _i6.Future<void> cancel(int? id, {String? tag}) =>
       (super.noSuchMethod(
             Invocation.method(#cancel, [id], {#tag: tag}),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i4.Future<void> cancelAll() =>
+  _i6.Future<void> cancelAll() =>
       (super.noSuchMethod(
             Invocation.method(#cancelAll, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i4.Future<void> cancelAllPendingNotifications() =>
+  _i6.Future<void> cancelAllPendingNotifications() =>
       (super.noSuchMethod(
             Invocation.method(#cancelAllPendingNotifications, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i4.Future<void> zonedSchedule(
+  _i6.Future<void> zonedSchedule(
     int? id,
     String? title,
     String? body,
@@ -386,13 +347,13 @@ class MockFlutterLocalNotificationsPlugin extends _i1.Mock
                 #matchDateTimeComponents: matchDateTimeComponents,
               },
             ),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i4.Future<void> periodicallyShow(
+  _i6.Future<void> periodicallyShow(
     int? id,
     String? title,
     String? body,
@@ -407,13 +368,13 @@ class MockFlutterLocalNotificationsPlugin extends _i1.Mock
               [id, title, body, repeatInterval, notificationDetails],
               {#androidScheduleMode: androidScheduleMode, #payload: payload},
             ),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i4.Future<void> periodicallyShowWithDuration(
+  _i6.Future<void> periodicallyShowWithDuration(
     int? id,
     String? title,
     String? body,
@@ -429,39 +390,39 @@ class MockFlutterLocalNotificationsPlugin extends _i1.Mock
               [id, title, body, repeatDurationInterval, notificationDetails],
               {#androidScheduleMode: androidScheduleMode, #payload: payload},
             ),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i4.Future<List<_i8.PendingNotificationRequest>>
+  _i6.Future<List<_i8.PendingNotificationRequest>>
   pendingNotificationRequests() =>
       (super.noSuchMethod(
             Invocation.method(#pendingNotificationRequests, []),
-            returnValue: _i4.Future<List<_i8.PendingNotificationRequest>>.value(
+            returnValue: _i6.Future<List<_i8.PendingNotificationRequest>>.value(
               <_i8.PendingNotificationRequest>[],
             ),
             returnValueForMissingStub:
-                _i4.Future<List<_i8.PendingNotificationRequest>>.value(
+                _i6.Future<List<_i8.PendingNotificationRequest>>.value(
                   <_i8.PendingNotificationRequest>[],
                 ),
           )
-          as _i4.Future<List<_i8.PendingNotificationRequest>>);
+          as _i6.Future<List<_i8.PendingNotificationRequest>>);
 
   @override
-  _i4.Future<List<_i8.ActiveNotification>> getActiveNotifications() =>
+  _i6.Future<List<_i8.ActiveNotification>> getActiveNotifications() =>
       (super.noSuchMethod(
             Invocation.method(#getActiveNotifications, []),
-            returnValue: _i4.Future<List<_i8.ActiveNotification>>.value(
+            returnValue: _i6.Future<List<_i8.ActiveNotification>>.value(
               <_i8.ActiveNotification>[],
             ),
             returnValueForMissingStub:
-                _i4.Future<List<_i8.ActiveNotification>>.value(
+                _i6.Future<List<_i8.ActiveNotification>>.value(
                   <_i8.ActiveNotification>[],
                 ),
           )
-          as _i4.Future<List<_i8.ActiveNotification>>);
+          as _i6.Future<List<_i8.ActiveNotification>>);
 }
 
 /// A class which mocks [CryptoBox].
@@ -469,7 +430,7 @@ class MockFlutterLocalNotificationsPlugin extends _i1.Mock
 /// See the documentation for Mockito's code generation for more information.
 class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
   @override
-  _i4.Future<_i13.Uint8List> encryptJsonForNote({
+  _i6.Future<_i13.Uint8List> encryptJsonForNote({
     required String? userId,
     required String? noteId,
     required Map<String, dynamic>? json,
@@ -480,15 +441,15 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               #noteId: noteId,
               #json: json,
             }),
-            returnValue: _i4.Future<_i13.Uint8List>.value(_i13.Uint8List(0)),
-            returnValueForMissingStub: _i4.Future<_i13.Uint8List>.value(
+            returnValue: _i6.Future<_i13.Uint8List>.value(_i13.Uint8List(0)),
+            returnValueForMissingStub: _i6.Future<_i13.Uint8List>.value(
               _i13.Uint8List(0),
             ),
           )
-          as _i4.Future<_i13.Uint8List>);
+          as _i6.Future<_i13.Uint8List>);
 
   @override
-  _i4.Future<Map<String, dynamic>> decryptJsonForNote({
+  _i6.Future<Map<String, dynamic>> decryptJsonForNote({
     required String? userId,
     required String? noteId,
     required _i13.Uint8List? data,
@@ -499,17 +460,17 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               #noteId: noteId,
               #data: data,
             }),
-            returnValue: _i4.Future<Map<String, dynamic>>.value(
+            returnValue: _i6.Future<Map<String, dynamic>>.value(
               <String, dynamic>{},
             ),
-            returnValueForMissingStub: _i4.Future<Map<String, dynamic>>.value(
+            returnValueForMissingStub: _i6.Future<Map<String, dynamic>>.value(
               <String, dynamic>{},
             ),
           )
-          as _i4.Future<Map<String, dynamic>>);
+          as _i6.Future<Map<String, dynamic>>);
 
   @override
-  _i4.Future<_i13.Uint8List> encryptStringForNote({
+  _i6.Future<_i13.Uint8List> encryptStringForNote({
     required String? userId,
     required String? noteId,
     required String? text,
@@ -520,15 +481,15 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               #noteId: noteId,
               #text: text,
             }),
-            returnValue: _i4.Future<_i13.Uint8List>.value(_i13.Uint8List(0)),
-            returnValueForMissingStub: _i4.Future<_i13.Uint8List>.value(
+            returnValue: _i6.Future<_i13.Uint8List>.value(_i13.Uint8List(0)),
+            returnValueForMissingStub: _i6.Future<_i13.Uint8List>.value(
               _i13.Uint8List(0),
             ),
           )
-          as _i4.Future<_i13.Uint8List>);
+          as _i6.Future<_i13.Uint8List>);
 
   @override
-  _i4.Future<String> decryptStringForNote({
+  _i6.Future<String> decryptStringForNote({
     required String? userId,
     required String? noteId,
     required _i13.Uint8List? data,
@@ -539,8 +500,8 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               #noteId: noteId,
               #data: data,
             }),
-            returnValue: _i4.Future<String>.value(
-              _i5.dummyValue<String>(
+            returnValue: _i6.Future<String>.value(
+              _i4.dummyValue<String>(
                 this,
                 Invocation.method(#decryptStringForNote, [], {
                   #userId: userId,
@@ -549,8 +510,8 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
                 }),
               ),
             ),
-            returnValueForMissingStub: _i4.Future<String>.value(
-              _i5.dummyValue<String>(
+            returnValueForMissingStub: _i6.Future<String>.value(
+              _i4.dummyValue<String>(
                 this,
                 Invocation.method(#decryptStringForNote, [], {
                   #userId: userId,
@@ -560,10 +521,10 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               ),
             ),
           )
-          as _i4.Future<String>);
+          as _i6.Future<String>);
 
   @override
-  _i4.Future<_i3.DecryptResult<Map<String, dynamic>>>
+  _i6.Future<_i3.DecryptResult<Map<String, dynamic>>>
   decryptJsonForNoteWithFallback({
     required String? userId,
     required String? noteId,
@@ -576,7 +537,7 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               #data: data,
             }),
             returnValue:
-                _i4.Future<_i3.DecryptResult<Map<String, dynamic>>>.value(
+                _i6.Future<_i3.DecryptResult<Map<String, dynamic>>>.value(
                   _FakeDecryptResult_3<Map<String, dynamic>>(
                     this,
                     Invocation.method(#decryptJsonForNoteWithFallback, [], {
@@ -587,7 +548,7 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
                   ),
                 ),
             returnValueForMissingStub:
-                _i4.Future<_i3.DecryptResult<Map<String, dynamic>>>.value(
+                _i6.Future<_i3.DecryptResult<Map<String, dynamic>>>.value(
                   _FakeDecryptResult_3<Map<String, dynamic>>(
                     this,
                     Invocation.method(#decryptJsonForNoteWithFallback, [], {
@@ -598,10 +559,10 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
                   ),
                 ),
           )
-          as _i4.Future<_i3.DecryptResult<Map<String, dynamic>>>);
+          as _i6.Future<_i3.DecryptResult<Map<String, dynamic>>>);
 
   @override
-  _i4.Future<_i3.DecryptResult<String>> decryptStringForNoteWithFallback({
+  _i6.Future<_i3.DecryptResult<String>> decryptStringForNoteWithFallback({
     required String? userId,
     required String? noteId,
     required _i13.Uint8List? data,
@@ -612,7 +573,7 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               #noteId: noteId,
               #data: data,
             }),
-            returnValue: _i4.Future<_i3.DecryptResult<String>>.value(
+            returnValue: _i6.Future<_i3.DecryptResult<String>>.value(
               _FakeDecryptResult_3<String>(
                 this,
                 Invocation.method(#decryptStringForNoteWithFallback, [], {
@@ -623,7 +584,7 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
               ),
             ),
             returnValueForMissingStub:
-                _i4.Future<_i3.DecryptResult<String>>.value(
+                _i6.Future<_i3.DecryptResult<String>>.value(
                   _FakeDecryptResult_3<String>(
                     this,
                     Invocation.method(#decryptStringForNoteWithFallback, [], {
@@ -634,5 +595,5 @@ class MockCryptoBox extends _i1.Mock implements _i3.CryptoBox {
                   ),
                 ),
           )
-          as _i4.Future<_i3.DecryptResult<String>>);
+          as _i6.Future<_i3.DecryptResult<String>>);
 }

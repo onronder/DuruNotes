@@ -4,12 +4,27 @@ import 'dart:typed_data';
 import 'package:duru_notes/core/io/app_directory_resolver.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/attachment_service.dart';
+import 'package:duru_notes/services/providers/services_providers.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
+
+/// Result of a completed voice recording with upload information
+class RecordingResult {
+  const RecordingResult({
+    required this.url,
+    required this.filename,
+    required this.durationSeconds,
+  });
+
+  final String url;
+  final String filename;
+  final int durationSeconds;
+}
 
 /// Audio recording service for recording voice notes
 class AudioRecordingService {
@@ -18,6 +33,7 @@ class AudioRecordingService {
   final Ref _ref;
   AppLogger get _logger => _ref.read(loggerProvider);
   AnalyticsService get _analytics => _ref.read(analyticsProvider);
+  AttachmentService get _attachmentService => _ref.read(attachmentServiceProvider);
   final AudioRecorder _recorder = AudioRecorder();
 
   bool _isRecording = false;
@@ -62,7 +78,10 @@ class AudioRecordingService {
 
       _analytics.featureUsed(
         'audio_recording_start',
-        properties: {'session_id': sessionId},
+        properties: {
+          'session_id': sessionId,
+          'recording_type': 'voice_note',
+        },
       );
 
       _logger.info(
@@ -104,7 +123,10 @@ class AudioRecordingService {
 
       _analytics.featureUsed(
         'audio_recording_complete',
-        properties: {'duration_seconds': duration.inSeconds},
+        properties: {
+          'duration_seconds': duration.inSeconds,
+          'recording_type': 'voice_note',
+        },
       );
 
       _logger.info(
@@ -218,6 +240,191 @@ class AudioRecordingService {
     } catch (e) {
       _logger.error('Failed to get recording duration', error: e);
       return null;
+    }
+  }
+
+  /// Finalize recording and upload to Supabase Storage
+  ///
+  /// This method:
+  /// 1. Stops recording if active
+  /// 2. Reads recording file bytes
+  /// 3. Uploads to Supabase Storage via AttachmentService
+  /// 4. Deletes local temp file after successful upload
+  /// 5. Returns RecordingResult with url, filename, and duration
+  ///
+  /// Returns null if recording fails or upload fails
+  Future<RecordingResult?> finalizeAndUpload({String? sessionId}) async {
+    try {
+      _analytics.startTiming('voice_note_finalize_upload');
+
+      // Stop recording if active
+      String? recordingPath = _currentRecordingPath;
+      if (_isRecording) {
+        recordingPath = await stopRecording();
+      }
+
+      if (recordingPath == null) {
+        _logger.warning('No recording path available for upload');
+        _analytics.endTiming(
+          'voice_note_finalize_upload',
+          properties: {'success': false, 'reason': 'no_recording'},
+        );
+        return null;
+      }
+
+      // Get recording bytes
+      final bytes = await getRecordingBytes(recordingPath);
+      if (bytes == null) {
+        _logger.error('Failed to read recording bytes');
+        _analytics.endTiming(
+          'voice_note_finalize_upload',
+          properties: {'success': false, 'reason': 'read_failed'},
+        );
+        return null;
+      }
+
+      // Get duration
+      final duration = await getRecordingDuration(recordingPath);
+      final durationSeconds = duration?.inSeconds ?? 0;
+
+      // Extract filename from path
+      final filename = path.basename(recordingPath);
+
+      // Upload to Supabase Storage
+      _logger.info(
+        'Uploading voice recording',
+        data: {'filename': filename, 'size': bytes.length},
+      );
+
+      final attachmentData = await _attachmentService.uploadFromBytes(
+        bytes: bytes,
+        filename: filename,
+      );
+
+      if (attachmentData == null || attachmentData.url == null) {
+        _logger.error('Failed to upload voice recording - no URL returned');
+        _analytics.endTiming(
+          'voice_note_finalize_upload',
+          properties: {'success': false, 'reason': 'upload_failed_no_url'},
+        );
+        return null;
+      }
+
+      // Delete local temp file after successful upload
+      await deleteRecording(recordingPath);
+
+      final result = RecordingResult(
+        url: attachmentData.url!,
+        filename: attachmentData.fileName,
+        durationSeconds: durationSeconds,
+      );
+
+      _analytics.endTiming(
+        'voice_note_finalize_upload',
+        properties: {
+          'success': true,
+          'duration_seconds': durationSeconds,
+          'file_size': bytes.length,
+          'recording_type': 'voice_note',
+        },
+      );
+
+      _logger.info(
+        'Voice recording uploaded successfully',
+        data: {
+          'url': result.url,
+          'filename': result.filename,
+          'duration': durationSeconds,
+        },
+      );
+
+      return result;
+    } catch (e, stackTrace) {
+      print('[AUDIO_SERVICE_DEBUG] ========== UPLOAD FAILED ==========');
+      print('[AUDIO_SERVICE_DEBUG] Error type: ${e.runtimeType}');
+      print('[AUDIO_SERVICE_DEBUG] Error message: $e');
+      print('[AUDIO_SERVICE_DEBUG] Stack trace:');
+      print(stackTrace);
+      print('[AUDIO_SERVICE_DEBUG] ==========================================');
+
+      _logger.error('Failed to finalize and upload recording', error: e);
+      _analytics.endTiming(
+        'voice_note_finalize_upload',
+        properties: {
+          'success': false,
+          'error': e.toString(),
+          'recording_type': 'voice_note',
+        },
+      );
+      _analytics.trackError(
+        'Voice recording upload failed',
+        properties: {'error': e.toString()},
+      );
+      return null;
+    }
+  }
+
+  /// Clean up orphaned recording files older than specified age
+  ///
+  /// Scans the temp directory for voice_note_*.m4a files and deletes
+  /// files older than the specified duration (default: 24 hours).
+  ///
+  /// This helps prevent temp directory bloat from failed uploads or
+  /// cancelled recordings.
+  ///
+  /// Returns the number of files cleaned up.
+  Future<int> cleanupOrphanedRecordings({
+    Duration maxAge = const Duration(hours: 24),
+  }) async {
+    int cleanedCount = 0;
+    try {
+      final directory = await resolveTemporaryDirectory();
+      final files = directory.listSync();
+      final now = DateTime.now();
+
+      for (final file in files) {
+        if (file is File) {
+          final filename = path.basename(file.path);
+
+          // Check if it's a voice note file
+          if (filename.contains('voice_note') && filename.endsWith('.m4a')) {
+            try {
+              final stat = await file.stat();
+              final age = now.difference(stat.modified);
+
+              if (age > maxAge) {
+                await file.delete();
+                cleanedCount++;
+                _logger.info(
+                  'Deleted orphaned recording',
+                  data: {'path': file.path, 'age_hours': age.inHours},
+                );
+              }
+            } catch (e) {
+              _logger.warning(
+                'Failed to clean up orphaned recording',
+                data: {'path': file.path, 'error': e.toString()},
+              );
+            }
+          }
+        }
+      }
+
+      if (cleanedCount > 0) {
+        _logger.info(
+          'Cleanup completed',
+          data: {'cleaned_count': cleanedCount},
+        );
+        _analytics.featureUsed(
+          'voice_note_cleanup',
+          properties: {'cleaned_count': cleanedCount},
+        );
+      }
+
+      return cleanedCount;
+    } catch (e) {
+      _logger.error('Failed to cleanup orphaned recordings', error: e);
+      return cleanedCount;
     }
   }
 

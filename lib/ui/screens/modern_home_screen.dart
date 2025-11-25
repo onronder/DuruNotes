@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
+import 'package:duru_notes/ui/widgets/voice_recording_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Modern home screen with improved visual design and UX
@@ -416,7 +417,15 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
 
   void _createVoiceNote() {
     _toggleFab();
-    // TODO: Implement voice note creation
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const FractionallySizedBox(
+        heightFactor: 0.7,
+        child: VoiceRecordingSheet(),
+      ),
+    );
   }
 
   void _createChecklist() {

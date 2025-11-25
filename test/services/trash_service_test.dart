@@ -14,10 +14,20 @@ import 'package:flutter_test/flutter_test.dart';
 /// Minimal fake notes repository for testing
 class _FakeNotesRepository implements INotesRepository {
   final List<Note> _deletedNotes = [];
+  final List<Note> _allNotes = [];
   bool shouldThrowOnDelete = false;
 
   @override
   Future<List<Note>> getDeletedNotes() async => List.of(_deletedNotes); // Return defensive copy
+
+  @override
+  Future<Note?> getNoteById(String noteId) async {
+    try {
+      return _allNotes.firstWhere((n) => n.id == noteId);
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Future<void> permanentlyDeleteNote(String noteId) async {
@@ -25,9 +35,13 @@ class _FakeNotesRepository implements INotesRepository {
       throw Exception('Simulated deletion error');
     }
     _deletedNotes.removeWhere((n) => n.id == noteId);
+    _allNotes.removeWhere((n) => n.id == noteId);
   }
 
-  void addDeletedNote(Note note) => _deletedNotes.add(note);
+  void addDeletedNote(Note note) {
+    _deletedNotes.add(note);
+    _allNotes.add(note);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

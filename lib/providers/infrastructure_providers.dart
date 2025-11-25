@@ -4,6 +4,7 @@ import 'package:duru_notes/core/config/environment_config.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/services/analytics/analytics_factory.dart';
 import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/audio_recording_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -41,6 +42,11 @@ final analyticsProvider = Provider<AnalyticsService>((ref) {
     return _NoOpAnalytics();
   }
   return bootstrap.analytics;
+});
+
+/// Provider for audio recording service
+final audioRecordingServiceProvider = Provider<AudioRecordingService>((ref) {
+  return AudioRecordingService(ref);
 });
 
 /// Provider for navigator key

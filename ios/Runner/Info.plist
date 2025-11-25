@@ -68,6 +68,8 @@
 	<string>Duru Notes accesses your photo library to attach images to your notes and scan text from existing photos using OCR.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Duru Notes uses speech recognition to provide real-time transcription of your voice notes, converting spoken words into searchable text.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Duru Notes may access motion data through integrated features and third-party SDKs to improve reliability and user experience. Motion data is not used to track your movements.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Duru Notes sends notifications to remind you about your notes at scheduled times or when you reach specific locations.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

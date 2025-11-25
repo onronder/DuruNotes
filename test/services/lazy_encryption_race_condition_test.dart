@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/data/local/app_db.dart';
@@ -10,10 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:duru_notes/test/test_utils/uuid_test_helper.dart';
+import '../utils/uuid_test_helper.dart';
 
 @GenerateNiceMocks([
-  MockSpec<ProviderContainer>(),
+  MockSpec<Ref>(),
   MockSpec<FlutterLocalNotificationsPlugin>(),
   MockSpec<CryptoBox>(),
 ])
@@ -28,7 +29,7 @@ void main() {
     late AppDb db;
     late MockCryptoBox mockCryptoBox;
     late RecurringReminderService reminderService;
-    late MockProviderContainer mockContainer;
+    late MockRef mockRef;
     late MockFlutterLocalNotificationsPlugin mockPlugin;
 
     const testUserId = 'test-user-123';
@@ -36,15 +37,15 @@ void main() {
 
     setUp(() async {
       // Create in-memory database
-      db = AppDb(NativeDatabase.memory());
+      db = AppDb.forTesting(NativeDatabase.memory());
 
       // Create mocks
       mockCryptoBox = MockCryptoBox();
-      mockContainer = MockProviderContainer();
+      mockRef = MockRef();
       mockPlugin = MockFlutterLocalNotificationsPlugin();
 
       // Setup basic mocks
-      when(mockContainer.read(any)).thenReturn(null);
+      when(mockRef.read(any)).thenReturn(null);
 
       // Setup crypto box to simulate encryption with delay
       when(
@@ -53,16 +54,16 @@ void main() {
           noteId: anyNamed('noteId'),
           text: anyNamed('text'),
         ),
-      ).thenAnswer((_) async {
+      ).thenAnswer((invocation) async {
         // Simulate encryption work with delay
         await Future.delayed(const Duration(milliseconds: 50));
-        final text = _.namedArguments[const Symbol('text')] as String;
+        final text = invocation.namedArguments[const Symbol('text')] as String;
         return Uint8List.fromList(text.codeUnits);
       });
 
       // Create service
       reminderService = RecurringReminderService(
-        mockContainer,
+        mockRef,
         mockPlugin,
         db,
         cryptoBox: mockCryptoBox,
@@ -78,19 +79,20 @@ void main() {
       final reminderId = UuidTestHelper.deterministicUuid('reminder-$title');
 
       await db.into(db.noteReminders).insert(
-            NoteRemindersCompanion.insert(
-              id: reminderId,
-              userId: testUserId,
-              noteId: testNoteId,
-              title: title,
-              body: 'Test body for $title',
-              scheduledTime: DateTime.now().add(const Duration(hours: 1)),
-              recurrencePattern: RecurrencePattern.none,
-              recurrenceInterval: 1,
-              reminderType: ReminderType.local,
-              // No encrypted fields - plaintext only
-            ),
-          );
+        NoteRemindersCompanion.insert(
+          noteId: testNoteId,
+          userId: testUserId,
+          type: ReminderType.time,
+          title: Value(title),
+          body: Value('Test body for $title'),
+          remindAt: Value(
+            DateTime.now().add(const Duration(hours: 1)),
+          ),
+          recurrencePattern: const Value(RecurrencePattern.none),
+          recurrenceInterval: const Value(1),
+          // No encrypted fields - plaintext only
+        ),
+      );
 
       final reminder = await db.getReminderByIdIncludingDeleted(
         reminderId,
@@ -117,10 +119,10 @@ void main() {
           noteId: anyNamed('noteId'),
           text: anyNamed('text'),
         ),
-      ).thenAnswer((_) async {
+      ).thenAnswer((invocation) async {
         encryptionCallCount++;
         await Future.delayed(const Duration(milliseconds: 50));
-        final text = _.namedArguments[const Symbol('text')] as String;
+        final text = invocation.namedArguments[const Symbol('text')] as String;
         return Uint8List.fromList(text.codeUnits);
       });
 
@@ -154,7 +156,7 @@ void main() {
       // Note: May be 3 calls if location is encrypted
       expect(
         encryptionCallCount,
-        lessThanOrEqual(3),
+        lessThanOrEqualTo(3),
         reason: 'Should not encrypt multiple times due to lock',
       );
     });
@@ -194,11 +196,11 @@ void main() {
       when(
         mockCryptoBox.encryptStringForNote(
           userId: anyNamed('userId'),
-          noteId: anyNamed('nodeId'),
+          noteId: anyNamed('noteId'),
           text: anyNamed('text'),
         ),
-      ).thenAnswer((_) async {
-        final text = _.namedArguments[const Symbol('text')] as String;
+      ).thenAnswer((invocation) async {
+        final text = invocation.namedArguments[const Symbol('text')] as String;
         encryptedTexts.add(text);
         await Future.delayed(const Duration(milliseconds: 50));
         return Uint8List.fromList(text.codeUnits);
@@ -254,8 +256,8 @@ void main() {
           noteId: anyNamed('noteId'),
           text: anyNamed('text'),
         ),
-      ).thenAnswer((_) async {
-        final text = _.namedArguments[const Symbol('text')] as String;
+      ).thenAnswer((invocation) async {
+        final text = invocation.namedArguments[const Symbol('text')] as String;
         return Uint8List.fromList(text.codeUnits);
       });
 
@@ -310,9 +312,9 @@ void main() {
           noteId: anyNamed('noteId'),
           text: anyNamed('text'),
         ),
-      ).thenAnswer((_) async {
+      ).thenAnswer((invocation) async {
         await Future.delayed(const Duration(milliseconds: 100));
-        final text = _.namedArguments[const Symbol('text')] as String;
+        final text = invocation.namedArguments[const Symbol('text')] as String;
         return Uint8List.fromList(text.codeUnits);
       });
 
@@ -325,8 +327,8 @@ void main() {
 
       // ASSERT: Check lock statistics
       final stats = reminderService.getEncryptionLockStats();
-      expect(stats['totalLockAcquisitions'], greaterThanOrEqual(1));
-      expect(stats['lockContentions'], greaterThanOrEqual(0));
+      expect(stats['totalLockAcquisitions'], greaterThanOrEqualTo(1));
+      expect(stats['lockContentions'], greaterThanOrEqualTo(0));
       expect(stats['lockTimeouts'], equals(0));
       expect(stats['activeLocksCount'], equals(0)); // All released
     });
@@ -342,9 +344,9 @@ void main() {
           noteId: anyNamed('noteId'),
           text: anyNamed('text'),
         ),
-      ).thenAnswer((_) async {
+      ).thenAnswer((invocation) async {
         await Future.delayed(const Duration(milliseconds: 100));
-        final text = _.namedArguments[const Symbol('text')] as String;
+        final text = invocation.namedArguments[const Symbol('text')] as String;
         return Uint8List.fromList(text.codeUnits);
       });
 

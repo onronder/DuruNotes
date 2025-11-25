@@ -14,6 +14,8 @@ PODS:
     - Flutter
   - argon2_ffi (0.0.1):
     - Flutter
+  - audio_session (0.0.1):
+    - Flutter
   - battery_plus (1.0.0):
     - Flutter
   - connectivity_plus (0.0.1):
@@ -136,6 +138,9 @@ PODS:
     - Flutter
   - integration_test (0.0.1):
     - Flutter
+  - just_audio (0.0.1):
+    - Flutter
+    - FlutterMacOS
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -159,9 +164,9 @@ PODS:
     - Flutter
   - record_ios (1.1.0):
     - Flutter
-  - SDWebImage (5.21.2):
-    - SDWebImage/Core (= 5.21.2)
-  - SDWebImage/Core (5.21.2)
+  - SDWebImage (5.21.3):
+    - SDWebImage/Core (= 5.21.3)
+  - SDWebImage/Core (5.21.3)
   - Sentry/HybridSDK (8.56.2)
   - sentry_flutter (9.8.0):
     - Flutter
@@ -187,6 +192,7 @@ DEPENDENCIES:
   - adapty_flutter (from `.symlinks/plugins/adapty_flutter/ios`)
   - app_links (from `.symlinks/plugins/app_links/ios`)
   - argon2_ffi (from `.symlinks/plugins/argon2_ffi/ios`)
+  - audio_session (from `.symlinks/plugins/audio_session/ios`)
   - battery_plus (from `.symlinks/plugins/battery_plus/ios`)
   - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
@@ -203,6 +209,7 @@ DEPENDENCIES:
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/darwin`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - just_audio (from `.symlinks/plugins/just_audio/darwin`)
   - objective_c (from `.symlinks/plugins/objective_c/ios`)
   - open_file_ios (from `.symlinks/plugins/open_file_ios/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
@@ -247,6 +254,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/app_links/ios"
   argon2_ffi:
     :path: ".symlinks/plugins/argon2_ffi/ios"
+  audio_session:
+    :path: ".symlinks/plugins/audio_session/ios"
   battery_plus:
     :path: ".symlinks/plugins/battery_plus/ios"
   connectivity_plus:
@@ -279,6 +288,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/image_picker_ios/ios"
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
+  just_audio:
+    :path: ".symlinks/plugins/just_audio/darwin"
   objective_c:
     :path: ".symlinks/plugins/objective_c/ios"
   open_file_ios:
@@ -315,6 +326,7 @@ SPEC CHECKSUMS:
   AdaptyUI: 60f719fc79bc44dbdbe88974290669dc14dc89e0
   app_links: 3dbc685f76b1693c66a6d9dd1e9ab6f73d97dc0a
   argon2_ffi: f1be41573e3fb81c2ad41459e6cc85bea1bac2e2
+  audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
   battery_plus: b42253f6d2dde71712f8c36fef456d99121c5977
   connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
   CwlCatchException: 7acc161b299a6de7f0a46a6ed741eae2c8b4d75a
@@ -342,6 +354,7 @@ SPEC CHECKSUMS:
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   objective_c: 89e720c30d716b036faf9c9684022048eee1eee2
   open_file_ios: 5ff7526df64e4394b4fe207636b67a95e83078bb
@@ -352,7 +365,7 @@ SPEC CHECKSUMS:
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   receive_sharing_intent: 222384f00ffe7e952bbfabaa9e3967cb87e5fe00
   record_ios: f75fa1d57f840012775c0e93a38a7f3ceea1a374
-  SDWebImage: 9f177d83116802728e122410fb25ad88f5c7608a
+  SDWebImage: 16309af6d214ba3f77a7c6f6fdda888cb313a50a
   Sentry: b53951377b78e21a734f5dc8318e333dbfc682d7
   sentry_flutter: 4c33648b7e83310aa1fdb1b10c5491027d9643f0
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
@@ -362,6 +375,6 @@ SPEC CHECKSUMS:
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
-PODFILE CHECKSUM: ec8b62c3e9dada79fb5ada524d9e8e6d94ea7021
+PODFILE CHECKSUM: 33a2bcf574c1d795aef359923094cbbb6c2093ad
 
 COCOAPODS: 1.16.2

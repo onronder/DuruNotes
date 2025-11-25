@@ -1951,9 +1951,9 @@ class NotesCoreRepository implements INotesRepository {
       final now = DateTime.now().toUtc();
       // SYNC FIX: Use provided timestamps if available (from sync), otherwise use now (user creation)
       final finalCreatedAt = createdAt ?? existingNote?.createdAt ?? now;
-      // TIMESTAMP FIX: For user modifications, ALWAYS use now
-      // Only preserve old timestamp if explicitly provided by sync (updatedAt parameter)
-      final finalUpdatedAt = updatedAt ?? now;
+      // TIMESTAMP FIX: Only update timestamp if explicitly provided OR if this is a new note
+      // For existing notes without explicit timestamp, preserve the existing timestamp
+      final finalUpdatedAt = updatedAt ?? existingNote?.updatedAt ?? now;
       _logger.info(
         'Creating/updating note locally',
         data: {

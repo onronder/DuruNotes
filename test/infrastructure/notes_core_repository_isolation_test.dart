@@ -440,11 +440,12 @@ class _NoopSupabaseNoteApi extends SupabaseNoteApi {
 
   @override
   Future<void> upsertEncryptedNote({
-    DateTime? createdAt,
     required String id,
     required Uint8List titleEnc,
     required Uint8List propsEnc,
     required bool deleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {}
 
   @override

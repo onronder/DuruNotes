@@ -20,6 +20,9 @@ class LocaleNotifier extends StateNotifier<Locale?> {
   static const List<Locale> supportedLocales = [
     Locale('en'), // English
     Locale('tr'), // Turkish
+    Locale('es'), // Spanish
+    Locale('de'), // German
+    Locale('fr'), // French
   ];
 
   /// Load locale from SharedPreferences

@@ -21,10 +21,11 @@ class AppLocalizationsTr extends AppLocalizations {
   String get noNotesYet => 'Henüz not yok';
 
   @override
-  String get tapToCreateFirstNote => 'Tap + to create your first note';
+  String get tapToCreateFirstNote =>
+      'İlk notunuzu oluşturmak için + simgesine dokunun';
 
   @override
-  String get createFirstNote => 'Create First Note';
+  String get createFirstNote => 'İlk notunuzu oluşturun';
 
   @override
   String get importNotes => 'Notları İçe Aktar';
@@ -42,7 +43,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get signOut => 'Çıkış Yap';
 
   @override
-  String get logout => 'Sign Out';
+  String get logout => 'Oturumu Kapat';
 
   @override
   String get import => 'İçe Aktar';
@@ -51,42 +52,42 @@ class AppLocalizationsTr extends AppLocalizations {
   String get export => 'Dışa Aktar';
 
   @override
-  String get importNotesTitle => 'Import Notes';
+  String get importNotesTitle => 'Notları İçe Aktar';
 
   @override
-  String get exportNotesTitle => 'Export Notes';
+  String get exportNotesTitle => 'Notları Dışa Aktar';
 
   @override
-  String get chooseWhatToImport => 'Choose what to import:';
+  String get chooseWhatToImport => 'Ne içe aktarılacağını seçin';
 
   @override
-  String get exportYourNotes => 'Export your notes to various formats:';
+  String get exportYourNotes => 'Notlarınızı dışa aktarın';
 
   @override
   String availableNotes(int count) {
-    return 'Available notes: $count';
+    return 'Kullanılabilir notlar';
   }
 
   @override
-  String get markdownFiles => 'Markdown Files';
+  String get markdownFiles => 'Markdown dosyaları';
 
   @override
-  String get evernoteExport => 'Evernote Export';
+  String get evernoteExport => 'Evernote dışa aktarma';
 
   @override
-  String get obsidianVault => 'Obsidian Vault';
+  String get obsidianVault => 'Obsidian kasası';
 
   @override
-  String get importSingleMdFiles => 'Import single .md or .markdown files';
+  String get importSingleMdFiles => 'Tek tek Markdown dosyalarını içe aktar';
 
   @override
-  String get importEnexFiles => 'Import .enex files from Evernote';
+  String get importEnexFiles => 'ENEX dosyalarını içe aktar';
 
   @override
-  String get importObsidianVaultFolder => 'Import entire Obsidian vault folder';
+  String get importObsidianVaultFolder => 'Obsidian kasa klasörünü içe aktar';
 
   @override
-  String get selectImportType => 'Select Import Type';
+  String get selectImportType => 'İçe aktarma türünü seçin';
 
   @override
   String get markdown => 'Markdown';
@@ -98,206 +99,210 @@ class AppLocalizationsTr extends AppLocalizations {
   String get html => 'HTML';
 
   @override
-  String get exportAsMdFiles => 'Export as .md files with full formatting';
+  String get exportAsMdFiles => 'Markdown dosyaları olarak dışa aktar';
 
   @override
-  String get exportAsPdfDocs => 'Export as PDF documents for sharing';
+  String get exportAsPdfDocs => 'PDF belgeleri olarak dışa aktar';
 
   @override
-  String get exportAsWebPages => 'Export as web pages with styling';
+  String get exportAsWebPages => 'Web sayfaları olarak dışa aktar';
 
   @override
-  String get selectExportFormat => 'Select Export Format';
+  String get selectExportFormat => 'Dışa aktarma formatını seçin';
 
   @override
-  String get chooseFormat => 'Choose Format';
+  String get chooseFormat => 'Format seçin';
 
   @override
-  String get exportAllNotes => 'Export All Notes';
+  String get exportAllNotes => 'Tüm notları dışa aktar';
 
   @override
-  String get exportRecentNotes => 'Export Recent Notes';
+  String get exportRecentNotes => 'Son notları dışa aktar';
 
   @override
-  String get exportLatest10 => 'Export Latest 10';
+  String get exportLatest10 => 'Son 10 notu dışa aktar';
 
   @override
   String exportAllNotesDesc(int count) {
-    return 'Export all $count notes';
+    return 'Hesabınızdaki tüm notları dışa aktarın';
   }
 
   @override
-  String get exportRecentNotesDesc => 'Export notes from the last 30 days';
+  String get exportRecentNotesDesc =>
+      'Son oluşturulan ve güncellenen notları dışa aktarın';
 
   @override
-  String get exportLatest10Desc => 'Export the 10 most recent notes';
+  String get exportLatest10Desc => 'Yalnızca son 10 notu hızlıca dışa aktarın';
 
   @override
-  String get importingNotes => 'Importing Notes';
+  String get importingNotes => 'Notlar içe aktarılıyor';
 
   @override
   String exportingToFormat(String format) {
-    return 'Exporting to $format';
+    return 'Notlar dışa aktarılıyor';
   }
 
   @override
-  String get initializingImport => 'Initializing import...';
+  String get initializingImport => 'İçe aktarma başlatılıyor';
 
   @override
-  String get initializingExport => 'Initializing export...';
+  String get initializingExport => 'Dışa aktarma başlatılıyor';
 
   @override
   String currentFile(String filename) {
-    return 'File: $filename';
+    return 'Geçerli dosya';
   }
 
   @override
   String progressCount(int current, int total) {
-    return 'Progress: $current/$total';
+    return 'İlerleme sayacı';
   }
 
   @override
   String noteProgress(int current, int total) {
-    return 'Note: $current/$total';
+    return 'Not ilerlemesi';
   }
 
   @override
   String currentNote(String title) {
-    return 'Current: $title';
+    return 'Geçerli not';
   }
 
   @override
-  String get overallProgress => 'Overall Progress:';
+  String get overallProgress => 'Genel ilerleme';
 
   @override
   String estimatedTimeRemaining(String time) {
-    return 'Estimated time remaining: $time';
+    return 'Tahmini kalan süre';
   }
 
   @override
   String get cancel => 'İptal';
 
   @override
-  String get importComplete => 'Import Complete';
+  String get importComplete => 'İçe aktarma tamamlandı';
 
   @override
-  String get exportComplete => 'Export Complete';
+  String get exportComplete => 'Dışa aktarma tamamlandı';
 
   @override
   String successfullyImported(int count) {
-    return '✅ Successfully imported: $count notes';
+    return 'Başarıyla içe aktarıldı';
   }
 
   @override
   String successfullyExported(int count) {
-    return '✅ Successfully exported: $count notes';
+    return 'Başarıyla dışa aktarıldı';
   }
 
   @override
   String errorsEncountered(int count) {
-    return '⚠️ Errors encountered: $count';
+    return 'Hatalar ile karşılaşıldı';
   }
 
   @override
   String importTook(int seconds) {
-    return '⏱️ Import took: $seconds seconds';
+    return 'İçe aktarma süresi';
   }
 
   @override
   String exportTook(int seconds) {
-    return '⏱️ Export took: $seconds seconds';
+    return 'Dışa aktarma süresi';
   }
 
   @override
   String totalSize(String size) {
-    return '📁 Total size: $size';
+    return 'Toplam boyut';
   }
 
   @override
-  String get errorDetails => 'Error details:';
+  String get errorDetails => 'Hata ayrıntıları';
 
   @override
-  String get filesSavedToDownloads => 'Files saved to Downloads folder';
+  String get filesSavedToDownloads =>
+      'Dosyalar İndirilenler klasörüne kaydedildi';
 
   @override
-  String get failedExports => 'Failed exports:';
+  String get failedExports => 'Başarısız dışa aktarmalar';
 
   @override
-  String get shareFiles => 'Share Files';
+  String get shareFiles => 'Dosyaları paylaş';
 
   @override
-  String get openFolder => 'Open Folder';
+  String get openFolder => 'Klasörü aç';
 
   @override
-  String get close => 'Close';
+  String get close => 'Kapat';
 
   @override
-  String get importError => 'Import Error';
+  String get importError => 'İçe aktarma hatası';
 
   @override
-  String get exportError => 'Export Error';
+  String get exportError => 'Dışa aktarma hatası';
 
   @override
-  String get noNotesToExport => 'No notes to export';
+  String get noNotesToExport => 'Dışa aktarılacak not yok';
 
   @override
-  String get failedToSelectMarkdownFiles => 'Failed to select Markdown files';
+  String get failedToSelectMarkdownFiles => 'Markdown dosyaları seçilemedi';
 
   @override
-  String get failedToSelectEvernoteFile => 'Failed to select Evernote file';
+  String get failedToSelectEvernoteFile => 'Evernote dosyası seçilemedi';
 
   @override
-  String get failedToSelectObsidianVault => 'Failed to select Obsidian vault';
+  String get failedToSelectObsidianVault => 'Obsidian kasası seçilemedi';
 
   @override
-  String get importFailed => 'Import failed';
+  String get importFailed => 'İçe aktarma başarısız';
 
   @override
-  String get exportFailed => 'Export failed';
+  String get exportFailed => 'Dışa aktarma başarısız';
 
   @override
-  String get obsidianImportFailed => 'Obsidian import failed';
+  String get obsidianImportFailed => 'Obsidian içe aktarma başarısız oldu';
 
   @override
-  String get noFilesAvailableToShare => 'No files available to share';
+  String get noFilesAvailableToShare => 'Paylaşılabilir dosya bulunamadı';
 
   @override
-  String get failedToShareExportedFile => 'Failed to share exported file';
+  String get failedToShareExportedFile => 'Dışa aktarılan dosya paylaşılamadı';
 
   @override
-  String get errorSharingFiles => 'Error sharing files';
+  String get errorSharingFiles => 'Dosyalar paylaşılırken hata oluştu';
 
   @override
-  String get couldNotOpenExportsFolder => 'Could not open exports folder';
+  String get couldNotOpenExportsFolder => 'Dışa aktarma klasörü açılamadı';
 
   @override
   String get pdfExportMayFailInSimulator =>
-      'PDF export may fail in simulator due to network restrictions. Try:';
+      'PDF dışa aktarma, simülatörde başarısız olabilir';
 
   @override
-  String get testOnPhysicalDevice => '• Test on a physical device';
+  String get testOnPhysicalDevice => 'Lütfen gerçek bir cihazda test edin';
 
   @override
-  String get checkInternetConnection => '• Check your internet connection';
+  String get checkInternetConnection =>
+      'Lütfen internet bağlantınızı kontrol edin';
 
   @override
-  String get tryExportingAsMarkdown => '• Try exporting as Markdown instead';
+  String get tryExportingAsMarkdown => 'Markdown olarak dışa aktarmayı deneyin';
 
   @override
   String get networkRelatedIssueDetected =>
-      'Network-related issue detected. Try:';
+      'Ağ ile ilgili bir sorun tespit edildi';
 
   @override
-  String get tryAgainInFewMoments => '• Try again in a few moments';
+  String get tryAgainInFewMoments => 'Biraz sonra tekrar deneyin';
 
   @override
-  String get useDifferentExportFormat => '• Use a different export format';
+  String get useDifferentExportFormat =>
+      'Farklı bir dışa aktarma formatı kullanın';
 
   @override
-  String get tryMarkdown => 'Try Markdown';
+  String get tryMarkdown => 'Markdown formatını deneyin';
 
   @override
-  String get editNote => 'Edit Note';
+  String get editNote => 'Notu düzenle';
 
   @override
   String get deleteNote => 'Notu Sil';
@@ -309,48 +314,48 @@ class AppLocalizationsTr extends AppLocalizations {
   String get edit => 'Düzenle';
 
   @override
-  String get untitled => 'Untitled';
+  String get untitled => 'Başlıksız';
 
   @override
-  String get noContent => 'No content';
+  String get noContent => 'İçerik yok';
 
   @override
-  String get justNow => 'Just now';
+  String get justNow => 'Az önce';
 
   @override
   String minutesAgo(int count) {
-    return '$count minutes ago';
+    return 'dakika önce';
   }
 
   @override
   String hoursAgo(int count) {
-    return '$count hours ago';
+    return 'saat önce';
   }
 
   @override
   String daysAgo(int count) {
-    return '$count days ago';
+    return 'gün önce';
   }
 
   @override
   String areYouSureDeleteNote(String title) {
-    return 'Are you sure you want to delete \"$title\"?';
+    return 'Bu notu silmek istediğinizden emin misiniz?';
   }
 
   @override
   String get noteDeleted => 'Not silindi';
 
   @override
-  String get errorDeletingNote => 'Error deleting note';
+  String get errorDeletingNote => 'Not silinirken bir hata oluştu';
 
   @override
   String get welcomeBack => 'Tekrar Hoş Geldiniz';
 
   @override
-  String get online => 'Online';
+  String get online => 'Çevrimiçi';
 
   @override
-  String get offline => 'Offline';
+  String get offline => 'Çevrimdışı';
 
   @override
   String get loading => 'Yükleniyor';
@@ -359,49 +364,49 @@ class AppLocalizationsTr extends AppLocalizations {
   String get retry => 'Tekrar Dene';
 
   @override
-  String get errorLoadingNotes => 'Error loading notes';
+  String get errorLoadingNotes => 'Notlar yüklenirken hata oluştu';
 
   @override
   String get searchFeatureTemporarilyDisabled =>
-      'Search feature temporarily disabled';
+      'Arama özelliği geçici olarak devre dışı';
 
   @override
   String get exportFunctionalityComingSoon =>
-      'Export functionality coming soon';
+      'Dışa aktarma işlevi yakında geliyor';
 
   @override
-  String get settingsScreenComingSoon => 'Settings screen coming soon';
+  String get settingsScreenComingSoon => 'Ayarlar ekranı yakında geliyor';
 
   @override
-  String get areYouSureSignOut => 'Are you sure you want to sign out?';
+  String get areYouSureSignOut => 'Çıkış yapmak istediğinizden emin misiniz?';
 
   @override
   String get productionGradeImportSystemReady =>
-      'Production-grade import system ready!';
+      'Üretim seviyesinde içe aktarma sistemi hazır';
 
   @override
-  String get supportedFormats => 'Supported formats:';
+  String get supportedFormats => 'Desteklenen formatlar';
 
   @override
-  String get singleMarkdownFiles => '• Single Markdown files (.md, .markdown)';
+  String get singleMarkdownFiles => 'Tekli Markdown dosyaları';
 
   @override
-  String get evernoteFiles => '• Evernote export files (.enex)';
+  String get evernoteFiles => 'Evernote dosyaları';
 
   @override
-  String get obsidianVaultFolders => '• Obsidian vault folders';
+  String get obsidianVaultFolders => 'Obsidian kasa klasörleri';
 
   @override
-  String get importFeatures => 'Features:';
+  String get importFeatures => 'İçe aktarma özellikleri';
 
   @override
-  String get securityValidation => '• Security validation';
+  String get securityValidation => 'Güvenlik doğrulaması';
 
   @override
-  String get progressTracking => '• Progress tracking';
+  String get progressTracking => 'İlerleme takibi';
 
   @override
-  String get errorRecovery => '• Error recovery';
+  String get errorRecovery => 'Hata kurtarma';
 
   @override
   String get genericErrorTitle => 'Bir şeyler ters gitti';
@@ -418,52 +423,52 @@ class AppLocalizationsTr extends AppLocalizations {
       'Hata raporu gönderildi. Geri bildiriminiz için teşekkürler!';
 
   @override
-  String get contentSanitization => '• Content sanitization';
+  String get contentSanitization => 'İçerik temizleme';
 
   @override
   String get featuresSecurityValidation =>
-      'Features: Security validation, progress tracking, error recovery';
+      'Güvenlik doğrulaması ve içerik temizleme';
 
   @override
-  String get exportAsMarkdownFiles => '• Export as Markdown files';
+  String get exportAsMarkdownFiles => 'Markdown dosyaları olarak dışa aktar';
 
   @override
-  String get exportAsPdfDocuments => '• Export as PDF documents';
+  String get exportAsPdfDocuments => 'PDF belgeleri olarak dışa aktar';
 
   @override
-  String get exportAsHtmlFiles => '• Export as HTML files';
+  String get exportAsHtmlFiles => 'HTML dosyaları olarak dışa aktar';
 
   @override
   String get featuresRichFormatting =>
-      'Features: Rich formatting, metadata, attachments';
+      'Zengin biçimlendirme ve güvenli dışa aktarma';
 
   @override
-  String get exportCancelled => 'Export cancelled';
+  String get exportCancelled => 'Dışa aktarma iptal edildi';
 
   @override
   String get checkDownloadsFolderForFiles =>
-      'Check your Downloads folder for exported files';
+      'Dosyalar için İndirilenler klasörünü kontrol edin';
 
   @override
   String get filesSavedInAppDocuments =>
-      'Files are saved in app Documents folder. Use \"Share Files\" to access them.';
+      'Dosyalar uygulamanın belgeler klasörüne kaydedildi';
 
   @override
   String statusPhase(String phase) {
-    return 'Status: $phase';
+    return 'Aşama durumu';
   }
 
   @override
-  String get settingsTitle => 'Settings';
+  String get settingsTitle => 'Ayarlar';
 
   @override
-  String get account => 'Account';
+  String get account => 'Hesap';
 
   @override
-  String get sync => 'Sync';
+  String get sync => 'Senkronizasyon';
 
   @override
-  String get appearance => 'Appearance';
+  String get appearance => 'Görünüm';
 
   @override
   String get language => 'Dil';
@@ -475,37 +480,39 @@ class AppLocalizationsTr extends AppLocalizations {
   String get security => 'Güvenlik';
 
   @override
-  String get importExport => 'Import & Export';
+  String get importExport => 'İçe/Dışa Aktarma';
 
   @override
-  String get helpAbout => 'Help & About';
+  String get helpAbout => 'Yardım ve Hakkında';
 
   @override
-  String get signedInAs => 'Signed in as';
+  String get signedInAs => 'Giriş yapılan hesap';
 
   @override
-  String get signOutConfirm => 'Are you sure you want to sign out?';
+  String get signOutConfirm => 'Çıkış yapmak istediğinizden emin misiniz?';
 
   @override
-  String get manageAccount => 'Manage Account';
+  String get manageAccount => 'Hesabı yönet';
 
   @override
-  String get syncMode => 'Sync Mode';
+  String get syncMode => 'Senkronizasyon modu';
 
   @override
-  String get automaticSync => 'Automatic';
+  String get automaticSync => 'Otomatik senkronizasyon';
 
   @override
-  String get manualSync => 'Manual';
+  String get manualSync => 'Manuel senkronizasyon';
 
   @override
-  String get automaticSyncDesc => 'Sync changes automatically';
+  String get automaticSyncDesc =>
+      'Değişiklikleri arka planda otomatik olarak senkronize et';
 
   @override
-  String get manualSyncDesc => 'Sync only when requested';
+  String get manualSyncDesc =>
+      'Verileri yalnızca siz istediğinizde senkronize edin';
 
   @override
-  String get syncNow => 'Sync Now';
+  String get syncNow => 'Şimdi senkronize et';
 
   @override
   String get syncing => 'Senkronize ediliyor';
@@ -529,13 +536,13 @@ class AppLocalizationsTr extends AppLocalizations {
   String get systemTheme => 'Sistem Teması';
 
   @override
-  String get accentColor => 'Accent Color';
+  String get accentColor => 'Vurgu rengi';
 
   @override
-  String get selectLanguage => 'Select Language';
+  String get selectLanguage => 'Dil seçin';
 
   @override
-  String get english => 'English';
+  String get english => 'İngilizce';
 
   @override
   String get turkish => 'Türkçe';
@@ -544,40 +551,40 @@ class AppLocalizationsTr extends AppLocalizations {
   String get enableNotifications => 'Bildirimleri Etkinleştir';
 
   @override
-  String get openSystemSettings => 'Open System Settings';
+  String get openSystemSettings => 'Sistem ayarlarını aç';
 
   @override
-  String get notificationPermissions => 'Notification Permissions';
+  String get notificationPermissions => 'Bildirim izinleri';
 
   @override
-  String get endToEndEncryption => 'End-to-End Encryption';
+  String get endToEndEncryption => 'Uçtan uca şifreleme';
 
   @override
-  String get encryptionEnabled =>
-      'Your notes are encrypted with industry-standard encryption';
+  String get encryptionEnabled => 'Şifreleme etkin';
 
   @override
-  String get analyticsOptIn => 'Usage Analytics';
+  String get analyticsOptIn => 'Analitiklere katıl';
 
   @override
   String get analyticsDesc =>
-      'Help improve the app by sharing anonymous usage data';
+      'Uygulamanın iyileştirilmesine yardımcı olmak için anonim kullanım verilerini paylaşın';
 
   @override
-  String get biometricLock => 'Biometric Lock';
+  String get biometricLock => 'Biyometrik kilit';
 
   @override
   String get biometricDesc =>
-      'Require biometric authentication to open the app';
+      'Notlara erişmek için parmak izi veya yüz tanımayı kullanın';
 
   @override
-  String get biometricNotAvailable => 'Biometric authentication not available';
+  String get biometricNotAvailable =>
+      'Bu cihazda biyometrik kimlik doğrulama kullanılamıyor';
 
   @override
   String get version => 'Sürüm';
 
   @override
-  String get buildNumber => 'Build Number';
+  String get buildNumber => 'Derleme numarası';
 
   @override
   String get privacyPolicy => 'Gizlilik Politikası';
@@ -586,272 +593,267 @@ class AppLocalizationsTr extends AppLocalizations {
   String get termsOfService => 'Kullanım Koşulları';
 
   @override
-  String get contactSupport => 'Contact Support';
+  String get contactSupport => 'Destek ile iletişime geç';
 
   @override
-  String get rateApp => 'Rate App';
+  String get rateApp => 'Uygulamayı değerlendir';
 
   @override
-  String get userGuide => 'User Guide';
+  String get userGuide => 'Kullanım kılavuzu';
 
   @override
-  String get helpAndSupport => 'Help & Support';
+  String get helpAndSupport => 'Yardım ve destek';
 
   @override
-  String get documentation => 'Documentation';
+  String get documentation => 'Dokümantasyon';
 
   @override
-  String get aboutApp => 'About App';
+  String get aboutApp => 'Uygulama hakkında';
 
   @override
-  String get sharedNote => 'Shared Note';
+  String get sharedNote => 'Paylaşılan not';
 
   @override
-  String get sharedText => 'Shared Text';
+  String get sharedText => 'Paylaşılan metin';
 
   @override
-  String get sharedImage => 'Shared Image';
+  String get sharedImage => 'Paylaşılan görsel';
 
   @override
-  String get sharedLink => 'Shared Link';
+  String get sharedLink => 'Paylaşılan bağlantı';
 
   @override
-  String get sharedFile => 'Shared File';
+  String get sharedFile => 'Paylaşılan dosya';
 
   @override
   String sharedFrom(String source, String date) {
-    return 'Shared from $source on $date';
+    return 'Paylaşıldığı yer';
   }
 
   @override
-  String get sharedImageCouldNotBeProcessed =>
-      'Shared image could not be processed.';
+  String get sharedImageCouldNotBeProcessed => 'Paylaşılan görsel işlenemedi';
 
   @override
   String get folders => 'Klasörler';
 
   @override
-  String get folderPickerTitle => 'Choose Folder';
+  String get folderPickerTitle => 'Klasör seçin';
 
   @override
-  String get folderPickerSubtitle => 'Organize your note';
+  String get folderPickerSubtitle => 'Notu taşımak için bir klasör seçin';
 
   @override
-  String get createNewFolder => 'Create New Folder';
+  String get createNewFolder => 'Yeni klasör oluştur';
 
   @override
-  String get createNewFolderSubtitle => 'Add a new folder for organization';
+  String get createNewFolderSubtitle =>
+      'Notlarınızı düzenlemek için yeni bir klasör ekleyin';
 
   @override
-  String get newFolder => 'New Folder';
+  String get newFolder => 'Yeni klasör';
 
   @override
   String get folderName => 'Klasör Adı';
 
   @override
-  String get folderNameHint => 'e.g., Work, Personal, Ideas';
+  String get folderNameHint => 'Klasör adı';
 
   @override
-  String get folderNameRequired => 'Folder name is required';
+  String get folderNameRequired => 'Klasör adı gerekli';
 
   @override
-  String get folderNameEmpty => 'Folder name cannot be empty';
+  String get folderNameEmpty => 'Klasör adı boş olamaz';
 
   @override
-  String get folderNameDuplicate => 'A folder with this name already exists';
+  String get folderNameDuplicate => 'Bu adda bir klasör zaten var';
 
   @override
-  String get folderColor => 'Color';
+  String get folderColor => 'Klasör rengi';
 
   @override
-  String get folderIcon => 'Icon';
+  String get folderIcon => 'Klasör simgesi';
 
   @override
-  String get parentFolder => 'Parent Folder';
+  String get parentFolder => 'Ana klasör';
 
   @override
-  String get rootFolder => 'Root (No Parent)';
+  String get rootFolder => 'Kök klasör';
 
   @override
-  String get rootLevel => 'Root Level';
+  String get rootLevel => 'Kök seviye';
 
   @override
-  String get description => 'Description';
+  String get description => 'Açıklama';
 
   @override
-  String get optional => 'Optional';
+  String get optional => 'İsteğe bağlı';
 
   @override
-  String get folderDescriptionHint =>
-      'Brief description of this folder\'s purpose';
+  String get folderDescriptionHint => 'Klasör için isteğe bağlı açıklama';
 
   @override
-  String get selectParentFolder => 'Select Parent Folder';
+  String get selectParentFolder => 'Ana klasörü seçin';
 
   @override
-  String get unfiledNotes => 'Unfiled Notes';
+  String get unfiledNotes => 'Klasörsüz notlar';
 
   @override
   String noteCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count notes',
-      one: '1 note',
-      zero: 'No notes',
-    );
-    return '$_temp0';
+    return 'Not sayısı';
   }
 
   @override
-  String get searchFolders => 'Search folders...';
+  String get searchFolders => 'Klasörlerde ara';
 
   @override
-  String get showSearch => 'Show search';
+  String get showSearch => 'Aramayı göster';
 
   @override
-  String get hideSearch => 'Hide search';
+  String get hideSearch => 'Aramayı gizle';
 
   @override
-  String get clearSearch => 'Clear search';
+  String get clearSearch => 'Aramayı temizle';
 
   @override
-  String get noFoldersFound => 'No folders found';
+  String get noFoldersFound => 'Klasör bulunamadı';
 
   @override
   String noFoldersFoundSubtitle(String query) {
-    return 'No folders match \'$query\'';
+    return 'Filtreyi değiştirerek veya yeni bir klasör oluşturarak tekrar deneyin';
   }
 
   @override
-  String get loadFoldersError => 'Failed to load folders';
+  String get loadFoldersError => 'Klasörler yüklenirken hata oluştu';
 
   @override
-  String get create => 'Create';
+  String get create => 'Oluştur';
 
   @override
-  String get loadError => 'Load error';
+  String get loadError => 'Yükleme hatası';
 
   @override
-  String get folderManagement => 'Folder Management';
+  String get folderManagement => 'Klasör yönetimi';
 
   @override
-  String get editFolder => 'Edit Folder';
+  String get editFolder => 'Klasörü düzenle';
 
   @override
-  String get deleteFolder => 'Delete Folder';
+  String get deleteFolder => 'Klasörü sil';
 
   @override
-  String get moveFolder => 'Move Folder';
+  String get moveFolder => 'Klasörü taşı';
 
   @override
-  String get folderProperties => 'Folder Properties';
+  String get folderProperties => 'Klasör özellikleri';
 
   @override
-  String get confirmDeleteFolder => 'Delete this folder?';
+  String get confirmDeleteFolder => 'Klasörü silmeyi onayla';
 
   @override
   String get confirmDeleteFolderMessage =>
-      'This will move all notes and subfolders to the parent level.';
+      'Bu klasör ve içeriği kalıcı olarak silinecek. Devam etmek istiyor musunuz?';
 
   @override
-  String get confirmDeleteFolderAction => 'Delete Folder';
+  String get confirmDeleteFolderAction => 'Klasörü sil';
 
   @override
-  String get addToFolder => 'Add to Folder';
+  String get addToFolder => 'Klasöre ekle';
 
   @override
-  String get removeFromFolder => 'Remove from Folder';
+  String get removeFromFolder => 'Klasörden kaldır';
 
   @override
   String get moveToFolder => 'Klasöre Taşı';
 
   @override
-  String get folderEmpty => 'This folder is empty';
+  String get folderEmpty => 'Klasör boş';
 
   @override
-  String get folderEmptySubtitle => 'Add notes to get started';
+  String get folderEmptySubtitle =>
+      'Buraya not eklemek için + simgesini kullanın veya notları buraya taşıyın';
 
   @override
-  String get allFolders => 'All Folders';
+  String get allFolders => 'Tüm klasörler';
 
   @override
-  String get rename => 'Rename';
+  String get rename => 'Yeniden adlandır';
 
   @override
-  String get renameFolder => 'Rename Folder';
+  String get renameFolder => 'Klasörü yeniden adlandır';
 
   @override
-  String get move => 'Move';
+  String get move => 'Taşı';
 
   @override
-  String get folderRenamed => 'Folder renamed successfully';
+  String get folderRenamed => 'Klasör yeniden adlandırıldı';
 
   @override
-  String get folderMoved => 'Folder moved successfully';
+  String get folderMoved => 'Klasör taşındı';
 
   @override
-  String get folderDeleted => 'Folder deleted';
+  String get folderDeleted => 'Klasör silindi';
 
   @override
   String get folderDeletedNotesMovedToInbox =>
-      'Folder deleted, notes moved to Inbox';
+      'Klasör silindi, içindeki notlar gelen kutusuna taşındı';
 
   @override
   String folderCreated(String name) {
-    return 'Folder \"$name\" created';
+    return 'Klasör oluşturuldu';
   }
 
   @override
   String deleteFolderConfirmation(String name) {
-    return 'Delete folder \"$name\"? All notes will be moved to Inbox.';
+    return 'Bu klasörü silmek istediğinizden emin misiniz?';
   }
 
   @override
-  String get folderDeleteDescription => 'Notes will be moved to Inbox';
+  String get folderDeleteDescription =>
+      'Klasör silinecek. Notlarınız kaybolmayacak ve gelen kutusuna taşınacak.';
 
   @override
-  String get errorRenamingFolder => 'Failed to rename folder';
+  String get errorRenamingFolder =>
+      'Klasör yeniden adlandırılırken hata oluştu';
 
   @override
-  String get errorMovingFolder => 'Failed to move folder';
+  String get errorMovingFolder => 'Klasör taşınırken hata oluştu';
 
   @override
-  String get errorDeletingFolder => 'Failed to delete folder';
+  String get errorDeletingFolder => 'Klasör silinirken hata oluştu';
 
   @override
-  String get errorCreatingFolder => 'Failed to create folder';
+  String get errorCreatingFolder => 'Klasör oluşturulurken hata oluştu';
 
   @override
-  String get errorLoadingFolders => 'Failed to load folders';
+  String get errorLoadingFolders => 'Klasörler yüklenirken hata oluştu';
 
   @override
   String get cannotMoveToDescendant =>
-      'Cannot move folder to its own descendant';
+      'Bir klasörü kendi alt klasörüne taşıyamazsınız';
 
   @override
-  String get selectFolder => 'Select Folder';
+  String get selectFolder => 'Klasör seçin';
 
   @override
-  String get unfiled => 'Unfiled';
+  String get unfiled => 'Klasörsüz';
 
   @override
-  String get createYourFirstFolder => 'Create your first folder';
+  String get createYourFirstFolder => 'İlk klasörünüzü oluşturun';
 
   @override
-  String get expandAll => 'Expand All';
+  String get expandAll => 'Tümünü genişlet';
 
   @override
-  String get collapseAll => 'Collapse All';
+  String get collapseAll => 'Tümünü daralt';
 
   @override
   String get save => 'Kaydet';
 
   @override
-  String get done => 'Done';
+  String get done => 'Bitti';
 
   @override
-  String get ok => 'OK';
+  String get ok => 'Tamam';
 
   @override
   String get yes => 'Evet';
@@ -860,52 +862,52 @@ class AppLocalizationsTr extends AppLocalizations {
   String get no => 'Hayır';
 
   @override
-  String get continueAction => 'Continue';
+  String get continueAction => 'Devam et';
 
   @override
-  String get back => 'Back';
+  String get back => 'Geri';
 
   @override
-  String get next => 'Next';
+  String get next => 'İleri';
 
   @override
-  String get finish => 'Finish';
+  String get finish => 'Bitir';
 
   @override
-  String get selectFiles => 'Select Files';
+  String get selectFiles => 'Dosyaları seç';
 
   @override
-  String get selectingFiles => 'Selecting files';
+  String get selectingFiles => 'Dosyalar seçiliyor';
 
   @override
-  String get scanningDirectory => 'Scanning directory';
+  String get scanningDirectory => 'Klasör taranıyor';
 
   @override
-  String get readingFile => 'Reading file';
+  String get readingFile => 'Dosya okunuyor';
 
   @override
-  String get parsingContent => 'Parsing content';
+  String get parsingContent => 'İçerik ayrıştırılıyor';
 
   @override
-  String get convertingToBlocks => 'Converting to blocks';
+  String get convertingToBlocks => 'Bloklara dönüştürülüyor';
 
   @override
-  String get processingFiles => 'Processing files';
+  String get processingFiles => 'Dosyalar işleniyor';
 
   @override
-  String get savingNotes => 'Saving notes';
+  String get savingNotes => 'Notlar kaydediliyor';
 
   @override
   String get completed => 'Tamamlandı';
 
   @override
-  String get preparing => 'Preparing';
+  String get preparing => 'Hazırlanıyor';
 
   @override
-  String get rendering => 'Rendering';
+  String get rendering => 'Oluşturuluyor';
 
   @override
-  String get finalizing => 'Finalizing';
+  String get finalizing => 'Sonlandırılıyor';
 
   @override
   String get attachments => 'Ekler';
@@ -923,7 +925,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get mediumPriority => 'Orta Öncelik';
 
   @override
-  String get noTitle => 'No Title';
+  String get noTitle => 'Başlık yok';
 
   @override
   String get overdue => 'Gecikmiş';

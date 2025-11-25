@@ -19,7 +19,10 @@ import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
     show noteFolderProvider;
 import 'package:duru_notes/services/providers/services_providers.dart'
-    show attachmentServiceProvider, quickCaptureServiceProvider;
+    show attachmentServiceProvider, quickCaptureServiceProvider, voiceTranscriptionServiceProvider;
+import 'package:duru_notes/services/permission_manager.dart';
+import 'package:duru_notes/services/voice_transcription_service.dart' show DictationLocale;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart'
     show notesPageProvider;
 import 'package:duru_notes/features/sync/providers/sync_providers.dart'
@@ -30,6 +33,7 @@ import 'package:duru_notes/core/providers/infrastructure_providers.dart'
 import 'package:duru_notes/features/search/providers/search_providers.dart'
     show tagRepositoryInterfaceProvider;
 import 'package:duru_notes/ui/widgets/email_attachments_section.dart';
+import 'package:duru_notes/ui/widgets/voice_recording_player.dart';
 import 'package:duru_notes/ui/helpers/domain_note_helpers.dart';
 import 'package:duru_notes/ui/widgets/note_tag_chips.dart';
 import 'package:duru_notes/ui/widgets/note_link_autocomplete.dart';
@@ -110,6 +114,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
   // Sprint 1 Block Parsing Fix: Block editor state
   List<NoteBlock> _blocks = [];
   final FeatureFlags _featureFlags = FeatureFlags.instance;
+
+  // Voice dictation state
+  bool _isDictating = false;
+  DictationLocale? _selectedDictationLocale;
+  static const String _dictationLocaleKey = 'prefs.dictation.locale';
 
   // Material-3 Design Constants
   static const double kToolbarIconSize = 22;
@@ -202,6 +211,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
     // Initialize folder selection
     _initializeFolder();
+
+    // Load saved dictation locale preference
+    _loadDictationLocale();
 
     // Setup note ID for tags (real or temp)
     _noteIdForTags = widget.noteId ?? 'note_draft_${const Uuid().v4()}';
@@ -977,7 +989,10 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         }
 
         try {
-          // Prefer attachmentMeta (persisted) and fall back to metadata payload.
+          // Build voice recordings section
+          final voiceRecordingsWidget = _buildVoiceRecordings(note);
+
+          // Build email attachments section
           final attachmentsFromMeta = DomainNoteHelpers.getAttachments(note);
           final attachmentEntries = attachmentsFromMeta.isNotEmpty
               ? attachmentsFromMeta
@@ -1001,22 +1016,40 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               .where((f) => f.path.isNotEmpty)
               .toList(growable: false);
 
-          if (files.isEmpty) {
+          Widget? emailAttachmentsWidget;
+          if (files.isNotEmpty) {
+            // Determine correct bucket based on attachment paths
+            final firstPath = files.first.path;
+            final bucketId = firstPath.startsWith('temp/')
+                ? 'inbound-attachments-temp'
+                : 'inbound-attachments';
+
+            emailAttachmentsWidget = EmailAttachmentsSection(
+              files: files,
+              bucketId: bucketId,
+              signedUrlTtlSeconds: 86400,
+            );
+          }
+
+          // Combine voice recordings and email attachments
+          final widgets = <Widget>[];
+          if (voiceRecordingsWidget != null) {
+            widgets.add(voiceRecordingsWidget);
+          }
+          if (emailAttachmentsWidget != null) {
+            if (widgets.isNotEmpty) {
+              widgets.add(const SizedBox(height: 16));
+            }
+            widgets.add(emailAttachmentsWidget);
+          }
+
+          if (widgets.isEmpty) {
             return const SizedBox.shrink();
           }
 
-          // Determine correct bucket based on attachment paths
-          // - Paths starting with "temp/" are in inbound-attachments-temp
-          // - Paths starting with UUID (user_id) are in inbound-attachments (after processing)
-          final firstPath = files.first.path;
-          final bucketId = firstPath.startsWith('temp/')
-              ? 'inbound-attachments-temp'
-              : 'inbound-attachments';
-
-          return EmailAttachmentsSection(
-            files: files,
-            bucketId: bucketId, // Dynamic bucket based on attachment path
-            signedUrlTtlSeconds: 86400, // 24 hours for regenerated URLs
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: widgets,
           );
         } catch (error, stackTrace) {
           _logger.error(
@@ -1030,6 +1063,56 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         }
       },
     );
+  }
+
+  Widget? _buildVoiceRecordings(domain.Note note) {
+    if (note.attachmentMeta == null || note.attachmentMeta!.isEmpty) {
+      return null;
+    }
+
+    try {
+      final metaData = jsonDecode(note.attachmentMeta!) as Map<String, dynamic>;
+      final voiceRecordings = metaData['voiceRecordings'] as List<dynamic>?;
+
+      if (voiceRecordings == null || voiceRecordings.isEmpty) {
+        return null;
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Voice Recordings',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...voiceRecordings.map((recording) {
+            final url = recording['url'] as String?;
+            final filename = recording['filename'] as String?;
+            final durationSeconds = recording['durationSeconds'] as int?;
+            final createdAt = recording['createdAt'] as String?;
+
+            if (url == null || durationSeconds == null) {
+              return const SizedBox.shrink();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: VoiceRecordingPlayer(
+                audioUrl: url,
+                durationSeconds: durationSeconds,
+                title: filename,
+              ),
+            );
+          }),
+        ],
+      );
+    } catch (e) {
+      _logger.warning('Failed to parse voice recordings', data: {'error': e.toString()});
+      return null;
+    }
   }
 
   List<Map<String, dynamic>> _attachmentsFromMetadata(String? metadataJson) {
@@ -1213,6 +1296,23 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               colorScheme: colorScheme,
             ),
 
+            // Voice dictation button (after text style, before lists)
+            if (_featureFlags.voiceDictationEnabled) ...[
+              _buildToolDivider(colorScheme),
+              _buildToolButton(
+                icon: _isDictating ? Icons.stop_rounded : Icons.mic_rounded,
+                tooltip: _isDictating
+                    ? 'Stop Dictation'
+                    : _selectedDictationLocale != null
+                        ? 'Dictate (${_selectedDictationLocale!.localeId}) • Long press for language'
+                        : 'Dictate • Long press for language',
+                onPressed: _toggleDictation,
+                onLongPress: _isDictating ? null : _showDictationLocalePicker,
+                colorScheme: colorScheme,
+                isActive: _isDictating,
+              ),
+            ],
+
             _buildToolDivider(colorScheme),
 
             // List formatting group
@@ -1278,6 +1378,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     required VoidCallback onPressed,
     required ColorScheme colorScheme,
     VoidCallback? onLongPress,
+    bool isActive = false,
   }) {
     return Tooltip(
       message: tooltip,
@@ -1296,7 +1397,7 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             child: Icon(
               icon,
               size: kToolbarIconSize,
-              color: colorScheme.onSurfaceVariant,
+              color: isActive ? colorScheme.error : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -1505,6 +1606,230 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         );
       }
     }
+  }
+
+  // ============================================================
+  // Voice Dictation Methods
+  // ============================================================
+
+  Future<void> _loadDictationLocale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final localeId = prefs.getString(_dictationLocaleKey);
+      if (localeId != null && mounted) {
+        // We'll validate against available locales when user first uses dictation
+        setState(() {
+          _selectedDictationLocale = DictationLocale(
+            localeId: localeId,
+            name: localeId, // Will be replaced with actual name on picker open
+          );
+        });
+      }
+    } catch (e) {
+      _logger.debug('Error loading dictation locale preference: $e');
+    }
+  }
+
+  Future<void> _saveDictationLocale(DictationLocale locale) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_dictationLocaleKey, locale.localeId);
+      setState(() => _selectedDictationLocale = locale);
+    } catch (e) {
+      _logger.debug('Error saving dictation locale preference: $e');
+    }
+  }
+
+  Future<void> _showDictationLocalePicker() async {
+    final stt = ref.read(voiceTranscriptionServiceProvider);
+
+    // Show loading indicator
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final locales = await stt.getAvailableLocales();
+      final systemLocale = await stt.getSystemLocale();
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Dismiss loading
+
+      if (locales.isEmpty) {
+        _showDictationError('No speech recognition languages available');
+        return;
+      }
+
+      // Show locale picker bottom sheet
+      final selected = await showModalBottomSheet<DictationLocale>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => _DictationLocalePickerSheet(
+          locales: locales,
+          selectedLocale: _selectedDictationLocale,
+          systemLocale: systemLocale,
+        ),
+      );
+
+      if (selected != null) {
+        await _saveDictationLocale(selected);
+
+        // Show confirmation
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Dictation language: ${selected.name}'),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss loading
+        _showDictationError('Failed to load languages');
+      }
+    }
+  }
+
+  Future<void> _toggleDictation() async {
+    if (_isDictating) {
+      await _stopDictation();
+    } else {
+      await _startDictation();
+    }
+  }
+
+  Future<void> _startDictation() async {
+    final stt = ref.read(voiceTranscriptionServiceProvider);
+
+    try {
+      await stt.start(
+        onFinal: _onDictationFinal,
+        onPartial: null, // Ignore partials for MVP
+        onError: _onDictationError,
+        localeId: _selectedDictationLocale?.localeId, // Use selected locale or system default
+      );
+      setState(() => _isDictating = true);
+
+      // Analytics
+      ref.read(analyticsProvider).event(
+        'editor.dictation_started',
+        properties: {
+          'noteId': widget.noteId ?? 'new',
+          'locale': _selectedDictationLocale?.localeId ?? 'system_default',
+        },
+      );
+
+      HapticFeedback.lightImpact();
+    } catch (e) {
+      _logger.error(
+        'Failed to start voice dictation',
+        error: e,
+        data: {'noteId': widget.noteId},
+      );
+      _showDictationError('Speech recognition is not available on this device');
+    }
+  }
+
+  Future<void> _stopDictation() async {
+    final stt = ref.read(voiceTranscriptionServiceProvider);
+    await stt.stop();
+    setState(() => _isDictating = false);
+
+    // Analytics
+    ref.read(analyticsProvider).event(
+      'editor.dictation_stopped',
+      properties: {'noteId': widget.noteId ?? 'new'},
+    );
+
+    HapticFeedback.lightImpact();
+  }
+
+  void _onDictationFinal(String transcript) {
+    if (transcript.isEmpty) return;
+
+    final value = _noteController.value;
+    final text = value.text;
+    final selection = value.selection;
+
+    // Determine insertion point (cursor or end of text)
+    final start = selection.isValid && selection.start >= 0
+        ? selection.start
+        : text.length;
+    final end = selection.isValid && selection.end >= 0
+        ? selection.end
+        : text.length;
+
+    // Add space before if needed (auto-spacing)
+    final needsLeadingSpace = start > 0 &&
+        text.isNotEmpty &&
+        !RegExp(r'\s').hasMatch(text[start - 1]);
+    final insertText = needsLeadingSpace ? ' $transcript' : transcript;
+
+    final newText = text.replaceRange(start, end, insertText);
+    final newCursorPosition = start + insertText.length;
+
+    _noteController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newCursorPosition),
+      composing: TextRange.empty,
+    );
+
+    setState(() => _hasChanges = true);
+
+    // Analytics
+    ref.read(analyticsProvider).event(
+      'editor.dictation_text_inserted',
+      properties: {
+        'noteId': widget.noteId ?? 'new',
+        'textLength': transcript.length,
+        'wordCount': transcript.split(RegExp(r'\s+')).length,
+      },
+    );
+  }
+
+  void _onDictationError(String error) {
+    setState(() => _isDictating = false);
+    _showDictationError(error);
+
+    _logger.warning(
+      'Voice dictation error',
+      data: {'error': error, 'noteId': widget.noteId},
+    );
+  }
+
+  void _showDictationError(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              Icons.mic_off_rounded,
+              color: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.errorContainer,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        action: SnackBarAction(
+          label: 'Settings',
+          onPressed: () => PermissionManager.instance.openAppSettings(),
+        ),
+      ),
+    );
   }
 
   Widget _buildFolderIndicator(ColorScheme colorScheme) {
@@ -2001,5 +2326,334 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
       unawaited(Sentry.captureException(error, stackTrace: stackTrace));
       _showErrorSnack('Failed to apply template. Please try again.');
     }
+  }
+}
+
+// ============================================================
+// Dictation Locale Picker Bottom Sheet
+// ============================================================
+
+class _DictationLocalePickerSheet extends StatefulWidget {
+  const _DictationLocalePickerSheet({
+    required this.locales,
+    required this.selectedLocale,
+    required this.systemLocale,
+  });
+
+  final List<DictationLocale> locales;
+  final DictationLocale? selectedLocale;
+  final DictationLocale? systemLocale;
+
+  @override
+  State<_DictationLocalePickerSheet> createState() =>
+      _DictationLocalePickerSheetState();
+}
+
+class _DictationLocalePickerSheetState
+    extends State<_DictationLocalePickerSheet> {
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+
+  List<DictationLocale> get _filteredLocales {
+    if (_searchQuery.isEmpty) return widget.locales;
+    final query = _searchQuery.toLowerCase();
+    return widget.locales
+        .where((locale) =>
+            locale.name.toLowerCase().contains(query) ||
+            locale.localeId.toLowerCase().contains(query))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) => Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colorScheme.outline.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.translate_rounded, color: colorScheme.primary),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Dictation Language',
+                      style: textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Select the language you want to dictate in',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Search field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search languages...',
+                prefixIcon: const Icon(Icons.search_rounded),
+                filled: true,
+                fillColor: colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              onChanged: (value) => setState(() => _searchQuery = value),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // System default option
+          if (widget.systemLocale != null && _searchQuery.isEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: _LocaleTile(
+                locale: widget.systemLocale!,
+                isSelected: widget.selectedLocale == null,
+                isSystemDefault: true,
+                onTap: () => Navigator.of(context).pop(widget.systemLocale),
+              ),
+            ),
+            Divider(
+              indent: 16,
+              endIndent: 16,
+              color: colorScheme.outline.withValues(alpha: 0.2),
+            ),
+          ],
+          // Locale list
+          Expanded(
+            child: _filteredLocales.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 48,
+                          color: colorScheme.outline,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No languages found',
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _filteredLocales.length,
+                    itemBuilder: (context, index) {
+                      final locale = _filteredLocales[index];
+                      final isSelected =
+                          locale.localeId == widget.selectedLocale?.localeId;
+                      return _LocaleTile(
+                        locale: locale,
+                        isSelected: isSelected,
+                        onTap: () => Navigator.of(context).pop(locale),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocaleTile extends StatelessWidget {
+  const _LocaleTile({
+    required this.locale,
+    required this.isSelected,
+    required this.onTap,
+    this.isSystemDefault = false,
+  });
+
+  final DictationLocale locale;
+  final bool isSelected;
+  final bool isSystemDefault;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+                : null,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              // Flag or language icon
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Text(
+                    _getLanguageEmoji(locale.localeId),
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Language name and locale ID
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            isSystemDefault
+                                ? '${locale.name} (System Default)'
+                                : locale.name,
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontWeight:
+                                  isSelected ? FontWeight.w600 : FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      locale.localeId,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Checkmark for selected
+              if (isSelected)
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Get an emoji flag for common locales, or a generic icon for others
+  String _getLanguageEmoji(String localeId) {
+    final Map<String, String> flagMap = {
+      'en_US': '🇺🇸',
+      'en_GB': '🇬🇧',
+      'en_AU': '🇦🇺',
+      'en_CA': '🇨🇦',
+      'en_IN': '🇮🇳',
+      'es_ES': '🇪🇸',
+      'es_MX': '🇲🇽',
+      'es_US': '🇺🇸',
+      'fr_FR': '🇫🇷',
+      'fr_CA': '🇨🇦',
+      'de_DE': '🇩🇪',
+      'de_AT': '🇦🇹',
+      'de_CH': '🇨🇭',
+      'it_IT': '🇮🇹',
+      'pt_BR': '🇧🇷',
+      'pt_PT': '🇵🇹',
+      'nl_NL': '🇳🇱',
+      'ru_RU': '🇷🇺',
+      'zh_CN': '🇨🇳',
+      'zh_TW': '🇹🇼',
+      'zh_HK': '🇭🇰',
+      'ja_JP': '🇯🇵',
+      'ko_KR': '🇰🇷',
+      'ar_SA': '🇸🇦',
+      'hi_IN': '🇮🇳',
+      'tr_TR': '🇹🇷',
+      'pl_PL': '🇵🇱',
+      'sv_SE': '🇸🇪',
+      'da_DK': '🇩🇰',
+      'no_NO': '🇳🇴',
+      'fi_FI': '🇫🇮',
+      'th_TH': '🇹🇭',
+      'vi_VN': '🇻🇳',
+      'id_ID': '🇮🇩',
+      'ms_MY': '🇲🇾',
+      'he_IL': '🇮🇱',
+      'cs_CZ': '🇨🇿',
+      'el_GR': '🇬🇷',
+      'hu_HU': '🇭🇺',
+      'ro_RO': '🇷🇴',
+      'uk_UA': '🇺🇦',
+    };
+
+    // Try exact match
+    if (flagMap.containsKey(localeId)) {
+      return flagMap[localeId]!;
+    }
+
+    // Try language code match (e.g., 'en' from 'en_AU')
+    final languageCode = localeId.split('_').first;
+    for (final entry in flagMap.entries) {
+      if (entry.key.startsWith('${languageCode}_')) {
+        return entry.value;
+      }
+    }
+
+    // Fallback to generic language icon
+    return '🌐';
   }
 }

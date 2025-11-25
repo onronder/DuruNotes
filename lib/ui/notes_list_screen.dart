@@ -76,6 +76,7 @@ import 'package:duru_notes/ui/widgets/folder_chip.dart';
 import 'package:duru_notes/ui/widgets/note_source_icon.dart';
 import 'package:duru_notes/ui/widgets/saved_search_chips.dart';
 import 'package:duru_notes/ui/widgets/template_picker_sheet.dart';
+import 'package:duru_notes/ui/widgets/voice_recording_sheet.dart';
 import 'package:duru_notes/ui/components/modern_app_bar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -2890,10 +2891,17 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   // - _showNoteOptions: Bottom sheet replaced by DuruNoteCard's built-in action menu
 
   void _createVoiceNote() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Voice note feature coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
+    final currentFolder = ref.read(currentFolderProvider);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => FractionallySizedBox(
+        heightFactor: 0.7,
+        child: VoiceRecordingSheet(
+          folderId: currentFolder?.id,
+        ),
       ),
     );
   }

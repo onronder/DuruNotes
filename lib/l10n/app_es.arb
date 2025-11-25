@@ -1,0 +1,837 @@
+{
+  "@@locale": "es",
+  "notesListTitle": "Mis notas",
+  "@notesListTitle": {
+    "description": "Title for the notes list screen"
+  },
+  "createNewNote": "Crear nota nueva",
+  "@createNewNote": {
+    "description": "Button to create a new note"
+  },
+  "searchNotes": "Buscar en notas",
+  "@searchNotes": {
+    "description": "Search bar placeholder"
+  },
+  "noNotesYet": "Todavía no hay notas",
+  "@noNotesYet": {
+    "description": "Empty state message"
+  },
+  "deleteNote": "Eliminar nota",
+  "@deleteNote": {
+    "description": "Delete note action"
+  },
+  "confirmDelete": "Confirmar eliminación",
+  "@confirmDelete": {
+    "description": "Confirm deletion dialog title"
+  },
+  "deleteNoteMessage": "¿Seguro que quieres eliminar esta nota?",
+  "@deleteNoteMessage": {
+    "description": "Delete confirmation message"
+  },
+  "cancel": "Cancelar",
+  "@cancel": {
+    "description": "Cancel action"
+  },
+  "delete": "Eliminar",
+  "@delete": {
+    "description": "Delete action"
+  },
+  "save": "Guardar",
+  "@save": {
+    "description": "Save action"
+  },
+  "edit": "Editar",
+  "@edit": {
+    "description": "Edit action"
+  },
+  "share": "Compartir",
+  "@share": {
+    "description": "Share action"
+  },
+  "settings": "Ajustes",
+  "@settings": {
+    "description": "Settings screen title"
+  },
+  "darkMode": "Modo oscuro",
+  "@darkMode": {
+    "description": "Dark mode setting"
+  },
+  "language": "Idioma",
+  "@language": {
+    "description": "Language setting"
+  },
+  "about": "Acerca de",
+  "@about": {
+    "description": "About section"
+  },
+  "version": "Versión",
+  "@version": {
+    "description": "Version label"
+  },
+  "noteUpdated": "Nota actualizada",
+  "@noteUpdated": {
+    "description": "Note updated message"
+  },
+  "noteCreated": "Nota creada",
+  "@noteCreated": {
+    "description": "Note created message"
+  },
+  "noteDeleted": "Nota eliminada",
+  "@noteDeleted": {
+    "description": "Note deleted message"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Error title"
+  },
+  "retry": "Reintentar",
+  "@retry": {
+    "description": "Retry action"
+  },
+  "noInternetConnection": "Sin conexión a Internet",
+  "@noInternetConnection": {
+    "description": "No internet connection message"
+  },
+  "offlineMode": "Modo sin conexión",
+  "@offlineMode": {
+    "description": "Offline mode indicator"
+  },
+  "syncing": "Sincronizando",
+  "@syncing": {
+    "description": "Syncing status"
+  },
+  "syncComplete": "Sincronización completada",
+  "@syncComplete": {
+    "description": "Sync complete message"
+  },
+  "syncFailed": "Error de sincronización",
+  "@syncFailed": {
+    "description": "Sync failed message"
+  },
+  "signIn": "Iniciar sesión",
+  "@signIn": {
+    "description": "Sign in action"
+  },
+  "signOut": "Cerrar sesión",
+  "@signOut": {
+    "description": "Sign out action"
+  },
+  "email": "Correo electrónico",
+  "@email": {
+    "description": "Email field label"
+  },
+  "password": "Contraseña",
+  "@password": {
+    "description": "Password field label"
+  },
+  "forgotPassword": "¿Olvidaste tu contraseña?",
+  "@forgotPassword": {
+    "description": "Forgot password link"
+  },
+  "signUp": "Registrarse",
+  "@signUp": {
+    "description": "Sign up action"
+  },
+  "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+  "@alreadyHaveAccount": {
+    "description": "Already have account message"
+  },
+  "dontHaveAccount": "¿No tienes una cuenta?",
+  "@dontHaveAccount": {
+    "description": "Don't have account message"
+  },
+  "welcomeBack": "Bienvenido de nuevo",
+  "@welcomeBack": {
+    "description": "Welcome back message"
+  },
+  "createAccount": "Crear cuenta",
+  "@createAccount": {
+    "description": "Create account title"
+  },
+  "inbox": "Bandeja de entrada",
+  "@inbox": {
+    "description": "Inbox title"
+  },
+  "emailInbox": "Bandeja de entrada de correo",
+  "@emailInbox": {
+    "description": "Email inbox title"
+  },
+  "webClips": "Recortes web",
+  "@webClips": {
+    "description": "Web clips title"
+  },
+  "convertToNote": "Convertir en nota",
+  "@convertToNote": {
+    "description": "Convert to note action"
+  },
+  "deleteItem": "Eliminar elemento",
+  "@deleteItem": {
+    "description": "Delete item action"
+  },
+  "emptyInbox": "La bandeja de entrada está vacía",
+  "@emptyInbox": {
+    "description": "Empty inbox message"
+  },
+  "tasks": "Tareas",
+  "@tasks": {
+    "description": "Tasks title"
+  },
+  "createTask": "Crear tarea",
+  "@createTask": {
+    "description": "Create task action"
+  },
+  "taskTitle": "Título de la tarea",
+  "@taskTitle": {
+    "description": "Task title field"
+  },
+  "taskDescription": "Descripción de la tarea",
+  "@taskDescription": {
+    "description": "Task description field"
+  },
+  "dueDate": "Fecha de vencimiento",
+  "@dueDate": {
+    "description": "Due date field"
+  },
+  "priority": "Prioridad",
+  "@priority": {
+    "description": "Priority field"
+  },
+  "highPriority": "Alta prioridad",
+  "@highPriority": {
+    "description": "High priority label"
+  },
+  "mediumPriority": "Prioridad media",
+  "@mediumPriority": {
+    "description": "Medium priority label"
+  },
+  "lowPriority": "Baja prioridad",
+  "@lowPriority": {
+    "description": "Low priority label"
+  },
+  "completed": "Completado",
+  "@completed": {
+    "description": "Completed status"
+  },
+  "pending": "Pendiente",
+  "@pending": {
+    "description": "Pending status"
+  },
+  "overdue": "Atrasado",
+  "@overdue": {
+    "description": "Overdue status"
+  },
+  "today": "Hoy",
+  "@today": {
+    "description": "Today label"
+  },
+  "tomorrow": "Mañana",
+  "@tomorrow": {
+    "description": "Tomorrow label"
+  },
+  "thisWeek": "Esta semana",
+  "@thisWeek": {
+    "description": "This week label"
+  },
+  "folders": "Carpetas",
+  "@folders": {
+    "description": "Folders title"
+  },
+  "createFolder": "Crear carpeta",
+  "@createFolder": {
+    "description": "Create folder action"
+  },
+  "folderName": "Nombre de la carpeta",
+  "@folderName": {
+    "description": "Folder name field"
+  },
+  "moveToFolder": "Mover a carpeta",
+  "@moveToFolder": {
+    "description": "Move to folder action"
+  },
+  "tags": "Etiquetas",
+  "@tags": {
+    "description": "Tags title"
+  },
+  "addTag": "Añadir etiqueta",
+  "@addTag": {
+    "description": "Add tag action"
+  },
+  "filterByTag": "Filtrar por etiqueta",
+  "@filterByTag": {
+    "description": "Filter by tag action"
+  },
+  "sortBy": "Ordenar por",
+  "@sortBy": {
+    "description": "Sort by label"
+  },
+  "dateCreated": "Fecha de creación",
+  "@dateCreated": {
+    "description": "Date created sort option"
+  },
+  "dateModified": "Fecha de modificación",
+  "@dateModified": {
+    "description": "Date modified sort option"
+  },
+  "alphabetical": "Alfabético",
+  "@alphabetical": {
+    "description": "Alphabetical sort option"
+  },
+  "gridView": "Vista en cuadrícula",
+  "@gridView": {
+    "description": "Grid view option"
+  },
+  "listView": "Vista de lista",
+  "@listView": {
+    "description": "List view option"
+  },
+  "pinNote": "Fijar nota",
+  "@pinNote": {
+    "description": "Pin note action"
+  },
+  "unpinNote": "Desfijar nota",
+  "@unpinNote": {
+    "description": "Unpin note action"
+  },
+  "pinnedNotes": "Notas fijadas",
+  "@pinnedNotes": {
+    "description": "Pinned notes section"
+  },
+  "allNotes": "Todas las notas",
+  "@allNotes": {
+    "description": "All notes section"
+  },
+  "searchResults": "Resultados de búsqueda",
+  "@searchResults": {
+    "description": "Search results title"
+  },
+  "noResultsFound": "No se encontraron resultados",
+  "@noResultsFound": {
+    "description": "No results found message"
+  },
+  "tryDifferentKeywords": "Prueba con otras palabras clave",
+  "@tryDifferentKeywords": {
+    "description": "Try different keywords suggestion"
+  },
+  "attachments": "Adjuntos",
+  "@attachments": {
+    "description": "Attachments label"
+  },
+  "addAttachment": "Añadir adjunto",
+  "@addAttachment": {
+    "description": "Add attachment action"
+  },
+  "viewAttachment": "Ver adjunto",
+  "@viewAttachment": {
+    "description": "View attachment action"
+  },
+  "downloadAttachment": "Descargar adjunto",
+  "@downloadAttachment": {
+    "description": "Download attachment action"
+  },
+  "export": "Exportar",
+  "@export": {
+    "description": "Export action"
+  },
+  "import": "Importar",
+  "@import": {
+    "description": "Import action"
+  },
+  "exportNotes": "Exportar notas",
+  "@exportNotes": {
+    "description": "Export notes title"
+  },
+  "importNotes": "Importar notas",
+  "@importNotes": {
+    "description": "Import notes title"
+  },
+  "selectFormat": "Seleccionar formato",
+  "@selectFormat": {
+    "description": "Select format prompt"
+  },
+  "markdown": "Markdown",
+  "@markdown": {
+    "description": "Markdown format"
+  },
+  "plainText": "Texto sin formato",
+  "@plainText": {
+    "description": "Plain text format"
+  },
+  "json": "JSON",
+  "@json": {
+    "description": "JSON format"
+  },
+  "confirmAction": "Confirmar acción",
+  "@confirmAction": {
+    "description": "Confirm action title"
+  },
+  "areYouSure": "¿Estás seguro?",
+  "@areYouSure": {
+    "description": "Are you sure prompt"
+  },
+  "yes": "Sí",
+  "@yes": {
+    "description": "Yes option"
+  },
+  "no": "No",
+  "@no": {
+    "description": "No option"
+  },
+  "loading": "Cargando",
+  "@loading": {
+    "description": "Loading message"
+  },
+  "pleaseWait": "Por favor, espera",
+  "@pleaseWait": {
+    "description": "Please wait message"
+  },
+  "processingRequest": "Procesando solicitud",
+  "@processingRequest": {
+    "description": "Processing request message"
+  },
+  "success": "Correcto",
+  "@success": {
+    "description": "Success message"
+  },
+  "failed": "Error",
+  "@failed": {
+    "description": "Failed message"
+  },
+  "warning": "Advertencia",
+  "@warning": {
+    "description": "Warning title"
+  },
+  "info": "Información",
+  "@info": {
+    "description": "Info title"
+  },
+  "help": "Ayuda",
+  "@help": {
+    "description": "Help title"
+  },
+  "support": "Soporte",
+  "@support": {
+    "description": "Support title"
+  },
+  "feedback": "Comentarios",
+  "@feedback": {
+    "description": "Feedback title"
+  },
+  "reportBug": "Informar de un error",
+  "@reportBug": {
+    "description": "Report bug action"
+  },
+  "featureRequest": "Solicitud de función",
+  "@featureRequest": {
+    "description": "Feature request action"
+  },
+  "privacyPolicy": "Política de privacidad",
+  "@privacyPolicy": {
+    "description": "Privacy policy link"
+  },
+  "termsOfService": "Términos de servicio",
+  "@termsOfService": {
+    "description": "Terms of service link"
+  },
+  "notifications": "Notificaciones",
+  "@notifications": {
+    "description": "Notifications title"
+  },
+  "enableNotifications": "Activar notificaciones",
+  "@enableNotifications": {
+    "description": "Enable notifications option"
+  },
+  "notificationSettings": "Ajustes de notificaciones",
+  "@notificationSettings": {
+    "description": "Notification settings title"
+  },
+  "backup": "Copia de seguridad",
+  "@backup": {
+    "description": "Backup title"
+  },
+  "restore": "Restaurar",
+  "@restore": {
+    "description": "Restore action"
+  },
+  "lastBackup": "Última copia de seguridad",
+  "@lastBackup": {
+    "description": "Last backup label"
+  },
+  "autoBackup": "Copia de seguridad automática",
+  "@autoBackup": {
+    "description": "Auto backup option"
+  },
+  "security": "Seguridad",
+  "@security": {
+    "description": "Security title"
+  },
+  "encryption": "Cifrado",
+  "@encryption": {
+    "description": "Encryption option"
+  },
+  "biometricAuth": "Autenticación biométrica",
+  "@biometricAuth": {
+    "description": "Biometric auth option"
+  },
+  "changePassword": "Cambiar contraseña",
+  "@changePassword": {
+    "description": "Change password action"
+  },
+  "accountSettings": "Configuración de la cuenta",
+  "@accountSettings": {
+    "description": "Account settings title"
+  },
+  "profile": "Perfil",
+  "@profile": {
+    "description": "Profile title"
+  },
+  "editProfile": "Editar perfil",
+  "@editProfile": {
+    "description": "Edit profile action"
+  },
+  "username": "Nombre de usuario",
+  "@username": {
+    "description": "Username field"
+  },
+  "fullName": "Nombre completo",
+  "@fullName": {
+    "description": "Full name field"
+  },
+  "bio": "Biografía",
+  "@bio": {
+    "description": "Bio field"
+  },
+  "theme": "Tema",
+  "@theme": {
+    "description": "Theme title"
+  },
+  "lightTheme": "Tema claro",
+  "@lightTheme": {
+    "description": "Light theme option"
+  },
+  "darkTheme": "Tema oscuro",
+  "@darkTheme": {
+    "description": "Dark theme option"
+  },
+  "systemTheme": "Tema del sistema",
+  "@systemTheme": {
+    "description": "System theme option"
+  },
+  "fontSize": "Tamaño de fuente",
+  "@fontSize": {
+    "description": "Font size setting"
+  },
+  "small": "Pequeño",
+  "@small": {
+    "description": "Small size"
+  },
+  "medium": "Mediano",
+  "@medium": {
+    "description": "Medium size"
+  },
+  "large": "Grande",
+  "@large": {
+    "description": "Large size"
+  },
+  "extraLarge": "Muy grande",
+  "@extraLarge": {
+    "description": "Extra large size"
+  },
+
+  "@_TEMPLATES": {},
+  "templatePickerTitle": "Elige una plantilla",
+  "templatePickerSubtitle": "Empieza con una plantilla o una nota en blanco",
+  "blankNoteOption": "Nota en blanco",
+  "blankNoteDescription": "Empieza con una nota vacía",
+  "noTemplatesTitle": "Aún no hay plantillas",
+  "noTemplatesDescription": "Crea tu primera plantilla para reutilizar estructuras frecuentes",
+  "templatesSection": "PLANTILLAS",
+  "saveAsTemplate": "Guardar como plantilla",
+  "fromTemplate": "Desde plantilla",
+  "templateSaved": "Plantilla guardada: {title}",
+  "@templateSaved": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "failedToSaveTemplate": "No se pudo guardar la plantilla",
+  "cannotSaveEmptyTemplate": "No se puede guardar una nota vacía como plantilla",
+  "editTemplate": "Editar plantilla",
+  "deleteTemplate": "Eliminar plantilla",
+  "confirmDeleteTemplate": "¿Eliminar esta plantilla?",
+  "confirmDeleteTemplateMessage": "Esta plantilla se eliminará de forma permanente. Esta acción no se puede deshacer.",
+  "templateDeleted": "Plantilla eliminada",
+  "editingTemplate": "Editando plantilla",
+  "templateOptions": "Opciones de plantilla",
+  "defaultTemplate": "Predeterminada",
+  "customTemplate": "Personalizada",
+  "useTemplate": "Usar plantilla",
+  "manageTemplates": "Gestionar plantillas",
+  "genericErrorTitle": "Algo salió mal",
+  "genericErrorMessage": "Se produjo un error inesperado. Inténtalo de nuevo.",
+  "reportError": "Informar de un error",
+  "errorReportSent": "Informe de error enviado. ¡Gracias por tus comentarios!",
+
+  "@_PUSH_NOTIFICATIONS": {},
+  "notifEmailReceivedTitle": "📧 Nuevo correo en tu bandeja de entrada",
+  "notifEmailReceivedBody": "Remitente {sender}: {subject}\\n\\nEl correo está listo para convertirse en nota.",
+  "@notifEmailReceivedBody": {
+    "placeholders": {
+      "sender": { "type": "String" },
+      "subject": { "type": "String" }
+    }
+  },
+  "notifWebClipSavedTitle": "✂️ Contenido guardado correctamente",
+  "notifWebClipSavedBody": "{preview}\\n\\nSe ha guardado en tu bandeja de entrada y está listo para usarse.",
+  "@notifWebClipSavedBody": {
+    "placeholders": {
+      "preview": { "type": "String" }
+    }
+  },
+  "notifTaskReminderTitle": "⏰ Recordatorio de tarea",
+  "notifTaskReminderBody": "{taskTitle}\\n\\n¡Debe hacerse ahora!",
+  "@notifTaskReminderBody": {
+    "placeholders": {
+      "taskTitle": { "type": "String" }
+    }
+  },
+  "notifTaskAssignedTitle": "📋 Nueva tarea con recordatorio",
+  "notifTaskAssignedBody": "{taskTitle}\\nFecha: {dueDate}\\n\\nEl recordatorio está configurado y te avisará.",
+  "@notifTaskAssignedBody": {
+    "placeholders": {
+      "taskTitle": { "type": "String" },
+      "dueDate": { "type": "String" }
+    }
+  },
+
+  "tapToCreateFirstNote": "Toca + para crear tu primera nota",
+  "createFirstNote": "Crea tu primera nota",
+  "logout": "Cerrar sesión",
+  "importNotesTitle": "Importar notas",
+  "exportNotesTitle": "Exportar notas",
+  "chooseWhatToImport": "Elige qué quieres importar",
+  "exportYourNotes": "Exporta tus notas",
+  "availableNotes": "Notas disponibles",
+  "markdownFiles": "Archivos Markdown",
+  "evernoteExport": "Exportación de Evernote",
+  "obsidianVault": "Vault de Obsidian",
+  "importSingleMdFiles": "Importar archivos Markdown individuales",
+  "importEnexFiles": "Importar archivos ENEX",
+  "importObsidianVaultFolder": "Importar carpeta de vault de Obsidian",
+  "selectImportType": "Selecciona el tipo de importación",
+  "pdf": "PDF",
+  "html": "HTML",
+  "exportAsMdFiles": "Exportar como archivos Markdown",
+  "exportAsPdfDocs": "Exportar como documentos PDF",
+  "exportAsWebPages": "Exportar como páginas web",
+  "selectExportFormat": "Selecciona el formato de exportación",
+  "chooseFormat": "Elige un formato",
+  "exportAllNotes": "Exportar todas las notas",
+  "exportRecentNotes": "Exportar notas recientes",
+  "exportLatest10": "Exportar las últimas 10 notas",
+  "exportAllNotesDesc": "Exporta todas las notas de tu cuenta",
+  "exportRecentNotesDesc": "Exporta las notas creadas y actualizadas recientemente",
+  "exportLatest10Desc": "Exporta rápidamente solo las últimas 10 notas",
+  "importingNotes": "Importando notas",
+  "exportingToFormat": "Exportando notas",
+  "initializingImport": "Iniciando importación",
+  "initializingExport": "Iniciando exportación",
+  "currentFile": "Archivo actual",
+  "progressCount": "Progreso",
+  "noteProgress": "Progreso de las notas",
+  "currentNote": "Nota actual",
+  "overallProgress": "Progreso general",
+  "estimatedTimeRemaining": "Tiempo restante estimado",
+  "importComplete": "Importación completada",
+  "exportComplete": "Exportación completada",
+  "successfullyImported": "Importado correctamente",
+  "successfullyExported": "Exportado correctamente",
+  "errorsEncountered": "Se encontraron errores",
+  "importTook": "Duración de la importación",
+  "exportTook": "Duración de la exportación",
+  "totalSize": "Tamaño total",
+  "errorDetails": "Detalles del error",
+  "filesSavedToDownloads": "Los archivos se han guardado en la carpeta Descargas",
+  "failedExports": "Exportaciones fallidas",
+  "shareFiles": "Compartir archivos",
+  "openFolder": "Abrir carpeta",
+  "close": "Cerrar",
+  "importError": "Error de importación",
+  "exportError": "Error de exportación",
+  "noNotesToExport": "No hay notas para exportar",
+  "failedToSelectMarkdownFiles": "No se pudieron seleccionar los archivos Markdown",
+  "failedToSelectEvernoteFile": "No se pudo seleccionar el archivo de Evernote",
+  "failedToSelectObsidianVault": "No se pudo seleccionar el vault de Obsidian",
+  "importFailed": "La importación ha fallado",
+  "exportFailed": "La exportación ha fallado",
+  "obsidianImportFailed": "La importación desde Obsidian ha fallado",
+  "noFilesAvailableToShare": "No hay archivos disponibles para compartir",
+  "failedToShareExportedFile": "No se pudo compartir el archivo exportado",
+  "errorSharingFiles": "Error al compartir los archivos",
+  "couldNotOpenExportsFolder": "No se pudo abrir la carpeta de exportaciones",
+  "pdfExportMayFailInSimulator": "La exportación a PDF puede fallar en el simulador",
+  "testOnPhysicalDevice": "Prueba en un dispositivo físico",
+  "checkInternetConnection": "Comprueba tu conexión a Internet",
+  "tryExportingAsMarkdown": "Prueba a exportar como Markdown",
+  "networkRelatedIssueDetected": "Se detectó un problema relacionado con la red",
+  "tryAgainInFewMoments": "Inténtalo de nuevo en unos momentos",
+  "useDifferentExportFormat": "Usa un formato de exportación diferente",
+  "tryMarkdown": "Prueba el formato Markdown",
+  "editNote": "Editar nota",
+  "untitled": "Sin título",
+  "noContent": "Sin contenido",
+  "justNow": "Justo ahora",
+  "minutesAgo": "hace unos minutos",
+  "hoursAgo": "hace unas horas",
+  "daysAgo": "hace unos días",
+  "areYouSureDeleteNote": "¿Seguro que quieres eliminar esta nota?",
+  "errorDeletingNote": "Se produjo un error al eliminar la nota",
+  "online": "En línea",
+  "offline": "Sin conexión",
+  "errorLoadingNotes": "Se produjo un error al cargar las notas",
+  "searchFeatureTemporarilyDisabled": "La función de búsqueda está desactivada temporalmente",
+  "exportFunctionalityComingSoon": "La función de exportación estará disponible pronto",
+  "settingsScreenComingSoon": "La pantalla de ajustes estará disponible pronto",
+  "areYouSureSignOut": "¿Seguro que quieres cerrar sesión?",
+  "productionGradeImportSystemReady": "El sistema de importación de nivel de producción está listo",
+  "supportedFormats": "Formatos admitidos",
+  "singleMarkdownFiles": "Archivos Markdown individuales",
+  "evernoteFiles": "Archivos de Evernote",
+  "obsidianVaultFolders": "Carpetas de vault de Obsidian",
+  "importFeatures": "Funciones de importación",
+  "securityValidation": "Validación de seguridad",
+  "progressTracking": "Seguimiento del progreso",
+  "errorRecovery": "Recuperación de errores",
+  "contentSanitization": "Limpieza de contenido",
+  "featuresSecurityValidation": "Validación de seguridad y limpieza de contenido",
+  "exportAsMarkdownFiles": "Exportar como archivos Markdown",
+  "exportAsPdfDocuments": "Exportar como documentos PDF",
+  "exportAsHtmlFiles": "Exportar como archivos HTML",
+  "featuresRichFormatting": "Formato enriquecido y exportación segura",
+  "exportCancelled": "Exportación cancelada",
+  "checkDownloadsFolderForFiles": "Revisa la carpeta Descargas para ver los archivos",
+  "filesSavedInAppDocuments": "Los archivos se han guardado en la carpeta de documentos de la aplicación",
+  "statusPhase": "Estado de la fase",
+  "settingsTitle": "Ajustes",
+  "account": "Cuenta",
+  "sync": "Sincronización",
+  "appearance": "Apariencia",
+  "importExport": "Importar/Exportar",
+  "helpAbout": "Ayuda y acerca de",
+  "signedInAs": "Sesión iniciada como",
+  "signOutConfirm": "¿Seguro que quieres cerrar sesión?",
+  "manageAccount": "Gestionar cuenta",
+  "syncMode": "Modo de sincronización",
+  "automaticSync": "Sincronización automática",
+  "manualSync": "Sincronización manual",
+  "automaticSyncDesc": "Sincroniza los cambios automáticamente en segundo plano",
+  "manualSyncDesc": "Sincroniza los datos solo cuando tú lo solicites",
+  "syncNow": "Sincronizar ahora",
+  "accentColor": "Color de acento",
+  "selectLanguage": "Seleccionar idioma",
+  "english": "Inglés",
+  "turkish": "Turco",
+  "openSystemSettings": "Abrir configuración del sistema",
+  "notificationPermissions": "Permisos de notificación",
+  "endToEndEncryption": "Cifrado de extremo a extremo",
+  "encryptionEnabled": "Cifrado activado",
+  "analyticsOptIn": "Participar en analíticas",
+  "analyticsDesc": "Comparte datos de uso anónimos para ayudar a mejorar la aplicación",
+  "biometricLock": "Bloqueo biométrico",
+  "biometricDesc": "Usa huella dactilar o reconocimiento facial para acceder a las notas",
+  "biometricNotAvailable": "La autenticación biométrica no está disponible en este dispositivo",
+  "buildNumber": "Número de compilación",
+  "contactSupport": "Contactar con soporte",
+  "rateApp": "Valorar la aplicación",
+  "userGuide": "Guía de usuario",
+  "helpAndSupport": "Ayuda y soporte",
+  "documentation": "Documentación",
+  "aboutApp": "Acerca de la aplicación",
+  "sharedNote": "Nota compartida",
+  "sharedText": "Texto compartido",
+  "sharedImage": "Imagen compartida",
+  "sharedLink": "Enlace compartido",
+  "sharedFile": "Archivo compartido",
+  "sharedFrom": "Compartido desde",
+  "sharedImageCouldNotBeProcessed": "No se pudo procesar la imagen compartida",
+  "folderPickerTitle": "Selecciona una carpeta",
+  "folderPickerSubtitle": "Elige una carpeta para mover la nota",
+  "createNewFolder": "Crear nueva carpeta",
+  "createNewFolderSubtitle": "Añade una carpeta nueva para organizar tus notas",
+  "newFolder": "Nueva carpeta",
+  "folderNameHint": "Nombre de la carpeta",
+  "folderNameRequired": "El nombre de la carpeta es obligatorio",
+  "folderNameEmpty": "El nombre de la carpeta no puede estar vacío",
+  "folderNameDuplicate": "Ya existe una carpeta con ese nombre",
+  "folderColor": "Color de la carpeta",
+  "folderIcon": "Icono de la carpeta",
+  "parentFolder": "Carpeta padre",
+  "rootFolder": "Carpeta raíz",
+  "rootLevel": "Nivel raíz",
+  "description": "Descripción",
+  "optional": "Opcional",
+  "folderDescriptionHint": "Descripción opcional para la carpeta",
+  "selectParentFolder": "Selecciona la carpeta padre",
+  "unfiledNotes": "Notas sin carpeta",
+  "noteCount": "Número de notas",
+  "searchFolders": "Buscar en carpetas",
+  "showSearch": "Mostrar búsqueda",
+  "hideSearch": "Ocultar búsqueda",
+  "clearSearch": "Limpiar búsqueda",
+  "noFoldersFound": "No se encontraron carpetas",
+  "noFoldersFoundSubtitle": "Prueba cambiando el filtro o crea una nueva carpeta",
+  "loadFoldersError": "Se produjo un error al cargar las carpetas",
+  "create": "Crear",
+  "loadError": "Error de carga",
+  "folderManagement": "Gestión de carpetas",
+  "editFolder": "Editar carpeta",
+  "deleteFolder": "Eliminar carpeta",
+  "moveFolder": "Mover carpeta",
+  "folderProperties": "Propiedades de la carpeta",
+  "confirmDeleteFolder": "Confirmar eliminación de carpeta",
+  "confirmDeleteFolderMessage": "Esta carpeta y su contenido se eliminarán de forma permanente. ¿Quieres continuar?",
+  "confirmDeleteFolderAction": "Eliminar carpeta",
+  "addToFolder": "Añadir a carpeta",
+  "removeFromFolder": "Quitar de la carpeta",
+  "folderEmpty": "La carpeta está vacía",
+  "folderEmptySubtitle": "Usa el icono + para añadir notas aquí o mueve notas a esta carpeta",
+  "allFolders": "Todas las carpetas",
+  "rename": "Renombrar",
+  "renameFolder": "Renombrar carpeta",
+  "move": "Mover",
+  "folderRenamed": "Carpeta renombrada",
+  "folderMoved": "Carpeta movida",
+  "folderDeleted": "Carpeta eliminada",
+  "folderDeletedNotesMovedToInbox": "La carpeta se ha eliminado y sus notas se han movido a la bandeja de entrada",
+  "folderCreated": "Carpeta creada",
+  "deleteFolderConfirmation": "¿Seguro que quieres eliminar esta carpeta?",
+  "folderDeleteDescription": "La carpeta se eliminará. Tus notas no se perderán y se moverán a la bandeja de entrada.",
+  "errorRenamingFolder": "Se produjo un error al renombrar la carpeta",
+  "errorMovingFolder": "Se produjo un error al mover la carpeta",
+  "errorDeletingFolder": "Se produjo un error al eliminar la carpeta",
+  "errorCreatingFolder": "Se produjo un error al crear la carpeta",
+  "errorLoadingFolders": "Se produjo un error al cargar las carpetas",
+  "cannotMoveToDescendant": "No puedes mover una carpeta a una de sus subcarpetas",
+  "selectFolder": "Selecciona una carpeta",
+  "unfiled": "Sin carpeta",
+  "createYourFirstFolder": "Crea tu primera carpeta",
+  "expandAll": "Expandir todo",
+  "collapseAll": "Contraer todo",
+  "done": "Listo",
+  "ok": "Aceptar",
+  "continueAction": "Continuar",
+  "back": "Atrás",
+  "next": "Siguiente",
+  "finish": "Finalizar",
+  "selectFiles": "Seleccionar archivos",
+  "selectingFiles": "Seleccionando archivos",
+  "scanningDirectory": "Escaneando carpeta",
+  "readingFile": "Leyendo archivo",
+  "parsingContent": "Analizando contenido",
+  "convertingToBlocks": "Convirtiendo a bloques",
+  "processingFiles": "Procesando archivos",
+  "savingNotes": "Guardando notas",
+  "preparing": "Preparando",
+  "rendering": "Renderizando",
+  "finalizing": "Finalizando",
+  "noTitle": "Sin título"
+}

@@ -20,6 +20,7 @@ library;
 import 'package:duru_notes/core/crypto/key_destruction_report.dart';
 import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/gdpr/anonymization_types.dart';
+import 'package:duru_notes/core/gdpr/gdpr_safeguards.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart';
 import 'package:duru_notes/services/account_key_service.dart';
@@ -135,10 +136,40 @@ void main() {
     when(mockAuth.currentUser).thenReturn(mockUser);
     when(mockAuth.currentSession).thenReturn(mockSession);
     when(mockUser.id).thenReturn(testUserId);
+    when(mockUser.email).thenReturn('test@example.com');
+    when(mockUser.emailConfirmedAt).thenReturn(DateTime.now().toIso8601String());
     when(mockSession.accessToken).thenReturn('test_token');
 
     // Setup provider ref to return mock logger
     when(mockRef.read(loggerProvider)).thenReturn(mockLogger);
+
+    // Mock account key service destruction
+    when(
+      mockAccountKeyService.securelyDestroyAccountMasterKey(
+        userId: anyNamed('userId'),
+        confirmationToken: anyNamed('confirmationToken'),
+        verifyBeforeDestroy: anyNamed('verifyBeforeDestroy'),
+      ),
+    ).thenAnswer((invocation) async {
+      final userId = invocation.namedArguments[const Symbol('userId')] as String;
+      return KeyDestructionReport(userId: userId)
+        ..localAmkDestroyed = true
+        ..remoteAmkDestroyed = true;
+    });
+
+    // Mock encryption sync service destruction
+    when(
+      mockEncryptionSyncService.securelyDestroyCrossDeviceKeys(
+        userId: anyNamed('userId'),
+        confirmationToken: anyNamed('confirmationToken'),
+        verifyBeforeDestroy: anyNamed('verifyBeforeDestroy'),
+      ),
+    ).thenAnswer((invocation) async {
+      final userId = invocation.namedArguments[const Symbol('userId')] as String;
+      return KeyDestructionReport(userId: userId)
+        ..localCrossDeviceKeyDestroyed = true
+        ..remoteCrossDeviceKeyDestroyed = true;
+    });
 
     // Create service
     service = GDPRAnonymizationService(
@@ -157,6 +188,7 @@ void main() {
         understandsIrreversibility: true,
         finalConfirmationToken:
             UserConfirmations.generateConfirmationToken(testUserId),
+        acknowledgesRisks: true,
       );
 
       expect(
@@ -179,6 +211,7 @@ void main() {
         dataBackupComplete: true,
         understandsIrreversibility: true,
         finalConfirmationToken: 'ANONYMIZE_ACCOUNT_wrong_user',
+        acknowledgesRisks: true,
       );
 
       expect(
@@ -440,11 +473,15 @@ void main() {
         onProgress: progressUpdates.add,
       );
 
-      // Verify progress is monotonically increasing
+      // Verify progress is monotonically increasing (with floating point tolerance)
       for (var i = 1; i < progressUpdates.length; i++) {
+        final current = progressUpdates[i].overallProgress;
+        final previous = progressUpdates[i - 1].overallProgress;
+        // Allow tiny floating point differences (< 0.0001)
         expect(
-          progressUpdates[i].overallProgress,
-          greaterThanOrEqualTo(progressUpdates[i - 1].overallProgress),
+          current,
+          greaterThanOrEqualTo(previous - 0.0001),
+          reason: 'Progress should not decrease significantly at index $i',
         );
       }
 
@@ -463,6 +500,34 @@ void main() {
 
       // Valid session for Phase 1
       when(mockAuth.currentSession).thenReturn(mockSession);
+
+      // Mock Phase 2: Account Metadata Anonymization
+      final mockProfileFilter = MockRpcListFilterBuilder();
+      when(mockProfileFilter.then(any)).thenAnswer((_) async => [
+            {'anonymize_user_profile': 1} as Map<String, dynamic>
+          ]);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'anonymize_user_profile',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockProfileFilter);
+
+      final mockStatusFilter = MockRpcListFilterBuilder();
+      when(mockStatusFilter.then(any)).thenAnswer((_) async => [
+            {
+              'fully_anonymized': true,
+              'current_email': 'user_${testUserId}_deleted@privacy.local',
+              'expected_anonymous_email':
+                  'user_${testUserId}_deleted@privacy.local',
+            } as Map<String, dynamic>
+          ]);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'get_profile_anonymization_status',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockStatusFilter);
 
       // Successful key destruction for Phase 3
       final keyReport = createSuccessfulKeyDestructionReport(testUserId);
@@ -638,10 +703,10 @@ void main() {
           confirmations: confirmations,
         ),
         throwsA(
-          isA<Exception>().having(
+          isA<SafeguardException>().having(
             (e) => e.toString(),
             'message',
-            contains('Phase 1 validation failed'),
+            contains('No authenticated user'),
           ),
         ),
       );
@@ -702,10 +767,12 @@ void main() {
               'total_count': 26,
             } as Map<String, dynamic>
           ]);
-      when(mockClient.rpc<List<Map<String, dynamic>>>(
-        'anonymize_all_user_content',
-        params: {'target_user_id': testUserId},
-      )).thenReturn(mockPhase4Filter);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'anonymize_all_user_content',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockPhase4Filter);
 
       // Mock Phase 5: Metadata clearing - This is the test focus
       final mockPhase5Filter = MockRpcListFilterBuilder();
@@ -722,25 +789,31 @@ void main() {
               'total_operations': 87,
             } as Map<String, dynamic>
           ]);
-      when(mockClient.rpc<List<Map<String, dynamic>>>(
-        'clear_all_user_metadata',
-        params: {'target_user_id': testUserId},
-      )).thenAnswer((_) async => mockPhase5Filter);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'clear_all_user_metadata',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockPhase5Filter);
 
       // Mock other phases to complete the flow
       final mockCreateRecordFilter = MockRpcVoidFilterBuilder();
       when(mockCreateRecordFilter.then(any)).thenAnswer((_) async {});
-      when(mockClient.rpc<void>(
-        'create_anonymization_record',
-        params: any,
-      )).thenAnswer((_) async => mockCreateRecordFilter);
+      when(
+        mockClient.rpc<void>(
+          'create_anonymization_record',
+          params: anyNamed('params'),
+        ),
+      ).thenAnswer((_) => mockCreateRecordFilter);
 
       final mockEventFilter = MockRpcVoidFilterBuilder();
       when(mockEventFilter.then(any)).thenAnswer((_) async {});
-      when(mockClient.rpc<void>(
-        'record_anonymization_event',
-        params: any,
-      )).thenAnswer((_) async => mockEventFilter);
+      when(
+        mockClient.rpc<void>(
+          'record_anonymization_event',
+          params: anyNamed('params'),
+        ),
+      ).thenAnswer((_) => mockEventFilter);
 
       // Execute anonymization
       final report = await service.anonymizeUserAccount(
@@ -789,34 +862,42 @@ void main() {
               'total_count': 26,
             } as Map<String, dynamic>
           ]);
-      when(mockClient.rpc<List<Map<String, dynamic>>>(
-        'anonymize_all_user_content',
-        params: {'target_user_id': testUserId},
-      )).thenAnswer((_) async => mockPhase4Filter2);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'anonymize_all_user_content',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockPhase4Filter2);
 
       // Mock Phase 5 failure
       final mockPhase5FailFilter = MockRpcListFilterBuilder();
       when(mockPhase5FailFilter.then(any))
           .thenThrow(Exception('Database error clearing metadata'));
-      when(mockClient.rpc<List<Map<String, dynamic>>>(
-        'clear_all_user_metadata',
-        params: {'target_user_id': testUserId},
-      )).thenAnswer((_) async => mockPhase5FailFilter);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'clear_all_user_metadata',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockPhase5FailFilter);
 
       // Mock other phases
       final mockCreateRecordFilter2 = MockRpcVoidFilterBuilder();
       when(mockCreateRecordFilter2.then(any)).thenAnswer((_) async {});
-      when(mockClient.rpc<void>(
-        'create_anonymization_record',
-        params: any,
-      )).thenAnswer((_) async => mockCreateRecordFilter2);
+      when(
+        mockClient.rpc<void>(
+          'create_anonymization_record',
+          params: anyNamed('params'),
+        ),
+      ).thenAnswer((_) => mockCreateRecordFilter2);
 
       final mockEventFilter2 = MockRpcVoidFilterBuilder();
       when(mockEventFilter2.then(any)).thenAnswer((_) async {});
-      when(mockClient.rpc<void>(
-        'record_anonymization_event',
-        params: any,
-      )).thenAnswer((_) async => mockEventFilter2);
+      when(
+        mockClient.rpc<void>(
+          'record_anonymization_event',
+          params: anyNamed('params'),
+        ),
+      ).thenAnswer((_) => mockEventFilter2);
 
       // Execute anonymization
       final report = await service.anonymizeUserAccount(
@@ -865,35 +946,43 @@ void main() {
       when(mockPhase4Filter3.then(any)).thenAnswer((_) async => [
             {'total_count': 26} as Map<String, dynamic>
           ]);
-      when(mockClient.rpc<List<Map<String, dynamic>>>(
-        'anonymize_all_user_content',
-        params: {'target_user_id': testUserId},
-      )).thenAnswer((_) async => mockPhase4Filter3);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'anonymize_all_user_content',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockPhase4Filter3);
 
       // Mock Phase 5
       final mockPhase5Filter3 = MockRpcListFilterBuilder();
       when(mockPhase5Filter3.then(any)).thenAnswer((_) async => [
             {'total_operations': 87} as Map<String, dynamic>
           ]);
-      when(mockClient.rpc<List<Map<String, dynamic>>>(
-        'clear_all_user_metadata',
-        params: {'target_user_id': testUserId},
-      )).thenAnswer((_) async => mockPhase5Filter3);
+      when(
+        mockClient.rpc<List<Map<String, dynamic>>>(
+          'clear_all_user_metadata',
+          params: {'target_user_id': testUserId},
+        ),
+      ).thenAnswer((_) => mockPhase5Filter3);
 
       // Mock other phases
       final mockCreateRecordFilter3 = MockRpcVoidFilterBuilder();
       when(mockCreateRecordFilter3.then(any)).thenAnswer((_) async {});
-      when(mockClient.rpc<void>(
-        'create_anonymization_record',
-        params: any,
-      )).thenAnswer((_) async => mockCreateRecordFilter3);
+      when(
+        mockClient.rpc<void>(
+          'create_anonymization_record',
+          params: anyNamed('params'),
+        ),
+      ).thenAnswer((_) => mockCreateRecordFilter3);
 
       final mockEventFilter3 = MockRpcVoidFilterBuilder();
       when(mockEventFilter3.then(any)).thenAnswer((_) async {});
-      when(mockClient.rpc<void>(
-        'record_anonymization_event',
-        params: any,
-      )).thenAnswer((_) async => mockEventFilter3);
+      when(
+        mockClient.rpc<void>(
+          'record_anonymization_event',
+          params: anyNamed('params'),
+        ),
+      ).thenAnswer((_) => mockEventFilter3);
 
       // Execute with progress tracking
       await service.anonymizeUserAccount(

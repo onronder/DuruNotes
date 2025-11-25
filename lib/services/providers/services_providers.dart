@@ -22,6 +22,8 @@ import 'package:duru_notes/core/providers/security_providers.dart'
 import 'package:duru_notes/core/providers/search_providers.dart'
     show noteIndexerProvider;
 import 'package:duru_notes/services/attachment_service.dart';
+import 'package:duru_notes/services/voice_notes_service.dart';
+import 'package:duru_notes/services/voice_transcription_service.dart';
 import 'package:duru_notes/services/clipper_inbox_notes_adapter.dart';
 import 'package:duru_notes/services/clipper_inbox_service.dart';
 import 'package:duru_notes/services/email_alias_service.dart';
@@ -102,6 +104,18 @@ final notificationHandlerServiceProvider = Provider<NotificationHandlerService>(
 /// Attachment service provider
 final attachmentServiceProvider = Provider<AttachmentService>((ref) {
   return AttachmentService(ref);
+});
+
+/// Voice notes service provider
+final voiceNotesServiceProvider = Provider<VoiceNotesService>((ref) {
+  return VoiceNotesService(ref);
+});
+
+/// Voice transcription service provider for speech-to-text dictation
+final voiceTranscriptionServiceProvider = Provider<VoiceTranscriptionService>((ref) {
+  final service = VoiceTranscriptionService(ref);
+  ref.onDispose(service.dispose);
+  return service;
 });
 
 /// Import service provider

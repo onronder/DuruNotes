@@ -308,11 +308,12 @@ class MockSecureApiWrapper extends Mock implements SecureApiWrapper {
 
   @override
   Future<void> upsertEncryptedNote({
-    DateTime? createdAt,
     required String id,
     required Uint8List titleEnc,
     required Uint8List propsEnc,
     required bool deleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) async {
     if (!_encryptionEnabled) {
       // Fallback to unencrypted storage in tests
@@ -321,6 +322,8 @@ class MockSecureApiWrapper extends Mock implements SecureApiWrapper {
         'titleEnc': titleEnc,
         'propsEnc': propsEnc,
         'deleted': deleted,
+        'createdAt': createdAt,
+        'updatedAt': updatedAt,
       };
       return;
     }
@@ -331,6 +334,8 @@ class MockSecureApiWrapper extends Mock implements SecureApiWrapper {
       'propsEnc': propsEnc,
       'deleted': deleted,
       'encrypted': true,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
     };
   }
 

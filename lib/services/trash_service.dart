@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/entities/note.dart';
@@ -9,6 +11,9 @@ import 'package:duru_notes/features/folders/providers/folders_repository_provide
 import 'package:duru_notes/features/tasks/providers/tasks_repository_providers.dart';
 import 'package:duru_notes/infrastructure/providers/repository_providers.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
+import 'package:duru_notes/services/attachment_service.dart';
+import 'package:duru_notes/services/providers/services_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Service for coordinating trash operations across repositories
@@ -38,6 +43,8 @@ class TrashService {
   final bool _taskRepositoryProvided;
 
   AppLogger get _logger => _ref.read(loggerProvider);
+  AttachmentService get _attachmentService => _ref.read(attachmentServiceProvider);
+  AnalyticsService get _analytics => _ref.read(analyticsProvider);
 
   /// Lazily get notes repository from provider
   INotesRepository get _notesRepo {
@@ -165,9 +172,20 @@ class TrashService {
   }
 
   /// Permanently delete a single note with analytics tracking
+  ///
+  /// Includes best-effort deletion of voice recording audio files from Supabase Storage.
+  /// Audio deletion failures are logged but do not block note deletion.
   Future<void> permanentlyDeleteNote(String noteId) async {
     try {
       _logger.info('Permanently deleting note: $noteId');
+
+      // Get note first to check for voice recordings
+      final note = await _notesRepo.getNoteById(noteId);
+      if (note != null && note.attachmentMeta != null && note.attachmentMeta!.isNotEmpty) {
+        await _deleteVoiceRecordingsForNote(note);
+      }
+
+      // Delete the note from database
       await _notesRepo.permanentlyDeleteNote(noteId);
 
       // Track analytics
@@ -181,6 +199,83 @@ class TrashService {
         stackTrace: stack,
       );
       rethrow;
+    }
+  }
+
+  /// Best-effort deletion of voice recording files from Supabase Storage
+  ///
+  /// Parses note.attachmentMeta.voiceRecordings and deletes each audio file.
+  /// Logs errors but does not throw - deletion failures should not block note purge.
+  Future<void> _deleteVoiceRecordingsForNote(Note note) async {
+    int successCount = 0;
+    int failureCount = 0;
+
+    try {
+      final metaData = jsonDecode(note.attachmentMeta!) as Map<String, dynamic>;
+      final voiceRecordings = metaData['voiceRecordings'] as List<dynamic>?;
+
+      if (voiceRecordings == null || voiceRecordings.isEmpty) {
+        return;
+      }
+
+      _logger.info(
+        'Deleting ${voiceRecordings.length} voice recording(s) for note ${note.id}',
+      );
+
+      // Delete each voice recording (best-effort)
+      for (final recording in voiceRecordings) {
+        final url = recording['url'] as String?;
+        if (url == null || url.isEmpty) {
+          continue;
+        }
+
+        try {
+          final deleted = await _attachmentService.delete(url);
+          if (deleted) {
+            successCount++;
+            _logger.breadcrumb(
+              'Deleted voice recording',
+              data: {'url': url, 'note_id': note.id},
+            );
+          } else {
+            failureCount++;
+            _logger.warning(
+              'Failed to delete voice recording (returned false)',
+              data: {'url': url, 'note_id': note.id},
+            );
+          }
+        } catch (e) {
+          failureCount++;
+          _logger.warning(
+            'Error deleting voice recording',
+            data: {'url': url, 'note_id': note.id, 'error': e.toString()},
+          );
+        }
+      }
+
+      _logger.info(
+        'Voice recording cleanup complete for note ${note.id}: '
+        '$successCount succeeded, $failureCount failed',
+      );
+
+      // Track analytics if any deletions failed
+      if (failureCount > 0) {
+        _analytics.trackError(
+          'Voice recording deletion failed',
+          properties: {
+            'note_id': note.id,
+            'failure_count': failureCount,
+            'success_count': successCount,
+            'total_recordings': successCount + failureCount,
+          },
+        );
+      }
+    } catch (e) {
+      // Log parsing errors but don't throw - this shouldn't block note deletion
+      _logger.warning(
+        'Failed to parse voice recordings for cleanup',
+        data: {'note_id': note.id, 'error': e.toString()},
+      );
     }
   }
 

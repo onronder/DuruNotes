@@ -46,6 +46,27 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET[sdk=iphonesimulator*]'] = '15.0'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET[sdk=iphoneos*]'] = '15.0'
+
+      # Configure permission_handler to enable specific permissions
+      # Required for iOS to show permission dialogs and settings toggles
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+
+        # Voice recording and transcription
+        'PERMISSION_MICROPHONE=1',
+        'PERMISSION_SPEECH_RECOGNIZER=1',
+
+        # Document scanning and image attachments
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_PHOTOS=1',
+
+        # Location-based reminders
+        'PERMISSION_LOCATION=1',
+        'PERMISSION_LOCATION_ALWAYS=1',
+
+        # Notification reminders
+        'PERMISSION_NOTIFICATIONS=1',
+      ]
     end
   end
 

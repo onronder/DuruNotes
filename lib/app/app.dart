@@ -86,16 +86,9 @@ class App extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    debugPrint('🎨 [App] build() called');
-
     // Watch settings providers
-    debugPrint('🎨 [App] Watching themeModeProvider');
     final themeMode = ref.watch(themeModeProvider);
-    debugPrint('🎨 [App] Theme mode: $themeMode');
-
-    debugPrint('🎨 [App] Watching localeProvider');
     final locale = ref.watch(localeProvider);
-    debugPrint('🎨 [App] Locale: $locale');
     const generatedSupportedLocales = AppLocalizations.supportedLocales;
     // If a saved locale isn't generated, fall back to system
     final effectiveLocale =
@@ -112,10 +105,8 @@ class App extends ConsumerWidget {
     // This ensures UI renders immediately with defaults, then updates with saved preferences
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
-        debugPrint('[App] Loading cached user preferences...');
         ref.read(themeModeProvider.notifier).loadThemeMode();
         ref.read(localeProvider.notifier).loadLocale();
-        debugPrint('[App] ✅ User preferences loaded');
       } catch (e) {
         debugPrint('[App] ⚠️ Error loading preferences: $e');
         // Non-critical - app continues with defaults
@@ -252,17 +243,9 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
 
   /// Unlock using cross-device encryption (EncryptionSyncService)
   Future<void> _unlockCrossDeviceEncryption() async {
-    if (kDebugMode) {
-      debugPrint('[UnlockView] Attempting cross-device unlock...');
-    }
-
     try {
       final encryptionService = ref.read(encryptionSyncServiceProvider);
       await encryptionService.retrieveEncryption(_controller.text);
-
-      if (kDebugMode) {
-        debugPrint('[UnlockView] ✅ Cross-device unlock successful');
-      }
 
       if (mounted) {
         widget.onUnlocked();
@@ -282,19 +265,11 @@ class _UnlockPassphraseViewState extends ConsumerState<UnlockPassphraseView> {
 
   /// Unlock using device-specific encryption (AccountKeyService - legacy)
   Future<void> _unlockDeviceSpecificEncryption() async {
-    if (kDebugMode) {
-      debugPrint('[UnlockView] Attempting device-specific unlock...');
-    }
-
     final ok = await ref
         .read(accountKeyServiceProvider)
         .unlockAmkWithPassphrase(_controller.text);
 
     if (ok) {
-      if (kDebugMode) {
-        debugPrint('[UnlockView] ✅ Device-specific unlock successful');
-      }
-
       if (mounted) {
         widget.onUnlocked();
       }
@@ -566,8 +541,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
   /// Handle deep link from widget
   Future<void> _handleDeepLink(String url) async {
-    debugPrint('📱 [App] Handling deep link: $url');
-
     final uri = Uri.parse(url);
     if (uri.scheme != 'durunotes') {
       debugPrint('❌ [App] Invalid scheme: ${uri.scheme}');
@@ -604,7 +577,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   /// Navigate to specific note
   void _openNote(String noteId) {
     if (!mounted) return;
-    debugPrint('📝 [App] Opening note: $noteId');
 
     // Navigate to note editor with specific note ID
     Navigator.of(context).push(
@@ -617,7 +589,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   /// Create new note
   void _createNewNote() {
     if (!mounted) return;
-    debugPrint('➕ [App] Creating new note');
 
     // Navigate to new note screen
     Navigator.of(context).push(
@@ -630,7 +601,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   /// Open quick capture
   void _openQuickCapture() {
     if (!mounted) return;
-    debugPrint('⚡ [App] Opening quick capture');
 
     // Navigate to new note screen (same as create new note for now)
     Navigator.of(context).push(

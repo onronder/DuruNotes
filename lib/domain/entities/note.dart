@@ -17,7 +17,12 @@ class Note {
   final String? folderId;
   final int version;
   final String userId;
+
+  /// JSON metadata for note attachments (voice recordings, images, files, etc.)
+  /// Structure: `{"voiceRecordings": [{id, url, filename, durationSeconds, createdAt}], ...}`
+  /// See docs/NOTE_ATTACHMENT_SCHEMA.md for full schema documentation
   final String? attachmentMeta;
+
   final String? metadata;
   final List<String> tags;
   final List<NoteLinkReference> links;

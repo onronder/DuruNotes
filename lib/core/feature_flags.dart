@@ -19,6 +19,7 @@ class FeatureFlags {
     'enable_userid_filtering': false, // SECURITY: Gradual rollout gate
     'enable_automatic_trash_purge':
         false, // TRASH: Auto-purge overdue items on app startup
+    'voice_dictation_enabled': true, // Voice dictation in note editor
   };
 
   // Cohort rollout percentages (0.0 → disabled, 1.0 → 100% users)
@@ -106,6 +107,10 @@ class FeatureFlags {
   /// When enabled, overdue trash items are automatically deleted on app startup
   bool get enableAutomaticTrashPurge =>
       isEnabled('enable_automatic_trash_purge');
+
+  /// Voice dictation in note editor
+  /// When enabled, shows mic button in formatting toolbar for speech-to-text
+  bool get voiceDictationEnabled => isEnabled('voice_dictation_enabled');
 
   int _stableBucket(String userId) {
     final hash = userId.hashCode & 0x7fffffff;

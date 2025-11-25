@@ -16,10 +16,10 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('[main] Starting bootstrap before runApp()');
+  debugPrint('[main] Starting fast bootstrap before runApp()');
   final bootstrap = AppBootstrap();
-  final bootstrapResult = await bootstrap.initialize();
-  debugPrint('[main] Bootstrap complete, launching app');
+  final bootstrapResult = await bootstrap.initializeFast();
+  debugPrint('[main] Fast bootstrap complete, launching app');
   runApp(
     BootstrapApp(
       initialResult: bootstrapResult,
@@ -50,12 +50,35 @@ class _BootstrapAppState extends State<BootstrapApp> {
   late final AppBootstrap _bootstrap;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   bool _isInitializing = false;
+  bool _backendInitStarted = false;
 
   @override
   void initState() {
     super.initState();
     _result = widget.initialResult;
     _bootstrap = widget.bootstrapOverride ?? AppBootstrap();
+    _startBackendInitialization();
+  }
+
+  void _startBackendInitialization() {
+    if (_backendInitStarted) return;
+    _backendInitStarted = true;
+    // Fire-and-forget backend bootstrap; this should never block the first UI.
+    unawaited(_initializeBackend());
+  }
+
+  Future<void> _initializeBackend() async {
+    try {
+      final updated = await _bootstrap.initializeBackend(_result);
+      if (!mounted) return;
+      setState(() {
+        _result = updated;
+      });
+    } catch (error, stack) {
+      debugPrint('[BootstrapApp] Backend init failed: $error\n$stack');
+      // We intentionally do not surface this as a hard failure; the app can
+      // continue in a degraded mode with whatever the fast phase provided.
+    }
   }
 
   Future<void> _retryBootstrap() async {
@@ -63,14 +86,15 @@ class _BootstrapAppState extends State<BootstrapApp> {
     setState(() {
       _isInitializing = true;
     });
-
     try {
       final newResult = await _bootstrap.initialize();
       if (!mounted) return;
       setState(() {
         _result = newResult;
         _isInitializing = false;
+        _backendInitStarted = false;
       });
+      _startBackendInitialization();
     } catch (error, stack) {
       debugPrint('[BootstrapApp] Retry failed: $error\n$stack');
       if (!mounted) return;
@@ -129,10 +153,7 @@ class BootstrapShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[BootstrapShell] build() START');
-
     if (result.hasCriticalFailures) {
-      debugPrint('[BootstrapShell] Has critical failures, showing error');
       return BootstrapFailureApp(
         failures: result.failures,
         warnings: result.warnings,
@@ -141,10 +162,8 @@ class BootstrapShell extends StatelessWidget {
       );
     }
 
-    debugPrint('[BootstrapShell] Checking runtime readiness...');
     final readinessFailures = _runtimeReadinessFailures(result);
     if (readinessFailures.isNotEmpty) {
-      debugPrint('[BootstrapShell] Has readiness failures, showing error');
       return BootstrapFailureApp(
         failures: [...result.failures, ...readinessFailures],
         warnings: result.warnings,
@@ -153,14 +172,11 @@ class BootstrapShell extends StatelessWidget {
       );
     }
 
-    debugPrint('[BootstrapShell] No failures, proceeding...');
     // Ensure feature flag factory prints state when in debug for diagnostics.
     if (result.environment.debugMode) {
-      debugPrint('[BootstrapShell] Logging feature flags...');
       FeatureFlaggedBlockFactory.logFeatureFlagState();
     }
 
-    debugPrint('[BootstrapShell] Creating DefaultAssetBundle with SentryAssetBundle...');
     return DefaultAssetBundle(
       bundle: SentryAssetBundle(),
       child: ErrorBoundary(
@@ -172,11 +188,9 @@ class BootstrapShell extends StatelessWidget {
         ),
         child: Builder(
           builder: (context) {
-            debugPrint('[BootstrapShell] Builder callback executing...');
             final widget = appBuilder != null
                 ? appBuilder!(context)
                 : _AppWithShareExtension(navigatorKey: navigatorKey);
-            debugPrint('[BootstrapShell] Builder callback complete, returning widget');
             return widget;
           },
         ),
@@ -198,7 +212,10 @@ class BootstrapShell extends StatelessWidget {
         ),
       );
     }
-    if (result.environment.requiresSentry && !result.sentryEnabled) {
+    // Only validate Sentry after backend initialization completes
+    if (result.backendInitialized &&
+        result.environment.requiresSentry &&
+        !result.sentryEnabled) {
       issues.add(
         BootstrapFailure(
           stage: BootstrapStage.monitoring,
@@ -240,6 +257,9 @@ class BootstrapFailureApp extends StatelessWidget {
       supportedLocales: const [
         Locale('en', ''),
         Locale('tr', ''),
+        Locale('es', ''),
+        Locale('de', ''),
+        Locale('fr', ''),
       ],
       home: BootstrapFailureContent(
         failures: failures,
