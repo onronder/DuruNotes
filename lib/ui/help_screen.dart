@@ -395,7 +395,7 @@ class _HelpScreenState extends State<HelpScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Search User Guide'),
         content: const Text(
-          "Use your browser's search function (Ctrl+F or Cmd+F) to search through the guide, or scroll to find the section you need.\n\nMain sections:\n• Getting Started\n• Advanced Reminders\n• Voice & OCR Capture\n• Share Sheet Integration\n• Search & Organization\n• Security & Privacy\n• Troubleshooting",
+          "Use your browser's search function (Ctrl+F or Cmd+F) to search through the guide, or scroll to find the section you need.\n\nMain sections:\n• Getting Started\n• Advanced Reminders\n• Voice & OCR Capture (Dictation & Recording)\n• Share Sheet Integration\n• Search & Organization\n• Security & Privacy\n• Troubleshooting",
         ),
         actions: [
           TextButton(
@@ -653,8 +653,18 @@ class _HelpScreenState extends State<HelpScreen> {
                       items: [
                         'Tap + button to create a new note',
                         'Use block editor for different content types',
-                        'Add voice notes with microphone button',
+                        'Record voice notes for hands-free capture',
                         'Scan text with camera for OCR',
+                      ],
+                    ),
+                    _QuickHelpSection(
+                      title: 'Voice & Dictation',
+                      items: [
+                        'Tap mic icon in editor toolbar to dictate',
+                        'Tap again or say nothing to stop dictation',
+                        'Long-press mic to change dictation language',
+                        'Text inserts at cursor position automatically',
+                        'Create voice notes from + menu for audio recordings',
                       ],
                     ),
                     _QuickHelpSection(
@@ -671,7 +681,8 @@ class _HelpScreenState extends State<HelpScreen> {
                       items: [
                         'Notifications: Check app permissions',
                         'Location reminders: Enable location access',
-                        'Voice issues: Check microphone permissions',
+                        'Microphone issues: Check permissions in Settings',
+                        'Dictation not working: Try different language',
                         'Sync problems: Check internet connection',
                       ],
                     ),

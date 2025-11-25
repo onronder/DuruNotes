@@ -49,6 +49,26 @@ class AnalyticsEvents {
   static const String featureUsed = 'feature_used';
   static const String errorOccurred = 'error_occurred';
   static const String performanceIssue = 'performance_issue';
+
+  // FAB actions (for UX tracking)
+  static const String fabActionTextNote = 'fab_action_text_note';
+  static const String fabActionChecklist = 'fab_action_checklist';
+  static const String fabActionVoiceNote = 'fab_action_voice_note';
+  static const String fabActionTemplate = 'fab_action_template';
+  static const String fabExpanded = 'fab_expanded';
+  static const String fabCollapsed = 'fab_collapsed';
+
+  // Menu navigation (for UX tracking)
+  static const String menuOpenedSettings = 'menu_opened_settings';
+  static const String menuOpenedHelp = 'menu_opened_help';
+  static const String menuOpenedTrash = 'menu_opened_trash';
+  static const String menuOpenedFolders = 'menu_opened_folders';
+  static const String menuOpenedTemplates = 'menu_opened_templates';
+  static const String menuOpenedTasks = 'menu_opened_tasks';
+  static const String menuOpenedAnalytics = 'menu_opened_analytics';
+  static const String menuOpenedSort = 'menu_opened_sort';
+  static const String menuOpenedImport = 'menu_opened_import';
+  static const String menuOpenedExport = 'menu_opened_export';
 }
 
 /// Standard analytics properties used throughout the app

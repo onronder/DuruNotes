@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:duru_notes/providers/infrastructure_providers.dart'
+    show analyticsProvider;
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/theme/cross_platform_tokens.dart';
 import 'package:duru_notes/ui/widgets/voice_recording_sheet.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -397,8 +400,10 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
     HapticFeedback.lightImpact();
     if (_isFabExpanded) {
       _fabAnimationController.forward();
+      ref.read(analyticsProvider).event(AnalyticsEvents.fabExpanded);
     } else {
       _fabAnimationController.reverse();
+      ref.read(analyticsProvider).event(AnalyticsEvents.fabCollapsed);
     }
   }
 
@@ -416,8 +421,9 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
   }
 
   void _createVoiceNote() {
+    ref.read(analyticsProvider).event(AnalyticsEvents.fabActionVoiceNote);
     _toggleFab();
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -429,11 +435,13 @@ class _ModernHomeScreenState extends ConsumerState<ModernHomeScreen>
   }
 
   void _createChecklist() {
+    ref.read(analyticsProvider).event(AnalyticsEvents.fabActionChecklist);
     _toggleFab();
     // TODO: Implement checklist creation
   }
 
   void _createTextNote() {
+    ref.read(analyticsProvider).event(AnalyticsEvents.fabActionTextNote);
     _toggleFab();
     // TODO: Implement text note creation
   }

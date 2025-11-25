@@ -1270,12 +1270,11 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
           ),
         ),
       ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kScreenPadding),
         child: Row(
           children: [
-            // Text formatting group
+            // Core formatting: Bold, Italic
             _buildToolButton(
               icon: Icons.format_bold_rounded,
               tooltip: 'Bold (⌘B)',
@@ -1288,15 +1287,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               onPressed: () => _executeCommand(ItalicCommand()),
               colorScheme: colorScheme,
             ),
-            _buildToolButton(
-              icon: Icons.format_size_rounded,
-              tooltip: 'Heading',
-              onPressed: _showHeadingMenu,
-              onLongPress: () => _executeCommand(HeadingCommand()),
-              colorScheme: colorScheme,
-            ),
 
-            // Voice dictation button (after text style, before lists)
+            // Voice dictation button (core action)
             if (_featureFlags.voiceDictationEnabled) ...[
               _buildToolDivider(colorScheme),
               _buildToolButton(
@@ -1315,19 +1307,12 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
 
             _buildToolDivider(colorScheme),
 
-            // List formatting group
+            // Core lists: Bullet List, Checklist
             _buildToolButton(
               icon: Icons.format_list_bulleted_rounded,
               tooltip: 'Bullet List',
               onPressed: () =>
                   _executeCommand(ListCommand(type: ListType.bullet)),
-              colorScheme: colorScheme,
-            ),
-            _buildToolButton(
-              icon: Icons.format_list_numbered_rounded,
-              tooltip: 'Numbered List',
-              onPressed: () =>
-                  _executeCommand(ListCommand(type: ListType.numbered)),
               colorScheme: colorScheme,
             ),
             _buildToolButton(
@@ -1338,37 +1323,122 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
               colorScheme: colorScheme,
             ),
 
-            _buildToolDivider(colorScheme),
+            const Spacer(),
 
-            // Advanced formatting group
+            // More menu for advanced formatting
             _buildToolButton(
-              icon: Icons.code_rounded,
-              tooltip: 'Code',
-              onPressed: _showCodeMenu,
-              onLongPress: () => _executeCommand(CodeCommand(isBlock: true)),
-              colorScheme: colorScheme,
-            ),
-            _buildToolButton(
-              icon: Icons.format_quote_rounded,
-              tooltip: 'Quote',
-              onPressed: () => _executeCommand(QuoteCommand()),
-              colorScheme: colorScheme,
-            ),
-            _buildToolButton(
-              icon: Icons.link_rounded,
-              tooltip: 'Insert Link',
-              onPressed: _showLinkDialog,
-              colorScheme: colorScheme,
-            ),
-            _buildToolButton(
-              icon: Icons.image_rounded,
-              tooltip: 'Insert Image',
-              onPressed: _insertImage,
+              icon: Icons.more_horiz_rounded,
+              tooltip: 'More formatting options',
+              onPressed: () => _showMoreFormattingMenu(colorScheme),
               colorScheme: colorScheme,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _showMoreFormattingMenu(ColorScheme colorScheme) {
+    HapticFeedback.lightImpact();
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Container(
+                  width: 32,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.outline.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                _buildMoreMenuItem(
+                  icon: Icons.format_size_rounded,
+                  label: 'Heading',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showHeadingMenu();
+                  },
+                  colorScheme: colorScheme,
+                ),
+                _buildMoreMenuItem(
+                  icon: Icons.format_list_numbered_rounded,
+                  label: 'Numbered List',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _executeCommand(ListCommand(type: ListType.numbered));
+                  },
+                  colorScheme: colorScheme,
+                ),
+                _buildMoreMenuItem(
+                  icon: Icons.code_rounded,
+                  label: 'Code',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showCodeMenu();
+                  },
+                  colorScheme: colorScheme,
+                ),
+                _buildMoreMenuItem(
+                  icon: Icons.format_quote_rounded,
+                  label: 'Quote',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _executeCommand(QuoteCommand());
+                  },
+                  colorScheme: colorScheme,
+                ),
+                _buildMoreMenuItem(
+                  icon: Icons.link_rounded,
+                  label: 'Insert Link',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showLinkDialog();
+                  },
+                  colorScheme: colorScheme,
+                ),
+                _buildMoreMenuItem(
+                  icon: Icons.image_rounded,
+                  label: 'Insert Image',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _insertImage();
+                  },
+                  colorScheme: colorScheme,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMoreMenuItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required ColorScheme colorScheme,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: colorScheme.onSurfaceVariant),
+      title: Text(label),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
     );
   }
 

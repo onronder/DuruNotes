@@ -28,7 +28,10 @@ import 'package:duru_notes/services/providers/services_providers.dart'
     show
         exportServiceProvider,
         emailAliasServiceProvider,
-        encryptionSyncServiceProvider;
+        encryptionSyncServiceProvider,
+        voiceTranscriptionServiceProvider;
+import 'package:duru_notes/services/voice_transcription_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 // Phase 10: Migrated to organized provider imports
 import 'package:duru_notes/core/providers/security_providers.dart'
     show keyManagerProvider, accountKeyServiceProvider;
@@ -65,6 +68,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   PackageInfo? _packageInfo;
   bool _isSyncing = false;
   bool _isChangingSyncMode = false; // PRODUCTION FIX: Track sync mode changes
+  DictationLocale? _selectedDictationLocale;
+  static const String _dictationLocaleKey = 'settings_dictation_locale_id';
 
   Future<void> _exportAllFromSettings(ExportFormat format) async {
     final svc = ref.read(exportServiceProvider);
@@ -156,6 +161,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     _loadPackageInfo();
     _loadEmailAddress();
+    _loadDictationLocale();
+  }
+
+  Future<void> _loadDictationLocale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedLocaleId = prefs.getString(_dictationLocaleKey);
+      if (savedLocaleId != null && mounted) {
+        final voiceService = ref.read(voiceTranscriptionServiceProvider);
+        final locales = await voiceService.getAvailableLocales();
+        final savedLocale = locales.cast<DictationLocale?>().firstWhere(
+              (l) => l?.localeId == savedLocaleId,
+              orElse: () => null,
+            );
+        if (mounted && savedLocale != null) {
+          setState(() => _selectedDictationLocale = savedLocale);
+        }
+      }
+    } catch (e) {
+      _logger.error('Failed to load dictation locale', error: e);
+    }
+  }
+
+  Future<void> _saveDictationLocale(DictationLocale? locale) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (locale != null) {
+        await prefs.setString(_dictationLocaleKey, locale.localeId);
+      } else {
+        await prefs.remove(_dictationLocaleKey);
+      }
+      if (mounted) {
+        setState(() => _selectedDictationLocale = locale);
+      }
+    } catch (e) {
+      _logger.error('Failed to save dictation locale', error: e);
+    }
   }
 
   Future<void> _loadEmailAddress() async {
@@ -267,6 +309,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     _buildSyncSection(context, l10n),
                     _buildAppearanceSection(context, l10n),
                     _buildLanguageSection(context, l10n),
+                    _buildVoiceOCRSection(context, l10n),
                     _buildNotificationsSection(context, l10n),
                     _buildSecuritySectionWithIOSToggles(context, l10n),
                     _buildImportExportSection(context, l10n),
@@ -1331,6 +1374,147 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildVoiceOCRSection(BuildContext context, AppLocalizations l10n) {
+    final isCompact = MediaQuery.sizeOf(context).width < 380;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Voice & OCR'),
+        Card(
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(Icons.mic_rounded, color: colorScheme.primary),
+                title: const Text(
+                  'Dictation Language',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  _selectedDictationLocale?.name ?? 'System Default',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () => _showDictationLocalePickerSettings(context),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
+                minLeadingWidth: 0,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: Icon(
+                  Icons.document_scanner_rounded,
+                  color: colorScheme.secondary,
+                ),
+                title: const Text(
+                  'OCR Settings',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: const Text(
+                  'Text recognition from images',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Coming Soon',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+                enabled: false,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: isCompact ? 6 : 10,
+                ),
+                visualDensity: isCompact
+                    ? const VisualDensity(vertical: -2)
+                    : null,
+                minLeadingWidth: 0,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showDictationLocalePickerSettings(BuildContext context) async {
+    final voiceService = ref.read(voiceTranscriptionServiceProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    // Show loading indicator
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final locales = await voiceService.getAvailableLocales();
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+
+      if (locales.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No dictation languages available on this device'),
+          ),
+        );
+        return;
+      }
+
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: colorScheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        isScrollControlled: true,
+        builder: (context) {
+          return _DictationLocalePickerSheet(
+            locales: locales,
+            selectedLocale: _selectedDictationLocale,
+            onSelect: (locale) {
+              Navigator.pop(context);
+              _saveDictationLocale(locale);
+              HapticFeedback.lightImpact();
+            },
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to load dictation languages'),
+            backgroundColor: colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildNotificationsSection(
     BuildContext context,
     AppLocalizations l10n,
@@ -2275,5 +2459,153 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       }
     }
+  }
+}
+
+/// Dictation locale picker bottom sheet for settings
+class _DictationLocalePickerSheet extends StatefulWidget {
+  const _DictationLocalePickerSheet({
+    required this.locales,
+    required this.selectedLocale,
+    required this.onSelect,
+  });
+
+  final List<DictationLocale> locales;
+  final DictationLocale? selectedLocale;
+  final void Function(DictationLocale?) onSelect;
+
+  @override
+  State<_DictationLocalePickerSheet> createState() =>
+      _DictationLocalePickerSheetState();
+}
+
+class _DictationLocalePickerSheetState
+    extends State<_DictationLocalePickerSheet> {
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<DictationLocale> get _filteredLocales {
+    if (_searchQuery.isEmpty) return widget.locales;
+    final query = _searchQuery.toLowerCase();
+    return widget.locales.where((l) {
+      return l.name.toLowerCase().contains(query) ||
+          l.localeId.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  String _getFlagEmoji(String? countryCode) {
+    if (countryCode == null || countryCode.length != 2) return '🌐';
+    final codes = countryCode.toUpperCase().codeUnits;
+    return String.fromCharCodes([
+      0x1F1E6 + codes[0] - 0x41,
+      0x1F1E6 + codes[1] - 0x41,
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final filteredLocales = _filteredLocales;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            // Drag handle
+            Container(
+              width: 32,
+              height: 4,
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              decoration: BoxDecoration(
+                color: colorScheme.outline.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Title
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Dictation Language',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+            // Search
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search languages...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                onChanged: (value) {
+                  setState(() => _searchQuery = value);
+                },
+              ),
+            ),
+            // Options
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  // System default option
+                  ListTile(
+                    leading: const Text('🌐', style: TextStyle(fontSize: 24)),
+                    title: const Text('System Default'),
+                    trailing: widget.selectedLocale == null
+                        ? Icon(Icons.check_circle, color: colorScheme.primary)
+                        : null,
+                    onTap: () => widget.onSelect(null),
+                  ),
+                  const Divider(),
+                  // Filtered locales
+                  ...filteredLocales.map((locale) {
+                    final isSelected =
+                        locale.localeId == widget.selectedLocale?.localeId;
+                    return ListTile(
+                      leading: Text(
+                        _getFlagEmoji(locale.countryCode),
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                      title: Text(locale.name),
+                      subtitle: Text(
+                        locale.localeId,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? Icon(Icons.check_circle, color: colorScheme.primary)
+                          : null,
+                      onTap: () => widget.onSelect(locale),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

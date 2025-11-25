@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:duru_notes/core/monitoring/app_logger.dart';
+import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:duru_notes/domain/entities/folder.dart' as domain;
 import 'package:duru_notes/domain/entities/note.dart' as domain;
 import 'package:duru_notes/domain/entities/saved_search.dart' as domain;
@@ -2389,6 +2390,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                       color: colorScheme.tertiaryContainer,
                       onPressed: () {
                         _toggleFab();
+                        ref.read(analyticsProvider).event(
+                          AnalyticsEvents.fabActionTemplate,
+                          properties: {'source': 'notes_list'},
+                        );
                         _showTemplatePicker();
                       },
                     );
@@ -2401,6 +2406,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   color: colorScheme.tertiary,
                   onPressed: () {
                     _toggleFab();
+                    ref.read(analyticsProvider).event(
+                      AnalyticsEvents.fabActionChecklist,
+                      properties: {'source': 'notes_list'},
+                    );
                     _createChecklist();
                   },
                 ),
@@ -2411,6 +2420,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   color: colorScheme.secondary,
                   onPressed: () {
                     _toggleFab();
+                    ref.read(analyticsProvider).event(
+                      AnalyticsEvents.fabActionVoiceNote,
+                      properties: {'source': 'notes_list'},
+                    );
                     _createVoiceNote();
                   },
                 ),
@@ -2421,6 +2434,10 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
                   color: colorScheme.primary,
                   onPressed: () {
                     _toggleFab();
+                    ref.read(analyticsProvider).event(
+                      AnalyticsEvents.fabActionTextNote,
+                      properties: {'source': 'notes_list'},
+                    );
                     _createNewNote(context);
                   },
                 ),
@@ -2599,48 +2616,76 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
     HapticFeedback.selectionClick();
     switch (value) {
       case 'sort':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedSort,
+          properties: {'source': 'notes_list'},
+        );
         _showSortDialog(context);
       case 'import':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedImport,
+          properties: {'source': 'notes_list'},
+        );
         _showImportDialog(context);
       case 'export':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedExport,
+          properties: {'source': 'notes_list'},
+        );
         _showExportDialog(context);
       case 'tasks':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedTasks,
+          properties: {'source': 'notes_list'},
+        );
         _showTasksScreen(context);
       case 'analytics':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedAnalytics,
+          properties: {'source': 'notes_list'},
+        );
         _showAnalyticsScreen(context);
       case 'folders':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedFolders,
+          properties: {'source': 'notes_list'},
+        );
         Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (context) => const FolderManagementScreen(),
           ),
         );
-        // Track analytics
-        ref
-            .read(analyticsProvider)
-            .event('folder_management_opened', properties: {'source': 'menu'});
       case 'templates':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedTemplates,
+          properties: {'source': 'notes_list'},
+        );
         Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (context) => const TemplateGalleryScreen(),
           ),
         );
-        // Track analytics
-        ref
-            .read(analyticsProvider)
-            .event('template_gallery_opened', properties: {'source': 'menu'});
       case 'trash':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedTrash,
+          properties: {'source': 'notes_list'},
+        );
         Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (context) => const TrashScreen(),
           ),
         );
-        // Track analytics
-        ref
-            .read(analyticsProvider)
-            .event('trash_opened', properties: {'source': 'menu'});
       case 'settings':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedSettings,
+          properties: {'source': 'notes_list'},
+        );
         _showSettingsDialog(context);
       case 'help':
+        ref.read(analyticsProvider).event(
+          AnalyticsEvents.menuOpenedHelp,
+          properties: {'source': 'notes_list'},
+        );
         _showHelpScreen(context);
       case 'logout':
         _confirmLogout(context);
