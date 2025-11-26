@@ -12,11 +12,9 @@ enum TrashAuditAction { softDelete, restore, permanentDelete }
 /// Helper responsible for writing trash audit events to Supabase via
 /// the `log_trash_event` function defined in the migration.
 class TrashAuditLogger {
-  TrashAuditLogger({
-    required SupabaseClient client,
-    AppLogger? logger,
-  })  : _client = client,
-        _logger = logger ?? LoggerFactory.instance;
+  TrashAuditLogger({required SupabaseClient client, AppLogger? logger})
+    : _client = client,
+      _logger = logger ?? LoggerFactory.instance;
 
   final SupabaseClient _client;
   final AppLogger _logger;

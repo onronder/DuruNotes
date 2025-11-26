@@ -51,8 +51,9 @@ class Migration41ReminderUuid {
     ''');
 
     // Step 2: Migrate existing reminder data with UUID generation
-    final reminders =
-        await db.customSelect('SELECT * FROM note_reminders').get();
+    final reminders = await db
+        .customSelect('SELECT * FROM note_reminders')
+        .get();
     debugPrint('[Migration 41] Migrating ${reminders.length} reminders...');
 
     final uuidMap = <int, String>{}; // Maps old INT ID → new UUID

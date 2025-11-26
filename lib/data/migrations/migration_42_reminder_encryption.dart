@@ -104,17 +104,21 @@ class Migration42ReminderEncryption {
   /// Helper: Check migration progress (for debugging/monitoring)
   static Future<Map<String, int>> getProgress(AppDb db) async {
     try {
-      final total = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders',
-      ).getSingle();
+      final total = await db
+          .customSelect('SELECT COUNT(*) as count FROM note_reminders')
+          .getSingle();
 
-      final encrypted = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders WHERE encryption_version = 1',
-      ).getSingle();
+      final encrypted = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders WHERE encryption_version = 1',
+          )
+          .getSingle();
 
-      final plaintext = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders WHERE encryption_version IS NULL',
-      ).getSingle();
+      final plaintext = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders WHERE encryption_version IS NULL',
+          )
+          .getSingle();
 
       return {
         'total': total.read<int>('count'),

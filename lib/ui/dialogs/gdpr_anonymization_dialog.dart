@@ -55,10 +55,7 @@ extension GDPRAnonymizationL10n on AppLocalizations {
 
 /// Result of the anonymization dialog
 class AnonymizationDialogResult {
-  const AnonymizationDialogResult({
-    required this.confirmed,
-    this.report,
-  });
+  const AnonymizationDialogResult({required this.confirmed, this.report});
 
   /// Whether user confirmed and completed the anonymization
   final bool confirmed;
@@ -74,10 +71,7 @@ class AnonymizationDialogResult {
 /// 2. Irreversibility understanding
 /// 3. Confirmation token validation
 class GDPRAnonymizationDialog extends ConsumerStatefulWidget {
-  const GDPRAnonymizationDialog({
-    super.key,
-    required this.userId,
-  });
+  const GDPRAnonymizationDialog({super.key, required this.userId});
 
   /// User ID to anonymize
   final String userId;
@@ -166,8 +160,9 @@ class _GDPRAnonymizationDialogState
       return false;
     }
 
-    final expectedToken =
-        UserConfirmations.generateConfirmationToken(widget.userId);
+    final expectedToken = UserConfirmations.generateConfirmationToken(
+      widget.userId,
+    );
     if (_confirmationToken != expectedToken) {
       _showError('Confirmation code does not match. Please try again.');
       _shakeConfirmationField();
@@ -224,7 +219,8 @@ class _GDPRAnonymizationDialogState
         understandsIrreversibility: _irreversibilityConfirmed,
         finalConfirmationToken: _confirmationToken,
         acknowledgesRisks: _acknowledgesRisks,
-        allowProductionOverride: false, // Safety: Requires manual override in production
+        allowProductionOverride:
+            false, // Safety: Requires manual override in production
       );
 
       // Get the service
@@ -261,20 +257,13 @@ class _GDPRAnonymizationDialogState
 
         if (mounted) {
           await HapticFeedback.mediumImpact();
-          Navigator.of(context).pop(
-            AnonymizationDialogResult(
-              confirmed: true,
-              report: report,
-            ),
-          );
+          Navigator.of(
+            context,
+          ).pop(AnonymizationDialogResult(confirmed: true, report: report));
         }
       }
     } catch (e, stack) {
-      _logger.error(
-        'GDPR anonymization failed',
-        error: e,
-        stackTrace: stack,
-      );
+      _logger.error('GDPR anonymization failed', error: e, stackTrace: stack);
 
       if (mounted) {
         setState(() {
@@ -313,15 +302,16 @@ class _GDPRAnonymizationDialogState
                   curve: Curves.easeOutBack,
                 ),
                 child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.1),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: _slideController,
-                      curve: Curves.easeOutCubic,
-                    ),
-                  ),
+                  position:
+                      Tween<Offset>(
+                        begin: const Offset(0, 0.1),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: _slideController,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
                   child: Dialog(
                     backgroundColor: colorScheme.surface,
                     surfaceTintColor: colorScheme.surfaceTint,
@@ -383,8 +373,9 @@ class _GDPRAnonymizationDialogState
                     title: l10n.gdprConfirmation2Title,
                     message: l10n.gdprConfirmation2Message,
                     onChanged: (value) {
-                      setState(() =>
-                          _irreversibilityConfirmed = value ?? false);
+                      setState(
+                        () => _irreversibilityConfirmed = value ?? false,
+                      );
                       HapticFeedback.selectionClick();
                     },
                     theme: theme,
@@ -394,7 +385,8 @@ class _GDPRAnonymizationDialogState
                   _buildConfirmationCheckbox(
                     value: _acknowledgesRisks,
                     title: 'Acknowledge All Risks',
-                    message: 'I acknowledge all risks and consequences of this irreversible action. I understand that all encrypted data will become permanently inaccessible.',
+                    message:
+                        'I acknowledge all risks and consequences of this irreversible action. I understand that all encrypted data will become permanently inaccessible.',
                     onChanged: (value) {
                       setState(() => _acknowledgesRisks = value ?? false);
                       HapticFeedback.selectionClick();
@@ -433,9 +425,7 @@ class _GDPRAnonymizationDialogState
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(28),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Row(
             children: [
@@ -495,8 +485,7 @@ class _GDPRAnonymizationDialogState
                         child: CircularProgressIndicator(
                           value: progress.overallProgress,
                           strokeWidth: 8,
-                          backgroundColor:
-                              colorScheme.surfaceContainerHighest,
+                          backgroundColor: colorScheme.surfaceContainerHighest,
                           color: progress.pointOfNoReturnReached
                               ? colorScheme.error
                               : colorScheme.primary,
@@ -586,9 +575,7 @@ class _GDPRAnonymizationDialogState
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: colorScheme.errorContainer.withValues(alpha: 0.3),
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Row(
         children: [
@@ -653,11 +640,7 @@ class _GDPRAnonymizationDialogState
         children: [
           Row(
             children: [
-              Icon(
-                Icons.error_outline,
-                color: colorScheme.error,
-                size: 20,
-              ),
+              Icon(Icons.error_outline, color: colorScheme.error, size: 20),
               const SizedBox(width: 8),
               Text(
                 l10n.gdprWarningTitle,
@@ -733,8 +716,9 @@ class _GDPRAnonymizationDialogState
     AppLocalizations l10n,
     ColorScheme colorScheme,
   ) {
-    final expectedToken =
-        UserConfirmations.generateConfirmationToken(widget.userId);
+    final expectedToken = UserConfirmations.generateConfirmationToken(
+      widget.userId,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -760,10 +744,7 @@ class _GDPRAnonymizationDialogState
             final offset = value < 0.5
                 ? Offset(value * 0.2, 0)
                 : Offset((1 - value) * 0.2, 0);
-            return Transform.translate(
-              offset: offset,
-              child: child,
-            );
+            return Transform.translate(offset: offset, child: child);
           },
           child: TextFormField(
             controller: _confirmationTokenController,
@@ -811,11 +792,7 @@ class _GDPRAnonymizationDialogState
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline,
-            color: colorScheme.error,
-            size: 20,
-          ),
+          Icon(Icons.error_outline, color: colorScheme.error, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -836,7 +813,8 @@ class _GDPRAnonymizationDialogState
     AppLocalizations l10n,
     ColorScheme colorScheme,
   ) {
-    final allConfirmed = _dataBackupConfirmed &&
+    final allConfirmed =
+        _dataBackupConfirmed &&
         _irreversibilityConfirmed &&
         _acknowledgesRisks &&
         _confirmationToken.isNotEmpty;
@@ -845,10 +823,7 @@ class _GDPRAnonymizationDialogState
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant,
-            width: 0.5,
-          ),
+          top: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
         ),
       ),
       child: Row(
@@ -857,9 +832,9 @@ class _GDPRAnonymizationDialogState
           TextButton(
             onPressed: _isProcessing
                 ? null
-                : () => Navigator.of(context).pop(
-                      const AnonymizationDialogResult(confirmed: false),
-                    ),
+                : () => Navigator.of(
+                    context,
+                  ).pop(const AnonymizationDialogResult(confirmed: false)),
             child: Text(l10n.gdprCancel),
           ),
           const SizedBox(width: 8),
@@ -871,7 +846,10 @@ class _GDPRAnonymizationDialogState
               style: FilledButton.styleFrom(
                 backgroundColor: colorScheme.error,
                 foregroundColor: colorScheme.onError,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

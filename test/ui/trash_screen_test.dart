@@ -23,9 +23,7 @@ void main() {
           deletedFoldersProvider.overrideWith((ref) async => folders),
           deletedTasksProvider.overrideWith((ref) async => tasks),
         ],
-        child: const MaterialApp(
-          home: TrashScreen(),
-        ),
+        child: const MaterialApp(home: TrashScreen()),
       );
     }
 
@@ -121,11 +119,9 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(buildTestWidget(
-        notes: notes,
-        folders: folders,
-        tasks: tasks,
-      ));
+      await tester.pumpWidget(
+        buildTestWidget(notes: notes, folders: folders, tasks: tasks),
+      );
       await tester.pumpAndSettle();
 
       // Check tab labels
@@ -169,10 +165,7 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(buildTestWidget(
-        notes: notes,
-        folders: folders,
-      ));
+      await tester.pumpWidget(buildTestWidget(notes: notes, folders: folders));
       await tester.pumpAndSettle();
 
       // Initially shows all items
@@ -257,7 +250,9 @@ void main() {
       expect(find.byTooltip('Delete Forever'), findsOneWidget);
     });
 
-    testWidgets('exits selection mode when cancel button tapped', (tester) async {
+    testWidgets('exits selection mode when cancel button tapped', (
+      tester,
+    ) async {
       final now = DateTime.now();
 
       final notes = [
@@ -297,7 +292,9 @@ void main() {
       expect(find.text('Trash'), findsOneWidget);
     });
 
-    testWidgets('shows bottom sheet with actions when item tapped', (tester) async {
+    testWidgets('shows bottom sheet with actions when item tapped', (
+      tester,
+    ) async {
       final now = DateTime.now();
 
       final notes = [
@@ -413,7 +410,9 @@ void main() {
     //   expect(find.textContaining('Auto-purge overdue'), findsOneWidget);
     // });
 
-    testWidgets('selection mode updates count when multiple items selected', (tester) async {
+    testWidgets('selection mode updates count when multiple items selected', (
+      tester,
+    ) async {
       final now = DateTime.now();
 
       final notes = [
@@ -487,4 +486,3 @@ void main() {
     });
   });
 }
-

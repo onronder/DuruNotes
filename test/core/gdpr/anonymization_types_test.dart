@@ -54,7 +54,7 @@ void main() {
       final confirmations = UserConfirmations(
         dataBackupComplete: true,
         understandsIrreversibility: true,
-        finalConfirmationToken: 'delete my account',  // lowercase
+        finalConfirmationToken: 'delete my account', // lowercase
         acknowledgesRisks: true,
       );
 
@@ -83,16 +83,19 @@ void main() {
       expect(confirmations.allConfirmed, isFalse);
     });
 
-    test('allConfirmed returns false when understandsIrreversibility is false', () {
-      final confirmations = UserConfirmations(
-        dataBackupComplete: true,
-        understandsIrreversibility: false,
-        finalConfirmationToken: validToken,
-        acknowledgesRisks: true,
-      );
+    test(
+      'allConfirmed returns false when understandsIrreversibility is false',
+      () {
+        final confirmations = UserConfirmations(
+          dataBackupComplete: true,
+          understandsIrreversibility: false,
+          finalConfirmationToken: validToken,
+          acknowledgesRisks: true,
+        );
 
-      expect(confirmations.allConfirmed, isFalse);
-    });
+        expect(confirmations.allConfirmed, isFalse);
+      },
+    );
 
     test('allConfirmed returns false when token is empty', () {
       final confirmations = UserConfirmations(
@@ -378,15 +381,34 @@ void main() {
         completedAt: DateTime(2025, 1, 1, 12, 0, 30),
         success: true,
         errors: [],
-        phase1Validation: PhaseReport.notStarted(1, 'Pre-Anonymization Validation').start().complete(),
-        phase2Metadata: PhaseReport.notStarted(2, 'Account Metadata Anonymization').start().complete(),
-        phase3KeyDestruction: PhaseReport.notStarted(3, 'Encryption Key Destruction').start().complete(
-          additionalDetails: {'keysDestroyed': 6},
-        ),
-        phase4Tombstoning: PhaseReport.notStarted(4, 'Encrypted Content Tombstoning').start().complete(),
-        phase5MetadataClearing: PhaseReport.notStarted(5, 'Unencrypted Metadata Clearing').start().complete(),
-        phase6SyncInvalidation: PhaseReport.notStarted(6, 'Cross-Device Sync Invalidation').start().complete(),
-        phase7ComplianceProof: PhaseReport.notStarted(7, 'Final Audit Trail & Compliance Proof').start().complete(),
+        phase1Validation: PhaseReport.notStarted(
+          1,
+          'Pre-Anonymization Validation',
+        ).start().complete(),
+        phase2Metadata: PhaseReport.notStarted(
+          2,
+          'Account Metadata Anonymization',
+        ).start().complete(),
+        phase3KeyDestruction: PhaseReport.notStarted(
+          3,
+          'Encryption Key Destruction',
+        ).start().complete(additionalDetails: {'keysDestroyed': 6}),
+        phase4Tombstoning: PhaseReport.notStarted(
+          4,
+          'Encrypted Content Tombstoning',
+        ).start().complete(),
+        phase5MetadataClearing: PhaseReport.notStarted(
+          5,
+          'Unencrypted Metadata Clearing',
+        ).start().complete(),
+        phase6SyncInvalidation: PhaseReport.notStarted(
+          6,
+          'Cross-Device Sync Invalidation',
+        ).start().complete(),
+        phase7ComplianceProof: PhaseReport.notStarted(
+          7,
+          'Final Audit Trail & Compliance Proof',
+        ).start().complete(),
         keyDestructionReport: keyReport,
         proofHash: 'abc123def456',
       );
@@ -399,13 +421,34 @@ void main() {
         completedAt: DateTime(2025, 1, 1, 12, 0, 30),
         success: false,
         errors: ['Phase 6 failed: Network error'],
-        phase1Validation: PhaseReport.notStarted(1, 'Pre-Anonymization Validation').start().complete(),
-        phase2Metadata: PhaseReport.notStarted(2, 'Account Metadata Anonymization').start().complete(),
-        phase3KeyDestruction: PhaseReport.notStarted(3, 'Encryption Key Destruction').start().complete(),
-        phase4Tombstoning: PhaseReport.notStarted(4, 'Encrypted Content Tombstoning').start().complete(),
-        phase5MetadataClearing: PhaseReport.notStarted(5, 'Unencrypted Metadata Clearing').start().complete(),
-        phase6SyncInvalidation: PhaseReport.notStarted(6, 'Cross-Device Sync Invalidation').start().fail('Network error'),
-        phase7ComplianceProof: PhaseReport.notStarted(7, 'Final Audit Trail & Compliance Proof').start().complete(),
+        phase1Validation: PhaseReport.notStarted(
+          1,
+          'Pre-Anonymization Validation',
+        ).start().complete(),
+        phase2Metadata: PhaseReport.notStarted(
+          2,
+          'Account Metadata Anonymization',
+        ).start().complete(),
+        phase3KeyDestruction: PhaseReport.notStarted(
+          3,
+          'Encryption Key Destruction',
+        ).start().complete(),
+        phase4Tombstoning: PhaseReport.notStarted(
+          4,
+          'Encrypted Content Tombstoning',
+        ).start().complete(),
+        phase5MetadataClearing: PhaseReport.notStarted(
+          5,
+          'Unencrypted Metadata Clearing',
+        ).start().complete(),
+        phase6SyncInvalidation: PhaseReport.notStarted(
+          6,
+          'Cross-Device Sync Invalidation',
+        ).start().fail('Network error'),
+        phase7ComplianceProof: PhaseReport.notStarted(
+          7,
+          'Final Audit Trail & Compliance Proof',
+        ).start().complete(),
       );
     });
 
@@ -423,13 +466,34 @@ void main() {
         userId: 'user_456',
         startedAt: DateTime(2025, 1, 1, 12, 0, 0),
         success: false,
-        phase1Validation: PhaseReport.notStarted(1, 'Pre-Anonymization Validation').start().complete(),
-        phase2Metadata: PhaseReport.notStarted(2, 'Account Metadata Anonymization').start().fail('Error'),
-        phase3KeyDestruction: PhaseReport.notStarted(3, 'Encryption Key Destruction'),
-        phase4Tombstoning: PhaseReport.notStarted(4, 'Encrypted Content Tombstoning'),
-        phase5MetadataClearing: PhaseReport.notStarted(5, 'Unencrypted Metadata Clearing'),
-        phase6SyncInvalidation: PhaseReport.notStarted(6, 'Cross-Device Sync Invalidation'),
-        phase7ComplianceProof: PhaseReport.notStarted(7, 'Final Audit Trail & Compliance Proof'),
+        phase1Validation: PhaseReport.notStarted(
+          1,
+          'Pre-Anonymization Validation',
+        ).start().complete(),
+        phase2Metadata: PhaseReport.notStarted(
+          2,
+          'Account Metadata Anonymization',
+        ).start().fail('Error'),
+        phase3KeyDestruction: PhaseReport.notStarted(
+          3,
+          'Encryption Key Destruction',
+        ),
+        phase4Tombstoning: PhaseReport.notStarted(
+          4,
+          'Encrypted Content Tombstoning',
+        ),
+        phase5MetadataClearing: PhaseReport.notStarted(
+          5,
+          'Unencrypted Metadata Clearing',
+        ),
+        phase6SyncInvalidation: PhaseReport.notStarted(
+          6,
+          'Cross-Device Sync Invalidation',
+        ),
+        phase7ComplianceProof: PhaseReport.notStarted(
+          7,
+          'Final Audit Trail & Compliance Proof',
+        ),
       );
 
       expect(notReachedReport.pointOfNoReturnReached, isFalse);
@@ -499,7 +563,10 @@ void main() {
       expect(certificate, contains('Phase 4: Encrypted Content Tombstoning'));
       expect(certificate, contains('Phase 5: Unencrypted Metadata Clearing'));
       expect(certificate, contains('Phase 6: Cross-Device Sync Invalidation'));
-      expect(certificate, contains('Phase 7: Final Audit Trail & Compliance Proof'));
+      expect(
+        certificate,
+        contains('Phase 7: Final Audit Trail & Compliance Proof'),
+      );
 
       // Key destruction
       expect(certificate, contains('ENCRYPTION KEY DESTRUCTION'));
@@ -526,13 +593,34 @@ void main() {
         userId: 'user_999',
         startedAt: DateTime(2025, 1, 1, 12, 0, 0),
         success: false,
-        phase1Validation: PhaseReport.notStarted(1, 'Pre-Anonymization Validation').start().fail('Error'),
-        phase2Metadata: PhaseReport.notStarted(2, 'Account Metadata Anonymization'),
-        phase3KeyDestruction: PhaseReport.notStarted(3, 'Encryption Key Destruction'),
-        phase4Tombstoning: PhaseReport.notStarted(4, 'Encrypted Content Tombstoning'),
-        phase5MetadataClearing: PhaseReport.notStarted(5, 'Unencrypted Metadata Clearing'),
-        phase6SyncInvalidation: PhaseReport.notStarted(6, 'Cross-Device Sync Invalidation'),
-        phase7ComplianceProof: PhaseReport.notStarted(7, 'Final Audit Trail & Compliance Proof'),
+        phase1Validation: PhaseReport.notStarted(
+          1,
+          'Pre-Anonymization Validation',
+        ).start().fail('Error'),
+        phase2Metadata: PhaseReport.notStarted(
+          2,
+          'Account Metadata Anonymization',
+        ),
+        phase3KeyDestruction: PhaseReport.notStarted(
+          3,
+          'Encryption Key Destruction',
+        ),
+        phase4Tombstoning: PhaseReport.notStarted(
+          4,
+          'Encrypted Content Tombstoning',
+        ),
+        phase5MetadataClearing: PhaseReport.notStarted(
+          5,
+          'Unencrypted Metadata Clearing',
+        ),
+        phase6SyncInvalidation: PhaseReport.notStarted(
+          6,
+          'Cross-Device Sync Invalidation',
+        ),
+        phase7ComplianceProof: PhaseReport.notStarted(
+          7,
+          'Final Audit Trail & Compliance Proof',
+        ),
       );
 
       final certificate = noKeyReport.toComplianceCertificate();
@@ -546,13 +634,34 @@ void main() {
         userId: 'user_999',
         startedAt: DateTime(2025, 1, 1, 12, 0, 0),
         success: false,
-        phase1Validation: PhaseReport.notStarted(1, 'Pre-Anonymization Validation'),
-        phase2Metadata: PhaseReport.notStarted(2, 'Account Metadata Anonymization'),
-        phase3KeyDestruction: PhaseReport.notStarted(3, 'Encryption Key Destruction'),
-        phase4Tombstoning: PhaseReport.notStarted(4, 'Encrypted Content Tombstoning'),
-        phase5MetadataClearing: PhaseReport.notStarted(5, 'Unencrypted Metadata Clearing'),
-        phase6SyncInvalidation: PhaseReport.notStarted(6, 'Cross-Device Sync Invalidation'),
-        phase7ComplianceProof: PhaseReport.notStarted(7, 'Final Audit Trail & Compliance Proof'),
+        phase1Validation: PhaseReport.notStarted(
+          1,
+          'Pre-Anonymization Validation',
+        ),
+        phase2Metadata: PhaseReport.notStarted(
+          2,
+          'Account Metadata Anonymization',
+        ),
+        phase3KeyDestruction: PhaseReport.notStarted(
+          3,
+          'Encryption Key Destruction',
+        ),
+        phase4Tombstoning: PhaseReport.notStarted(
+          4,
+          'Encrypted Content Tombstoning',
+        ),
+        phase5MetadataClearing: PhaseReport.notStarted(
+          5,
+          'Unencrypted Metadata Clearing',
+        ),
+        phase6SyncInvalidation: PhaseReport.notStarted(
+          6,
+          'Cross-Device Sync Invalidation',
+        ),
+        phase7ComplianceProof: PhaseReport.notStarted(
+          7,
+          'Final Audit Trail & Compliance Proof',
+        ),
         proofHash: null,
       );
 

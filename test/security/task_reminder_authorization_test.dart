@@ -291,7 +291,10 @@ void main() {
       expect(auditEvents, isNotEmpty);
       final latest = auditEvents.last;
       expect(latest.metadata?['granted'], isTrue);
-      expect('${latest.metadata?['reason']}', contains('reminderId=${UuidTestHelper.testReminder1}'));
+      expect(
+        '${latest.metadata?['reason']}',
+        contains('reminderId=${UuidTestHelper.testReminder1}'),
+      );
     });
 
     test('createTaskReminder logs denial when unauthenticated', () async {
@@ -352,7 +355,9 @@ void main() {
           await bridge.cancelTaskReminder(taskWithoutUser);
         });
 
-        verify(mockAdvancedService.deleteReminder(UuidTestHelper.testReminder3)).called(1);
+        verify(
+          mockAdvancedService.deleteReminder(UuidTestHelper.testReminder3),
+        ).called(1);
 
         final postTask = await db.getTaskById('task-2', userId: _userA);
         expect(postTask!.reminderId, equals(UuidTestHelper.testReminder3));

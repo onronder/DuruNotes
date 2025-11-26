@@ -776,7 +776,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
               if (isAnonymized) {
                 // CRITICAL: User has been anonymized - IMMEDIATELY force logout
                 // Do NOT wait for user interaction, do NOT show encryption screens
-                debugPrint('[GDPR] ❌ Account is anonymized - forcing immediate logout');
+                debugPrint(
+                  '[GDPR] ❌ Account is anonymized - forcing immediate logout',
+                );
 
                 // Force logout immediately
                 WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -803,7 +805,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                         SizedBox(height: 24),
                         Text(
                           'Account Deleted',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         SizedBox(height: 8),
                         Text('This account has been permanently deleted.'),
@@ -819,92 +824,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
               // Check if AMK is present locally
               return FutureBuilder<EncryptionGateState>(
-            key: ValueKey(_amkCheckKey),
-            future: _checkForAmkWithRetry(),
-            builder: (context, amkSnap) {
-              if (amkSnap.connectionState != ConnectionState.done) {
-                return Scaffold(
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  body: const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Initializing encryption...'),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              if (amkSnap.hasError) {
-                return Scaffold(
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  body: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline, size: 48),
-                        const SizedBox(height: 12),
-                        const Text('Encryption check failed.'),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: () {
-                            if (mounted) {
-                              setState(() {
-                                _amkCheckKey++;
-                              });
-                            }
-                          },
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              final gateState = amkSnap.data ?? EncryptionGateState.needsSetup;
-
-              if (gateState == EncryptionGateState.needsSetup) {
-                return NewUserEncryptionSetupGate(
-                  onSetupComplete: () {
-                    if (mounted) {
-                      _clearRemoteAmkCache(); // Clear cache after provisioning
-                      setState(() {
-                        _amkCheckKey++;
-                      });
-                    }
-                  },
-                  onSetupCancelled: () async {
-                    _clearRemoteAmkCache(); // Clear cache on logout
-                    await Supabase.instance.client.auth.signOut();
-                  },
-                );
-              }
-
-              if (gateState == EncryptionGateState.needsUnlock) {
-                return UnlockPassphraseView(
-                  onUnlocked: () {
-                    if (mounted) {
-                      _clearRemoteAmkCache(); // Clear cache after successful unlock
-                      setState(() {
-                        _amkCheckKey++;
-                      });
-                    }
-                  },
-                );
-              }
-
-              // Wait for security services initialization before showing app
-              // This ensures SecureApiWrapper instances get the global RateLimitingMiddleware
-              // instead of creating their own local instances (which breaks rate limiting)
-              return FutureBuilder<void>(
-                future: _ensureSecurityServicesInitialized(),
-                builder: (context, securitySnapshot) {
-                  if (securitySnapshot.connectionState !=
-                      ConnectionState.done) {
+                key: ValueKey(_amkCheckKey),
+                future: _checkForAmkWithRetry(),
+                builder: (context, amkSnap) {
+                  if (amkSnap.connectionState != ConnectionState.done) {
                     return Scaffold(
                       backgroundColor: Theme.of(context).colorScheme.surface,
                       body: const Center(
@@ -913,44 +836,33 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                           children: [
                             CircularProgressIndicator(),
                             SizedBox(height: 16),
-                            Text('Initializing security services...'),
+                            Text('Initializing encryption...'),
                           ],
                         ),
                       ),
                     );
                   }
 
-                  if (securitySnapshot.hasError) {
+                  if (amkSnap.hasError) {
                     return Scaffold(
                       backgroundColor: Theme.of(context).colorScheme.surface,
                       body: Center(
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Security initialization failed',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Please restart the app or sign out and sign in again',
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 24),
+                            const Icon(Icons.error_outline, size: 48),
+                            const SizedBox(height: 12),
+                            const Text('Encryption check failed.'),
+                            const SizedBox(height: 12),
                             FilledButton(
-                              onPressed: () async {
-                                await Supabase.instance.client.auth.signOut();
+                              onPressed: () {
+                                if (mounted) {
+                                  setState(() {
+                                    _amkCheckKey++;
+                                  });
+                                }
                               },
-                              child: const Text('Sign Out'),
+                              child: const Text('Retry'),
                             ),
                           ],
                         ),
@@ -958,41 +870,144 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
                     );
                   }
 
-                  // SecurityInitialization is complete - show main app
-                  _maybePerformInitialSync();
+                  final gateState =
+                      amkSnap.data ?? EncryptionGateState.needsSetup;
 
-                  // PHASE 3 FIX: Optimize post-frame callbacks to reduce queue saturation
-                  // Only keep critical operations in post-frame callback
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    debugPrint(
-                      '🔔 Attempting push token registration after authentication...',
+                  if (gateState == EncryptionGateState.needsSetup) {
+                    return NewUserEncryptionSetupGate(
+                      onSetupComplete: () {
+                        if (mounted) {
+                          _clearRemoteAmkCache(); // Clear cache after provisioning
+                          setState(() {
+                            _amkCheckKey++;
+                          });
+                        }
+                      },
+                      onSetupCancelled: () async {
+                        _clearRemoteAmkCache(); // Clear cache on logout
+                        await Supabase.instance.client.auth.signOut();
+                      },
                     );
-                    _registerPushTokenInBackground();
+                  }
 
-                    // Initialize notification handler service (critical for push)
-                    _initializeNotificationHandler();
-                  });
+                  if (gateState == EncryptionGateState.needsUnlock) {
+                    return UnlockPassphraseView(
+                      onUnlocked: () {
+                        if (mounted) {
+                          _clearRemoteAmkCache(); // Clear cache after successful unlock
+                          setState(() {
+                            _amkCheckKey++;
+                          });
+                        }
+                      },
+                    );
+                  }
 
-                  // Defer non-critical operations to reduce startup contention
-                  Future<void>.delayed(const Duration(milliseconds: 200), () {
-                    if (!mounted) return;
-                    debugPrint('🔄 Initializing non-critical services (share extension, widget cache)');
+                  // Wait for security services initialization before showing app
+                  // This ensures SecureApiWrapper instances get the global RateLimitingMiddleware
+                  // instead of creating their own local instances (which breaks rate limiting)
+                  return FutureBuilder<void>(
+                    future: _ensureSecurityServicesInitialized(),
+                    builder: (context, securitySnapshot) {
+                      if (securitySnapshot.connectionState !=
+                          ConnectionState.done) {
+                        return Scaffold(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surface,
+                          body: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text('Initializing security services...'),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
 
-                    // Initialize share extension service (requires repositories)
-                    _initializeShareExtension();
+                      if (securitySnapshot.hasError) {
+                        return Scaffold(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surface,
+                          body: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 64,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Security initialization failed',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Please restart the app or sign out and sign in again',
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 24),
+                                FilledButton(
+                                  onPressed: () async {
+                                    await Supabase.instance.client.auth
+                                        .signOut();
+                                  },
+                                  child: const Text('Sign Out'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
 
-                    // Sync widget cache after authentication (iOS/Android widgets)
-                    _syncWidgetCacheInBackground();
-                  });
+                      // SecurityInitialization is complete - show main app
+                      _maybePerformInitialSync();
 
-                  // CRITICAL FIX: Removed connectivity initialization
-                  // The connectivity provider was causing iOS crashes due to synchronous
-                  // platform channel calls during startup. Let it initialize lazily when needed.
-                  return const AppShell();
+                      // PHASE 3 FIX: Optimize post-frame callbacks to reduce queue saturation
+                      // Only keep critical operations in post-frame callback
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        debugPrint(
+                          '🔔 Attempting push token registration after authentication...',
+                        );
+                        _registerPushTokenInBackground();
+
+                        // Initialize notification handler service (critical for push)
+                        _initializeNotificationHandler();
+                      });
+
+                      // Defer non-critical operations to reduce startup contention
+                      Future<
+                        void
+                      >.delayed(const Duration(milliseconds: 200), () {
+                        if (!mounted) return;
+                        debugPrint(
+                          '🔄 Initializing non-critical services (share extension, widget cache)',
+                        );
+
+                        // Initialize share extension service (requires repositories)
+                        _initializeShareExtension();
+
+                        // Sync widget cache after authentication (iOS/Android widgets)
+                        _syncWidgetCacheInBackground();
+                      });
+
+                      // CRITICAL FIX: Removed connectivity initialization
+                      // The connectivity provider was causing iOS crashes due to synchronous
+                      // platform channel calls during startup. Let it initialize lazily when needed.
+                      return const AppShell();
+                    },
+                  );
                 },
               );
-            },
-          );
             },
           );
         } else {
@@ -1010,13 +1025,17 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           // - Logout (had previous session): Run cleanup to clear data before showing AuthScreen
           if (!_signOutCleanupScheduled && _hadPreviousSession) {
             _signOutCleanupScheduled = true;
-            debugPrint('[AuthWrapper] Detected logout - scheduling database cleanup');
+            debugPrint(
+              '[AuthWrapper] Detected logout - scheduling database cleanup',
+            );
             Future.delayed(const Duration(milliseconds: 100), () {
               if (!mounted) return;
               _scheduleSignedOutCleanup(ref);
             });
           } else if (!_hadPreviousSession) {
-            debugPrint('[AuthWrapper] Cold start detected - skipping cleanup to prevent black screen');
+            debugPrint(
+              '[AuthWrapper] Cold start detected - skipping cleanup to prevent black screen',
+            );
           }
 
           _hasTriggeredInitialSync = false; // Reset flag when logged out
@@ -1266,7 +1285,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     }
 
     const maxRetries = 3;
-    const retryDelay = Duration(milliseconds: 200); // Reduced from 500ms for faster UX
+    const retryDelay = Duration(
+      milliseconds: 200,
+    ); // Reduced from 500ms for faster UX
 
     for (var i = 0; i < maxRetries; i++) {
       if (kDebugMode) {
@@ -1276,7 +1297,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       if (await _hasLocalAmk()) {
         totalStopwatch.stop();
         if (kDebugMode) {
-          debugPrint('[AuthWrapper] ✅ Local AMK available (total time: ${totalStopwatch.elapsedMilliseconds}ms)');
+          debugPrint(
+            '[AuthWrapper] ✅ Local AMK available (total time: ${totalStopwatch.elapsedMilliseconds}ms)',
+          );
         }
         return EncryptionGateState.ready;
       }
@@ -1293,7 +1316,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
 
       if (i < maxRetries - 1) {
         if (kDebugMode) {
-          debugPrint('[AuthWrapper] ⏱️  Waiting ${retryDelay.inMilliseconds}ms before retry...');
+          debugPrint(
+            '[AuthWrapper] ⏱️  Waiting ${retryDelay.inMilliseconds}ms before retry...',
+          );
         }
         await Future<void>.delayed(retryDelay);
       }
@@ -1322,7 +1347,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     // Legacy device-specific encryption fallback
     totalStopwatch.stop();
     if (kDebugMode) {
-      debugPrint('[AuthWrapper] ⏱️  Returning needsUnlock (legacy fallback, total time: ${totalStopwatch.elapsedMilliseconds}ms)');
+      debugPrint(
+        '[AuthWrapper] ⏱️  Returning needsUnlock (legacy fallback, total time: ${totalStopwatch.elapsedMilliseconds}ms)',
+      );
     }
     return EncryptionGateState.needsUnlock;
   }
@@ -1339,8 +1366,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       debugPrint('[GDPR] Checking anonymization status for user $userId');
 
       // Call the database function to get anonymization status
-      final response = await Supabase.instance.client
-          .rpc<Map<String, dynamic>>('get_anonymization_status_summary', params: {'check_user_id': userId});
+      final response = await Supabase.instance.client.rpc<Map<String, dynamic>>(
+        'get_anonymization_status_summary',
+        params: {'check_user_id': userId},
+      );
 
       if (response == null) {
         debugPrint('[GDPR] No anonymization status found');
@@ -1348,8 +1377,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       }
 
       final isAnonymized = response['is_anonymized'] as bool? ?? false;
-      final anonymizationCompletedAt = response['anonymization_completed_at'] as String?;
-      final authDeletionCompletedAt = response['auth_deletion_completed_at'] as String?;
+      final anonymizationCompletedAt =
+          response['anonymization_completed_at'] as String?;
+      final authDeletionCompletedAt =
+          response['auth_deletion_completed_at'] as String?;
 
       if (isAnonymized) {
         debugPrint(
@@ -1427,7 +1458,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
         if (localAmk != null) {
           stopwatch.stop();
           if (kDebugMode) {
-            debugPrint('[AuthWrapper] ⏱️  _hasLocalAmk() → true (cross-device, ${stopwatch.elapsedMilliseconds}ms)');
+            debugPrint(
+              '[AuthWrapper] ⏱️  _hasLocalAmk() → true (cross-device, ${stopwatch.elapsedMilliseconds}ms)',
+            );
           }
           return true;
         }
@@ -1446,18 +1479,24 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       stopwatch.stop();
       final result = localLegacyAmk != null;
       if (kDebugMode) {
-        debugPrint('[AuthWrapper] ⏱️  _hasLocalAmk() → $result (legacy, ${stopwatch.elapsedMilliseconds}ms)');
+        debugPrint(
+          '[AuthWrapper] ⏱️  _hasLocalAmk() → $result (legacy, ${stopwatch.elapsedMilliseconds}ms)',
+        );
       }
       return result;
     } catch (e) {
       stopwatch.stop();
       if (kDebugMode) {
-        debugPrint('[AuthWrapper] Error checking local legacy AMK: $e (${stopwatch.elapsedMilliseconds}ms)');
+        debugPrint(
+          '[AuthWrapper] Error checking local legacy AMK: $e (${stopwatch.elapsedMilliseconds}ms)',
+        );
       }
     }
     stopwatch.stop();
     if (kDebugMode) {
-      debugPrint('[AuthWrapper] ⏱️  _hasLocalAmk() → false (${stopwatch.elapsedMilliseconds}ms)');
+      debugPrint(
+        '[AuthWrapper] ⏱️  _hasLocalAmk() → false (${stopwatch.elapsedMilliseconds}ms)',
+      );
     }
     return false;
   }
@@ -1468,7 +1507,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     // Auto-clear cache if user changed (handles signOut, new login, token refresh)
     if (_cachedUserId != currentUserId) {
       if (kDebugMode && _cachedRemoteAmkExists != null) {
-        debugPrint('[AuthWrapper] 🔄 User changed ($_cachedUserId → $currentUserId), clearing cache');
+        debugPrint(
+          '[AuthWrapper] 🔄 User changed ($_cachedUserId → $currentUserId), clearing cache',
+        );
       }
       _cachedRemoteAmkExists = null;
       _cachedUserId = currentUserId;
@@ -1477,7 +1518,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     // Check user-scoped cache (positive results only)
     if (_cachedRemoteAmkExists == true) {
       if (kDebugMode) {
-        debugPrint('[AuthWrapper] ⏱️  _remoteAmkExists() → true (cached for user $currentUserId, 0ms)');
+        debugPrint(
+          '[AuthWrapper] ⏱️  _remoteAmkExists() → true (cached for user $currentUserId, 0ms)',
+        );
       }
       return true;
     }
@@ -1491,7 +1534,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     if (currentUserId == null) return false;
 
     if (kDebugMode) {
-      debugPrint('[AuthWrapper] ⏱️  Querying user_encryption_keys and user_keys tables in parallel...');
+      debugPrint(
+        '[AuthWrapper] ⏱️  Querying user_encryption_keys and user_keys tables in parallel...',
+      );
     }
 
     // Query both tables in parallel to reduce latency
@@ -1503,13 +1548,13 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           .eq('user_id', currentUserId)
           .maybeSingle()
           .catchError((Object e) {
-        if (kDebugMode) {
-          debugPrint(
-            '[AuthWrapper] Error checking remote AMK existence (user_encryption_keys): $e',
-          );
-        }
-        return null;
-      }),
+            if (kDebugMode) {
+              debugPrint(
+                '[AuthWrapper] Error checking remote AMK existence (user_encryption_keys): $e',
+              );
+            }
+            return null;
+          }),
       // Query 2: user_keys (legacy)
       Supabase.instance.client
           .from('user_keys')
@@ -1517,13 +1562,13 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
           .eq('user_id', currentUserId)
           .maybeSingle()
           .catchError((Object e) {
-        if (kDebugMode) {
-          debugPrint(
-            '[AuthWrapper] Error checking remote AMK existence (user_keys fallback): $e',
-          );
-        }
-        return null;
-      }),
+            if (kDebugMode) {
+              debugPrint(
+                '[AuthWrapper] Error checking remote AMK existence (user_keys fallback): $e',
+              );
+            }
+            return null;
+          }),
     ]);
 
     totalStopwatch.stop();
@@ -1537,13 +1582,19 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     if (exists) {
       _cachedRemoteAmkExists = true;
       if (kDebugMode) {
-        debugPrint('[AuthWrapper] 💾 Cached positive AMK existence result for user $currentUserId');
+        debugPrint(
+          '[AuthWrapper] 💾 Cached positive AMK existence result for user $currentUserId',
+        );
       }
     }
 
     if (kDebugMode) {
-      final source = hasEncryptionKey ? 'user_encryption_keys' : (hasLegacyKey ? 'user_keys' : 'none');
-      debugPrint('[AuthWrapper] ⏱️  _remoteAmkExists() → $exists (source: $source, total ${totalStopwatch.elapsedMilliseconds}ms)');
+      final source = hasEncryptionKey
+          ? 'user_encryption_keys'
+          : (hasLegacyKey ? 'user_keys' : 'none');
+      debugPrint(
+        '[AuthWrapper] ⏱️  _remoteAmkExists() → $exists (source: $source, total ${totalStopwatch.elapsedMilliseconds}ms)',
+      );
     }
 
     return exists;
@@ -1553,7 +1604,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   /// Called on logout, successful provisioning, successful unlock, or widget disposal.
   void _clearRemoteAmkCache() {
     if (kDebugMode && _cachedRemoteAmkExists != null) {
-      debugPrint('[AuthWrapper] 🗑️  Clearing remote AMK cache for user $_cachedUserId');
+      debugPrint(
+        '[AuthWrapper] 🗑️  Clearing remote AMK cache for user $_cachedUserId',
+      );
     }
     _cachedRemoteAmkExists = null;
     _cachedUserId = null;

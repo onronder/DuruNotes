@@ -304,7 +304,8 @@ class KeyManager {
         );
       } else {
         // No in-memory key to destroy
-        report.memoryKeyDestroyed = true; // Mark as "destroyed" since it never existed
+        report.memoryKeyDestroyed =
+            true; // Mark as "destroyed" since it never existed
       }
 
       // ======================================================================
@@ -339,19 +340,13 @@ class KeyManager {
         if (stillExists != null) {
           final error = 'Legacy key still exists after deletion attempt';
           report.errors.add(error);
-          _logger.error(
-            error,
-            data: {'userId': userId, 'keyName': keyName},
-          );
+          _logger.error(error, data: {'userId': userId, 'keyName': keyName});
           throw SecurityException(error);
         }
 
         report.legacyKeyDestroyed = true;
 
-        _logger.debug(
-          'Verified legacy key deletion',
-          data: {'userId': userId},
-        );
+        _logger.debug('Verified legacy key deletion', data: {'userId': userId});
       } else {
         // In-memory mode - already deleted in Step 3
         report.legacyKeyDestroyed = true;

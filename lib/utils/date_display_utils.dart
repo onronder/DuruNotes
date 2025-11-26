@@ -100,16 +100,10 @@ DateTime getDisplayDate({
 ///
 /// **Note**: For LocalNotes and NoteTasks, both timestamps are required by schema,
 /// so this is primarily for safety/defensive programming.
-DateTime getSafeDisplayDate({
-  DateTime? createdAt,
-  DateTime? updatedAt,
-}) {
+DateTime getSafeDisplayDate({DateTime? createdAt, DateTime? updatedAt}) {
   // Both timestamps available - use standard logic
   if (createdAt != null && updatedAt != null) {
-    return getDisplayDate(
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
+    return getDisplayDate(createdAt: createdAt, updatedAt: updatedAt);
   }
 
   // Fallback chain if data is corrupted or from external source
@@ -139,15 +133,14 @@ extension NoteDisplayDate on Object {
       final DateTime? createdAt = obj.createdAt as DateTime?;
       final DateTime? updatedAt = obj.updatedAt as DateTime?;
 
-      return getSafeDisplayDate(
-        createdAt: createdAt,
-        updatedAt: updatedAt,
-      );
+      return getSafeDisplayDate(createdAt: createdAt, updatedAt: updatedAt);
     } catch (e) {
       // Ultimate fallback: if fields don't exist or wrong type
       // Try to return any available timestamp
       try {
-        return obj.updatedAt as DateTime? ?? obj.createdAt as DateTime? ?? DateTime.now();
+        return obj.updatedAt as DateTime? ??
+            obj.createdAt as DateTime? ??
+            DateTime.now();
       } catch (_) {
         return DateTime.now();
       }

@@ -119,7 +119,9 @@ final unifiedSyncServiceProvider = Provider<UnifiedSyncService>((ref) {
     ref.onDispose(() {
       realtimeSyncDebounceTimer?.cancel();
       unifiedRealtime.removeListener(onRealtimeEvent);
-      debugPrint('[Sync] Removed realtime listener and cancelled debounce timer');
+      debugPrint(
+        '[Sync] Removed realtime listener and cancelled debounce timer',
+      );
     });
   }
 
@@ -194,91 +196,92 @@ final folderSyncCoordinatorProvider = Provider<FolderSyncCoordinator?>((ref) {
 
 /// Unified Realtime Service - Single source of truth for all realtime subscriptions
 /// This replaces individual realtime services to reduce database load
-final unifiedRealtimeServiceProvider =
-    ChangeNotifierProvider<UnifiedRealtimeService?>((ref) {
-      // PRODUCTION FIX #5: Keep provider alive to prevent disposal/recreation cycles
-      ref.keepAlive();
+final unifiedRealtimeServiceProvider = ChangeNotifierProvider<UnifiedRealtimeService?>((
+  ref,
+) {
+  // PRODUCTION FIX #5: Keep provider alive to prevent disposal/recreation cycles
+  ref.keepAlive();
 
-      // Track current service instance for proper cleanup
-      UnifiedRealtimeService? currentService;
+  // Track current service instance for proper cleanup
+  UnifiedRealtimeService? currentService;
 
-      // CRITICAL FIX: Register disposal callback at provider level, not inside .when()
-      // This prevents "Cannot call onDispose after provider was dispose" error
-      ref.onDispose(() {
-        debugPrint('[Providers] Disposing unified realtime service');
-        currentService?.dispose();
+  // CRITICAL FIX: Register disposal callback at provider level, not inside .when()
+  // This prevents "Cannot call onDispose after provider was dispose" error
+  ref.onDispose(() {
+    debugPrint('[Providers] Disposing unified realtime service');
+    currentService?.dispose();
+  });
+
+  // Watch auth state to properly manage lifecycle
+  final authStateAsync = ref.watch(authStateChangesProvider);
+
+  return authStateAsync.when(
+    data: (authState) {
+      // Dispose previous service if it exists (auth state changed)
+      if (currentService != null) {
+        debugPrint(
+          '[Providers] Auth state changed - disposing old realtime service',
+        );
+        currentService!.dispose();
+        currentService = null;
+      }
+
+      // Return null if not authenticated
+      if (authState.session == null) {
+        debugPrint(
+          '[Providers] No session - unified realtime service not created',
+        );
+        return null;
+      }
+
+      final userId = authState.session!.user.id;
+      final logger = ref.watch(loggerProvider);
+      final folderSyncCoordinator = ref.watch(folderSyncCoordinatorProvider);
+
+      debugPrint(
+        '[Providers] Creating unified realtime service for user: $userId',
+      );
+
+      // Create service with injected dependencies
+      final service = UnifiedRealtimeService(
+        supabase: Supabase.instance.client,
+        userId: userId,
+        logger: logger,
+        connectionManager: ConnectionManager(),
+        folderSyncCoordinator: folderSyncCoordinator,
+      );
+
+      // Start the service with proper error handling
+      service.start().catchError((Object error) {
+        logger.error(
+          '[Providers] Failed to start unified realtime',
+          error: error,
+        );
       });
 
-      // Watch auth state to properly manage lifecycle
-      final authStateAsync = ref.watch(authStateChangesProvider);
+      // Track this service instance for cleanup
+      currentService = service;
 
-      return authStateAsync.when(
-        data: (authState) {
-          // Dispose previous service if it exists (auth state changed)
-          if (currentService != null) {
-            debugPrint('[Providers] Auth state changed - disposing old realtime service');
-            currentService!.dispose();
-            currentService = null;
-          }
-
-          // Return null if not authenticated
-          if (authState.session == null) {
-            debugPrint(
-              '[Providers] No session - unified realtime service not created',
-            );
-            return null;
-          }
-
-          final userId = authState.session!.user.id;
-          final logger = ref.watch(loggerProvider);
-          final folderSyncCoordinator = ref.watch(
-            folderSyncCoordinatorProvider,
-          );
-
-          debugPrint(
-            '[Providers] Creating unified realtime service for user: $userId',
-          );
-
-          // Create service with injected dependencies
-          final service = UnifiedRealtimeService(
-            supabase: Supabase.instance.client,
-            userId: userId,
-            logger: logger,
-            connectionManager: ConnectionManager(),
-            folderSyncCoordinator: folderSyncCoordinator,
-          );
-
-          // Start the service with proper error handling
-          service.start().catchError((Object error) {
-            logger.error(
-              '[Providers] Failed to start unified realtime',
-              error: error,
-            );
-          });
-
-          // Track this service instance for cleanup
-          currentService = service;
-
-          return service;
-        },
-        loading: () {
-          // Dispose service when loading (shouldn't happen often)
-          if (currentService != null) {
-            debugPrint('[Providers] Auth loading - disposing realtime service');
-            currentService!.dispose();
-            currentService = null;
-          }
-          return null;
-        },
-        error: (error, stack) {
-          debugPrint('[Providers] Auth state error: $error');
-          // Dispose service on error
-          if (currentService != null) {
-            debugPrint('[Providers] Auth error - disposing realtime service');
-            currentService!.dispose();
-            currentService = null;
-          }
-          return null;
-        },
-      );
-    });
+      return service;
+    },
+    loading: () {
+      // Dispose service when loading (shouldn't happen often)
+      if (currentService != null) {
+        debugPrint('[Providers] Auth loading - disposing realtime service');
+        currentService!.dispose();
+        currentService = null;
+      }
+      return null;
+    },
+    error: (error, stack) {
+      debugPrint('[Providers] Auth state error: $error');
+      // Dispose service on error
+      if (currentService != null) {
+        debugPrint('[Providers] Auth error - disposing realtime service');
+        currentService!.dispose();
+        currentService = null;
+      }
+      return null;
+    },
+  );
+});

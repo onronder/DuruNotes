@@ -78,21 +78,21 @@ void main() {
     Future<NoteReminder> createUnencryptedReminder(String title) async {
       final reminderId = UuidTestHelper.deterministicUuid('reminder-$title');
 
-      await db.into(db.noteReminders).insert(
-        NoteRemindersCompanion.insert(
-          noteId: testNoteId,
-          userId: testUserId,
-          type: ReminderType.time,
-          title: Value(title),
-          body: Value('Test body for $title'),
-          remindAt: Value(
-            DateTime.now().add(const Duration(hours: 1)),
-          ),
-          recurrencePattern: const Value(RecurrencePattern.none),
-          recurrenceInterval: const Value(1),
-          // No encrypted fields - plaintext only
-        ),
-      );
+      await db
+          .into(db.noteReminders)
+          .insert(
+            NoteRemindersCompanion.insert(
+              noteId: testNoteId,
+              userId: testUserId,
+              type: ReminderType.time,
+              title: Value(title),
+              body: Value('Test body for $title'),
+              remindAt: Value(DateTime.now().add(const Duration(hours: 1))),
+              recurrencePattern: const Value(RecurrencePattern.none),
+              recurrenceInterval: const Value(1),
+              // No encrypted fields - plaintext only
+            ),
+          );
 
       final reminder = await db.getReminderByIdIncludingDeleted(
         reminderId,
@@ -171,7 +171,9 @@ void main() {
       for (var i = 0; i < 3; i++) {
         // Stagger by 20ms each
         Future.delayed(Duration(milliseconds: i * 20), () async {
-          final result = await reminderService.ensureReminderEncrypted(reminder);
+          final result = await reminderService.ensureReminderEncrypted(
+            reminder,
+          );
           results.add(result);
         });
       }
@@ -214,9 +216,7 @@ void main() {
       await db.updateReminder(
         reminder.id,
         testUserId,
-        const NoteRemindersCompanion(
-          title: Value('UPDATED TITLE'),
-        ),
+        const NoteRemindersCompanion(title: Value('UPDATED TITLE')),
       );
 
       // Wait for encryption to complete
@@ -333,51 +333,55 @@ void main() {
       expect(stats['activeLocksCount'], equals(0)); // All released
     });
 
-    test('skips encryption if reminder deleted while waiting for lock', () async {
-      // ARRANGE: Create plaintext reminder
-      final reminder = await createUnencryptedReminder('Delete Test');
+    test(
+      'skips encryption if reminder deleted while waiting for lock',
+      () async {
+        // ARRANGE: Create plaintext reminder
+        final reminder = await createUnencryptedReminder('Delete Test');
 
-      // Make encryption slow
-      when(
-        mockCryptoBox.encryptStringForNote(
-          userId: anyNamed('userId'),
-          noteId: anyNamed('noteId'),
-          text: anyNamed('text'),
-        ),
-      ).thenAnswer((invocation) async {
-        await Future.delayed(const Duration(milliseconds: 100));
-        final text = invocation.namedArguments[const Symbol('text')] as String;
-        return Uint8List.fromList(text.codeUnits);
-      });
+        // Make encryption slow
+        when(
+          mockCryptoBox.encryptStringForNote(
+            userId: anyNamed('userId'),
+            noteId: anyNamed('noteId'),
+            text: anyNamed('text'),
+          ),
+        ).thenAnswer((invocation) async {
+          await Future.delayed(const Duration(milliseconds: 100));
+          final text =
+              invocation.namedArguments[const Symbol('text')] as String;
+          return Uint8List.fromList(text.codeUnits);
+        });
 
-      // ACT: Start encryption
-      final future1 = reminderService.ensureReminderEncrypted(reminder);
+        // ACT: Start encryption
+        final future1 = reminderService.ensureReminderEncrypted(reminder);
 
-      // While first encryption is in progress, start second encryption attempt
-      await Future.delayed(const Duration(milliseconds: 10));
-      final future2 = reminderService.ensureReminderEncrypted(reminder);
+        // While first encryption is in progress, start second encryption attempt
+        await Future.delayed(const Duration(milliseconds: 10));
+        final future2 = reminderService.ensureReminderEncrypted(reminder);
 
-      // Delete reminder while second thread waits for lock
-      await Future.delayed(const Duration(milliseconds: 20));
-      await db.deleteReminderById(reminder.id, testUserId);
+        // Delete reminder while second thread waits for lock
+        await Future.delayed(const Duration(milliseconds: 20));
+        await db.deleteReminderById(reminder.id, testUserId);
 
-      // Wait for both to complete
-      final result1 = await future1;
-      final result2 = await future2;
+        // Wait for both to complete
+        final result1 = await future1;
+        final result2 = await future2;
 
-      // ASSERT: First encryption might succeed or fail depending on timing
-      // Second encryption should return false (reminder deleted)
-      expect(result2, isFalse);
+        // ASSERT: First encryption might succeed or fail depending on timing
+        // Second encryption should return false (reminder deleted)
+        expect(result2, isFalse);
 
-      // Reminder should be soft-deleted
-      final deleted = await db.getReminderById(reminder.id, testUserId);
-      expect(deleted, isNull); // Excluded from normal query
+        // Reminder should be soft-deleted
+        final deleted = await db.getReminderById(reminder.id, testUserId);
+        expect(deleted, isNull); // Excluded from normal query
 
-      final deletedIncluded = await db.getReminderByIdIncludingDeleted(
-        reminder.id,
-        testUserId,
-      );
-      expect(deletedIncluded?.deletedAt, isNotNull);
-    });
+        final deletedIncluded = await db.getReminderByIdIncludingDeleted(
+          reminder.id,
+          testUserId,
+        );
+        expect(deletedIncluded?.deletedAt, isNotNull);
+      },
+    );
   });
 }

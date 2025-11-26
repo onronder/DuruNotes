@@ -182,40 +182,43 @@ void main() {
         expect(metadata.shouldRetryNow, isTrue);
       });
 
-      test('shouldRetryNow returns false after re-enqueue before backoff', () async {
-        final config = ReminderServiceConfig(maxRetries: 5);
-        final testQueue = EncryptionRetryQueue(config);
+      test(
+        'shouldRetryNow returns false after re-enqueue before backoff',
+        () async {
+          final config = ReminderServiceConfig(maxRetries: 5);
+          final testQueue = EncryptionRetryQueue(config);
 
-        try {
-          // First enqueue
-          testQueue.enqueue(
-            reminderId: 'reminder-1',
-            noteId: 'note-1',
-            userId: 'user-1',
-          );
+          try {
+            // First enqueue
+            testQueue.enqueue(
+              reminderId: 'reminder-1',
+              noteId: 'note-1',
+              userId: 'user-1',
+            );
 
-          // Re-enqueue (simulates failed retry)
-          testQueue.enqueue(
-            reminderId: 'reminder-1',
-            noteId: 'note-1',
-            userId: 'user-1',
-          );
+            // Re-enqueue (simulates failed retry)
+            testQueue.enqueue(
+              reminderId: 'reminder-1',
+              noteId: 'note-1',
+              userId: 'user-1',
+            );
 
-          var metadata = testQueue.getMetadata('reminder-1')!;
-          final delayMs = metadata.nextRetryDelayMs;
+            var metadata = testQueue.getMetadata('reminder-1')!;
+            final delayMs = metadata.nextRetryDelayMs;
 
-          // Should not be ready immediately after re-enqueue (backoff in effect)
-          expect(metadata.shouldRetryNow, isFalse);
+            // Should not be ready immediately after re-enqueue (backoff in effect)
+            expect(metadata.shouldRetryNow, isFalse);
 
-          // Wait for delay to pass
-          await Future.delayed(Duration(milliseconds: delayMs + 100));
+            // Wait for delay to pass
+            await Future.delayed(Duration(milliseconds: delayMs + 100));
 
-          metadata = testQueue.getMetadata('reminder-1')!;
-          expect(metadata.shouldRetryNow, isTrue);
-        } finally {
-          testQueue.clear();
-        }
-      });
+            metadata = testQueue.getMetadata('reminder-1')!;
+            expect(metadata.shouldRetryNow, isTrue);
+          } finally {
+            testQueue.clear();
+          }
+        },
+      );
     });
 
     group('Queue Size Limits', () {
@@ -460,15 +463,13 @@ void main() {
           );
 
           var processedIds = <String>[];
-          final remaining = await testQueue.processRetries(
-            (metadata) async {
-              processedIds.add(metadata.reminderId);
-              return ReminderEncryptionResult.success(
-                titleEncrypted: Uint8List(0),
-                bodyEncrypted: Uint8List(0),
-              );
-            },
-          );
+          final remaining = await testQueue.processRetries((metadata) async {
+            processedIds.add(metadata.reminderId);
+            return ReminderEncryptionResult.success(
+              titleEncrypted: Uint8List(0),
+              bodyEncrypted: Uint8List(0),
+            );
+          });
 
           expect(processedIds, contains('reminder-1'));
           expect(remaining, equals(0));

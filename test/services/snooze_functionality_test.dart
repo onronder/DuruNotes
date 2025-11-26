@@ -183,9 +183,15 @@ void main() {
       expect(updateCompanion, isNotNull);
       expect(updateCompanion!.snoozeCount.value, equals(3));
 
-      verify(mockDb.snoozeReminder(UuidTestHelper.testReminder1, 'user-123', any)).called(1);
-      verify(mockDb.updateReminder(UuidTestHelper.testReminder1, 'user-123', any)).called(1);
-      verify(mockPlugin.cancel(UuidTestHelper.testReminder1.hashCode.abs())).called(1);
+      verify(
+        mockDb.snoozeReminder(UuidTestHelper.testReminder1, 'user-123', any),
+      ).called(1);
+      verify(
+        mockDb.updateReminder(UuidTestHelper.testReminder1, 'user-123', any),
+      ).called(1);
+      verify(
+        mockPlugin.cancel(UuidTestHelper.testReminder1.hashCode.abs()),
+      ).called(1);
       verify(
         mockPlugin.zonedSchedule(
           UuidTestHelper.testReminder1.hashCode.abs(),

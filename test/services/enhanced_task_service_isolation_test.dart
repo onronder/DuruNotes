@@ -236,8 +236,10 @@ void main() {
         );
 
         // Verify task exists and is not deleted
-        final beforeDelete =
-            await database.getTaskById(taskId, userId: 'user-a');
+        final beforeDelete = await database.getTaskById(
+          taskId,
+          userId: 'user-a',
+        );
         expect(beforeDelete, isNotNull);
         expect(beforeDelete!.deleted, isFalse);
 
@@ -246,7 +248,10 @@ void main() {
 
         // After refactoring: Task should be SOFT DELETED (deleted=true, scheduled_purge_at set)
         // NOT permanently removed
-        final afterDelete = await database.getTaskById(taskId, userId: 'user-a');
+        final afterDelete = await database.getTaskById(
+          taskId,
+          userId: 'user-a',
+        );
         expect(
           afterDelete,
           isNotNull,
@@ -363,27 +368,29 @@ void main() {
         );
       });
 
-      test('createTask with reminder uses repository for task retrieval',
-          () async {
-        // Verify that after task creation, getting task for reminder
-        // uses repository (for proper decryption)
-        await seedNote(noteId: 'note-a', userId: 'user-a');
+      test(
+        'createTask with reminder uses repository for task retrieval',
+        () async {
+          // Verify that after task creation, getting task for reminder
+          // uses repository (for proper decryption)
+          await seedNote(noteId: 'note-a', userId: 'user-a');
 
-        final taskId = await service.createTask(
-          noteId: 'note-a',
-          content: 'Task with Reminder',
-          dueDate: DateTime.now().add(const Duration(days: 1)),
-          createReminder: true,
-        );
+          final taskId = await service.createTask(
+            noteId: 'note-a',
+            content: 'Task with Reminder',
+            dueDate: DateTime.now().add(const Duration(days: 1)),
+            createReminder: true,
+          );
 
-        expect(taskId, isNotEmpty);
+          expect(taskId, isNotEmpty);
 
-        // Verify task was created via repository
-        final task = await repository.getTaskById(taskId);
-        expect(task, isNotNull);
-        expect(task!.title, 'Task with Reminder');
-        // Reminder creation happens, but we don't need to verify mock calls
-      });
+          // Verify task was created via repository
+          final task = await repository.getTaskById(taskId);
+          expect(task, isNotNull);
+          expect(task!.title, 'Task with Reminder');
+          // Reminder creation happens, but we don't need to verify mock calls
+        },
+      );
 
       test('updateTask with content uses repository for encryption', () async {
         await seedNote(noteId: 'note-a', userId: 'user-a');
@@ -393,10 +400,7 @@ void main() {
         );
 
         // Update task content
-        await service.updateTask(
-          taskId: taskId,
-          content: 'Updated Title',
-        );
+        await service.updateTask(taskId: taskId, content: 'Updated Title');
 
         // After refactoring: Content should be encrypted via repository
         final updated = await repository.getTaskById(taskId);
@@ -440,10 +444,7 @@ void main() {
           title: 'Task',
         );
 
-        await service.updateTask(
-          taskId: taskId,
-          clearReminderId: true,
-        );
+        await service.updateTask(taskId: taskId, clearReminderId: true);
 
         // Task should have no reminder ID after clearing
         final task = await repository.getTaskById(taskId);
@@ -452,28 +453,30 @@ void main() {
         expect(task!.metadata['reminderId'], isNull);
       });
 
-      test('createTaskWithReminder uses repository for task retrieval',
-          () async {
-        await seedNote(noteId: 'note-a', userId: 'user-a');
+      test(
+        'createTaskWithReminder uses repository for task retrieval',
+        () async {
+          await seedNote(noteId: 'note-a', userId: 'user-a');
 
-        final dueDate = DateTime.now().add(const Duration(days: 1));
-        final reminderTime = dueDate.subtract(const Duration(hours: 2));
+          final dueDate = DateTime.now().add(const Duration(days: 1));
+          final reminderTime = dueDate.subtract(const Duration(hours: 2));
 
-        final taskId = await service.createTaskWithReminder(
-          noteId: 'note-a',
-          content: 'Task with Custom Reminder',
-          dueDate: dueDate,
-          reminderTime: reminderTime,
-        );
+          final taskId = await service.createTaskWithReminder(
+            noteId: 'note-a',
+            content: 'Task with Custom Reminder',
+            dueDate: dueDate,
+            reminderTime: reminderTime,
+          );
 
-        expect(taskId, isNotEmpty);
+          expect(taskId, isNotEmpty);
 
-        // Verify task was created via repository
-        final task = await repository.getTaskById(taskId);
-        expect(task, isNotNull);
-        expect(task!.title, 'Task with Custom Reminder');
-        // Custom reminder creation is tested functionally
-      });
+          // Verify task was created via repository
+          final task = await repository.getTaskById(taskId);
+          expect(task, isNotNull);
+          expect(task!.title, 'Task with Custom Reminder');
+          // Custom reminder creation is tested functionally
+        },
+      );
 
       test('clearTaskReminder does not crash', () async {
         await seedNote(noteId: 'note-a', userId: 'user-a');

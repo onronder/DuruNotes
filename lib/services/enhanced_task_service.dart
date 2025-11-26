@@ -123,7 +123,9 @@ class EnhancedTaskService {
     // Create task using TaskCoreRepository (handles encryption)
     final repoStopwatch = Stopwatch()..start();
     final createdTask = await _taskRepository.createTask(domainTask);
-    debugPrint('[PERF] taskRepository.createTask: ${repoStopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+      '[PERF] taskRepository.createTask: ${repoStopwatch.elapsedMilliseconds}ms',
+    );
 
     final taskId = createdTask.id;
 
@@ -141,7 +143,9 @@ class EnhancedTaskService {
               // Create reminder and get its ID
               final reminderId = await _reminderBridge.createTaskReminder(
                 task: localTask,
-                beforeDueDate: const Duration(hours: 1), // Default 1 hour before
+                beforeDueDate: const Duration(
+                  hours: 1,
+                ), // Default 1 hour before
               );
 
               // Link reminder to task
@@ -152,16 +156,22 @@ class EnhancedTaskService {
                 );
               }
             }
-            debugPrint('[PERF] Async reminder creation completed: ${reminderStopwatch.elapsedMilliseconds}ms');
+            debugPrint(
+              '[PERF] Async reminder creation completed: ${reminderStopwatch.elapsedMilliseconds}ms',
+            );
           } catch (e) {
             // Don't fail task creation if reminder fails
-            debugPrint('[PERF] Reminder creation failed after ${reminderStopwatch.elapsedMilliseconds}ms: $e');
+            debugPrint(
+              '[PERF] Reminder creation failed after ${reminderStopwatch.elapsedMilliseconds}ms: $e',
+            );
           }
         }),
       );
     }
 
-    debugPrint('[PERF] ⏱️ EnhancedTaskService.createTask total: ${totalStopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+      '[PERF] ⏱️ EnhancedTaskService.createTask total: ${totalStopwatch.elapsedMilliseconds}ms',
+    );
     return taskId;
   }
 

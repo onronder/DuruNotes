@@ -813,7 +813,8 @@ class NotesCoreRepository implements INotesRepository {
           propsEnc: propsEnc,
           deleted: isDeletion,
           createdAt: createdAt,
-          updatedAt: updatedAt, // TIMESTAMP FIX: Preserve timestamp during pending ops sync
+          updatedAt:
+              updatedAt, // TIMESTAMP FIX: Preserve timestamp during pending ops sync
         ),
       );
 
@@ -2242,10 +2243,7 @@ class NotesCoreRepository implements INotesRepository {
       // Enqueue for sync
       // Phase 1.1: Always use 'upsert_note' even for soft delete (deleted=true)
       // This ensures the deleted flag syncs to Supabase instead of hard deleting
-      await _enqueuePendingOp(
-        entityId: id,
-        kind: 'upsert_note',
-      );
+      await _enqueuePendingOp(entityId: id, kind: 'upsert_note');
 
       MutationEventBus.instance.emitNote(
         kind: deleted == true ? MutationKind.deleted : MutationKind.updated,
@@ -2311,14 +2309,14 @@ class NotesCoreRepository implements INotesRepository {
     final scheduledPurgeAt = now.add(const Duration(days: 30));
 
     for (final task in tasks) {
-      await (db.update(db.noteTasks)
-            ..where((t) => t.id.equals(task.id)))
-          .write(NoteTasksCompanion(
-        deleted: Value(true),
-        deletedAt: Value(now),
-        scheduledPurgeAt: Value(scheduledPurgeAt),
-        updatedAt: Value(now),
-      ));
+      await (db.update(db.noteTasks)..where((t) => t.id.equals(task.id))).write(
+        NoteTasksCompanion(
+          deleted: Value(true),
+          deletedAt: Value(now),
+          scheduledPurgeAt: Value(scheduledPurgeAt),
+          updatedAt: Value(now),
+        ),
+      );
 
       await _enqueuePendingOp(
         entityId: task.id,
@@ -2332,12 +2330,14 @@ class NotesCoreRepository implements INotesRepository {
     await (db.update(db.localNotes)
           ..where((n) => n.id.equals(id))
           ..where((n) => n.userId.equals(userId)))
-        .write(LocalNotesCompanion(
-      deleted: Value(true),
-      deletedAt: Value(now),
-      scheduledPurgeAt: Value(scheduledPurgeAt),
-      updatedAt: Value(now),
-    ));
+        .write(
+          LocalNotesCompanion(
+            deleted: Value(true),
+            deletedAt: Value(now),
+            scheduledPurgeAt: Value(scheduledPurgeAt),
+            updatedAt: Value(now),
+          ),
+        );
 
     // Enqueue note sync
     await _enqueuePendingOp(entityId: id, kind: 'upsert_note');
@@ -2372,10 +2372,11 @@ class NotesCoreRepository implements INotesRepository {
     }
 
     // Verify note exists and is deleted
-    final note = await (db.select(db.localNotes)
-          ..where((n) => n.id.equals(id))
-          ..where((n) => n.userId.equals(userId)))
-        .getSingleOrNull();
+    final note =
+        await (db.select(db.localNotes)
+              ..where((n) => n.id.equals(id))
+              ..where((n) => n.userId.equals(userId)))
+            .getSingleOrNull();
 
     if (note == null) {
       throw StateError('Note not found or does not belong to user');
@@ -2389,13 +2390,14 @@ class NotesCoreRepository implements INotesRepository {
     final now = DateTime.now().toUtc();
 
     // Restore the note with timestamp clearing (direct Drift update)
-    await (db.update(db.localNotes)..where((n) => n.id.equals(id)))
-        .write(LocalNotesCompanion(
-      deleted: Value(false),
-      deletedAt: Value(null),
-      scheduledPurgeAt: Value(null),
-      updatedAt: Value(now),
-    ));
+    await (db.update(db.localNotes)..where((n) => n.id.equals(id))).write(
+      LocalNotesCompanion(
+        deleted: Value(false),
+        deletedAt: Value(null),
+        scheduledPurgeAt: Value(null),
+        updatedAt: Value(now),
+      ),
+    );
 
     // Enqueue note sync
     await _enqueuePendingOp(entityId: id, kind: 'upsert_note');
@@ -2410,9 +2412,7 @@ class NotesCoreRepository implements INotesRepository {
         itemType: TrashAuditItemType.note,
         itemId: id,
         itemTitle: auditNote?.title,
-        metadata: const {
-          'source': 'notes.restoreNote',
-        },
+        metadata: const {'source': 'notes.restoreNote'},
       ),
     );
   }
@@ -2428,14 +2428,14 @@ class NotesCoreRepository implements INotesRepository {
     final now = DateTime.now().toUtc();
 
     for (final task in tasks.where((t) => t.deleted)) {
-      await (db.update(db.noteTasks)
-            ..where((t) => t.id.equals(task.id)))
-          .write(NoteTasksCompanion(
-        deleted: Value(false),
-        deletedAt: Value(null),
-        scheduledPurgeAt: Value(null),
-        updatedAt: Value(now),
-      ));
+      await (db.update(db.noteTasks)..where((t) => t.id.equals(task.id))).write(
+        NoteTasksCompanion(
+          deleted: Value(false),
+          deletedAt: Value(null),
+          scheduledPurgeAt: Value(null),
+          updatedAt: Value(now),
+        ),
+      );
 
       await _enqueuePendingOp(
         entityId: task.id,
@@ -2455,13 +2455,16 @@ class NotesCoreRepository implements INotesRepository {
         data: {'noteId': id},
       );
       if (userId == null) {
-        throw StateError('Cannot permanently delete note without authenticated user');
+        throw StateError(
+          'Cannot permanently delete note without authenticated user',
+        );
       }
 
-      final note = await (db.select(db.localNotes)
-            ..where((n) => n.id.equals(id))
-            ..where((n) => n.userId.equals(userId)))
-          .getSingleOrNull();
+      final note =
+          await (db.select(db.localNotes)
+                ..where((n) => n.id.equals(id))
+                ..where((n) => n.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (note == null) {
         throw StateError('Note not found or does not belong to user');
@@ -2485,9 +2488,7 @@ class NotesCoreRepository implements INotesRepository {
           itemType: TrashAuditItemType.note,
           itemId: id,
           itemTitle: auditNote?.title,
-          metadata: const {
-            'source': 'notes.permanentlyDeleteNote',
-          },
+          metadata: const {'source': 'notes.permanentlyDeleteNote'},
         ),
       );
     } catch (e, stack) {
@@ -2535,8 +2536,9 @@ class NotesCoreRepository implements INotesRepository {
     await _enqueuePendingOp(entityId: noteId, kind: 'delete_note');
 
     // 3. Delete note-folder relationships
-    await (db.delete(db.noteFolders)..where((nf) => nf.noteId.equals(noteId)))
-        .go();
+    await (db.delete(
+      db.noteFolders,
+    )..where((nf) => nf.noteId.equals(noteId))).go();
 
     // 4. Hard delete the note itself
     await (db.delete(db.localNotes)..where((n) => n.id.equals(noteId))).go();
@@ -2551,10 +2553,16 @@ class NotesCoreRepository implements INotesRepository {
         return const <domain.Note>[];
       }
 
-      final localNotes = await (db.select(db.localNotes)
-            ..where((n) => n.deleted.equals(true) & n.userId.equals(userId))
-            ..orderBy([(n) => OrderingTerm(expression: n.updatedAt, mode: OrderingMode.desc)]))
-          .get();
+      final localNotes =
+          await (db.select(db.localNotes)
+                ..where((n) => n.deleted.equals(true) & n.userId.equals(userId))
+                ..orderBy([
+                  (n) => OrderingTerm(
+                    expression: n.updatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+                ]))
+              .get();
 
       final notes = await _hydrateDomainNotes(localNotes);
       _auditAccess(
@@ -3431,9 +3439,9 @@ class NotesCoreRepository implements INotesRepository {
       );
 
       // Invalidate local cache - notes are now tombstoned
-      await (db.delete(db.localNotes)
-        ..where((tbl) => tbl.userId.equals(userId))
-      ).go();
+      await (db.delete(
+        db.localNotes,
+      )..where((tbl) => tbl.userId.equals(userId))).go();
 
       return count;
     } catch (error, stackTrace) {

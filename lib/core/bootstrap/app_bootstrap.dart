@@ -285,9 +285,7 @@ class AppBootstrap {
   Future<BootstrapResult> initializeBackend(BootstrapResult base) async {
     final failures = <BootstrapFailure>[...base.failures];
     final warnings = <String>[...base.warnings];
-    final stageDurations = <BootstrapStage, Duration>{
-      ...base.stageDurations,
-    };
+    final stageDurations = <BootstrapStage, Duration>{...base.stageDurations};
 
     final environment = base.environment;
     final logger = base.logger;
@@ -557,9 +555,7 @@ class AppBootstrap {
       );
       return null;
     } catch (error, stack) {
-      debugPrint(
-        '[AppBootstrap] Stage ${stage.name} failed: $error',
-      );
+      debugPrint('[AppBootstrap] Stage ${stage.name} failed: $error');
       failures.add(
         BootstrapFailure(
           stage: stage,

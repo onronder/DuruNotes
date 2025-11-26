@@ -13,9 +13,9 @@ void main() {
       calls = [];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
-        calls.add(call);
-        return null;
-      });
+            calls.add(call);
+            return null;
+          });
     });
 
     tearDown(() {
@@ -41,10 +41,7 @@ void main() {
         platformCheck: () => true,
       );
 
-      await syncer.sync(
-        userId: 'user-123',
-        payload: {'text': 'Hello'},
-      );
+      await syncer.sync(userId: 'user-123', payload: {'text': 'Hello'});
 
       expect(calls.length, 1);
       final call = calls.single;

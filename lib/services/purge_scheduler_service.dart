@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// the 30-day retention period and permanently deletes them.
 class PurgeSchedulerService {
   PurgeSchedulerService(this._ref, {required TrashService trashService})
-      : _trash = trashService;
+    : _trash = trashService;
 
   final Ref _ref;
   final TrashService _trash;
@@ -67,8 +67,9 @@ class PurgeSchedulerService {
 
     // Check if we should run based on time interval
     if (!shouldRunPurgeCheck) {
-      final timeSinceLastCheck =
-          DateTime.now().difference(_lastPurgeCheck!).inHours;
+      final timeSinceLastCheck = DateTime.now()
+          .difference(_lastPurgeCheck!)
+          .inHours;
       _logger.info(
         '[PurgeScheduler] Skipping purge check - last check was $timeSinceLastCheck hours ago',
       );

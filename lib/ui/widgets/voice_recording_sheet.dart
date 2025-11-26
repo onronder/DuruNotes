@@ -17,7 +17,8 @@ class VoiceRecordingSheet extends ConsumerStatefulWidget {
   final String? folderId;
 
   @override
-  ConsumerState<VoiceRecordingSheet> createState() => _VoiceRecordingSheetState();
+  ConsumerState<VoiceRecordingSheet> createState() =>
+      _VoiceRecordingSheetState();
 }
 
 class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
@@ -25,7 +26,9 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
   String? _errorMessage;
   Timer? _durationTimer;
   Duration _recordingDuration = Duration.zero;
-  final TextEditingController _titleController = TextEditingController(text: 'Voice note');
+  final TextEditingController _titleController = TextEditingController(
+    text: 'Voice note',
+  );
 
   @override
   void initState() {
@@ -53,7 +56,8 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
       final granted = await audioService.requestPermission();
       if (!granted) {
         setState(() {
-          _errorMessage = 'Microphone permission is required to record voice notes';
+          _errorMessage =
+              'Microphone permission is required to record voice notes';
         });
         _showPermissionDialog();
         return;
@@ -73,7 +77,8 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
       _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) {
           setState(() {
-            _recordingDuration = audioService.currentRecordingDuration ?? Duration.zero;
+            _recordingDuration =
+                audioService.currentRecordingDuration ?? Duration.zero;
           });
         }
       });
@@ -136,7 +141,9 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
       // Upload recording
       print('[VOICE_NOTE_DEBUG] Calling audioService.finalizeAndUpload()...');
       final result = await audioService.finalizeAndUpload();
-      print('[VOICE_NOTE_DEBUG] Upload result: ${result != null ? "SUCCESS" : "NULL (FAILED)"}');
+      print(
+        '[VOICE_NOTE_DEBUG] Upload result: ${result != null ? "SUCCESS" : "NULL (FAILED)"}',
+      );
 
       if (result == null) {
         print('[VOICE_NOTE_DEBUG] ERROR: finalizeAndUpload() returned null');
@@ -284,9 +291,7 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
 
               // Content based on state (scrollable to avoid overflow on small screens)
               Expanded(
-                child: SingleChildScrollView(
-                  child: _buildContent(theme),
-                ),
+                child: SingleChildScrollView(child: _buildContent(theme)),
               ),
             ],
           ),
@@ -361,11 +366,7 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
                 color: theme.colorScheme.error.withOpacity(0.1),
               ),
             ),
-            Icon(
-              Icons.mic,
-              size: 60,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.mic, size: 60, color: theme.colorScheme.error),
           ],
         ),
         const SizedBox(height: 24),
@@ -392,7 +393,10 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
               icon: const Icon(Icons.close),
               label: const Text('Cancel'),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
               ),
             ),
             ElevatedButton.icon(
@@ -402,7 +406,10 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.error,
                 foregroundColor: theme.colorScheme.onError,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
               ),
             ),
           ],
@@ -422,9 +429,7 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
           decoration: InputDecoration(
             labelText: 'Title',
             hintText: 'Enter a title for this voice note',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             filled: true,
           ),
           autofocus: true,
@@ -441,10 +446,7 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.check_circle,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.check_circle, color: theme.colorScheme.primary),
               const SizedBox(width: 12),
               Text(
                 'Recording complete: ${_formatDuration(_recordingDuration)}',
@@ -495,19 +497,11 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
         const SizedBox(height: 32),
         const CircularProgressIndicator(),
         const SizedBox(height: 24),
-        Text(
-          'Uploading voice note...',
-          style: theme.textTheme.titleMedium,
-        ),
+        Text('Uploading voice note...', style: theme.textTheme.titleMedium),
         const SizedBox(height: 32),
       ],
     );
   }
 }
 
-enum _RecordingState {
-  idle,
-  recording,
-  stopped,
-  uploading,
-}
+enum _RecordingState { idle, recording, stopped, uploading }

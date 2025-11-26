@@ -104,7 +104,10 @@ class _RecordingFolderRepository implements IFolderRepository {
   @override
   Future<List<domain.Folder>> getDeletedFolders() async => const [];
   @override
-  Future<void> restoreFolder(String folderId, {bool restoreContents = false}) async {}
+  Future<void> restoreFolder(
+    String folderId, {
+    bool restoreContents = false,
+  }) async {}
 
   @override
   Future<void> permanentlyDeleteFolder(String folderId) async {}

@@ -32,7 +32,8 @@ import 'package:duru_notes/core/crypto/key_manager.dart';
 import 'package:duru_notes/core/gdpr/anonymization_types.dart';
 import 'package:duru_notes/core/gdpr/gdpr_safeguards.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
-import 'package:duru_notes/core/providers/infrastructure_providers.dart' show loggerProvider;
+import 'package:duru_notes/core/providers/infrastructure_providers.dart'
+    show loggerProvider;
 import 'package:duru_notes/services/account_key_service.dart';
 import 'package:duru_notes/services/encryption_sync_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,7 +48,8 @@ class AnonymizationException implements Exception {
   AnonymizationException(this.message, {this.cause});
 
   @override
-  String toString() => 'AnonymizationException: $message${cause != null ? ' (caused by: $cause)' : ''}';
+  String toString() =>
+      'AnonymizationException: $message${cause != null ? ' (caused by: $cause)' : ''}';
 }
 
 /// GDPR Anonymization Service - Orchestrates complete user anonymization
@@ -87,10 +89,10 @@ class GDPRAnonymizationService {
     required AccountKeyService accountKeyService,
     required EncryptionSyncService encryptionSyncService,
     SupabaseClient? client,
-  })  : _keyManager = keyManager,
-        _accountKeyService = accountKeyService,
-        _encryptionSyncService = encryptionSyncService,
-        _client = client ?? Supabase.instance.client;
+  }) : _keyManager = keyManager,
+       _accountKeyService = accountKeyService,
+       _encryptionSyncService = encryptionSyncService,
+       _client = client ?? Supabase.instance.client;
 
   final Ref _ref;
   final KeyManager _keyManager;
@@ -151,7 +153,10 @@ class GDPRAnonymizationService {
     var phase4 = PhaseReport.notStarted(4, 'Encrypted Content Tombstoning');
     var phase5 = PhaseReport.notStarted(5, 'Unencrypted Metadata Clearing');
     var phase6 = PhaseReport.notStarted(6, 'Cross-Device Sync Invalidation');
-    var phase7 = PhaseReport.notStarted(7, 'Final Audit Trail & Compliance Proof');
+    var phase7 = PhaseReport.notStarted(
+      7,
+      'Final Audit Trail & Compliance Proof',
+    );
 
     KeyDestructionReport? keyDestructionReport;
     String? proofHash;
@@ -193,7 +198,8 @@ class GDPRAnonymizationService {
           userId: userId,
           anonymizationId: anonymizationId,
           success: false,
-          errorMessage: 'Safeguards failed: ${safeguardResult.errors.join(', ')}',
+          errorMessage:
+              'Safeguards failed: ${safeguardResult.errors.join(', ')}',
         );
 
         throw SafeguardException(
@@ -240,9 +246,12 @@ class GDPRAnonymizationService {
           userId: userId,
           anonymizationId: anonymizationId,
           success: false,
-          errorMessage: 'Phase 1 validation failed: ${phase1.errors.join(', ')}',
+          errorMessage:
+              'Phase 1 validation failed: ${phase1.errors.join(', ')}',
         );
-        throw AnonymizationException('Phase 1 validation failed: ${phase1.errors.join(', ')}');
+        throw AnonymizationException(
+          'Phase 1 validation failed: ${phase1.errors.join(', ')}',
+        );
       }
 
       // ======================================================================
@@ -282,11 +291,14 @@ class GDPRAnonymizationService {
       );
 
       if (!phase3.success) {
-        throw AnonymizationException('CRITICAL: Phase 3 key destruction failed: ${phase3.errors.join(', ')}');
+        throw AnonymizationException(
+          'CRITICAL: Phase 3 key destruction failed: ${phase3.errors.join(', ')}',
+        );
       }
 
       // Extract key destruction report
-      keyDestructionReport = phase3.details['keyDestructionReport'] as KeyDestructionReport?;
+      keyDestructionReport =
+          phase3.details['keyDestructionReport'] as KeyDestructionReport?;
 
       _logger.error(
         'POINT OF NO RETURN REACHED - Keys destroyed',
@@ -309,7 +321,10 @@ class GDPRAnonymizationService {
 
       if (!phase4.success) {
         errors.addAll(phase4.errors);
-        _logger.warning('Phase 4 partially failed', data: {'errors': phase4.errors});
+        _logger.warning(
+          'Phase 4 partially failed',
+          data: {'errors': phase4.errors},
+        );
       }
 
       // ======================================================================
@@ -323,7 +338,10 @@ class GDPRAnonymizationService {
 
       if (!phase5.success) {
         errors.addAll(phase5.errors);
-        _logger.warning('Phase 5 partially failed', data: {'errors': phase5.errors});
+        _logger.warning(
+          'Phase 5 partially failed',
+          data: {'errors': phase5.errors},
+        );
       }
 
       // ======================================================================
@@ -337,7 +355,10 @@ class GDPRAnonymizationService {
 
       if (!phase6.success) {
         errors.addAll(phase6.errors);
-        _logger.warning('Phase 6 partially failed', data: {'errors': phase6.errors});
+        _logger.warning(
+          'Phase 6 partially failed',
+          data: {'errors': phase6.errors},
+        );
       }
 
       // ======================================================================
@@ -361,7 +382,10 @@ class GDPRAnonymizationService {
 
       if (!phase7.success) {
         errors.addAll(phase7.errors);
-        _logger.error('Phase 7 compliance proof failed', data: {'errors': phase7.errors});
+        _logger.error(
+          'Phase 7 compliance proof failed',
+          data: {'errors': phase7.errors},
+        );
       }
     } catch (error, stackTrace) {
       _logger.error(
@@ -388,7 +412,8 @@ class GDPRAnonymizationService {
     } finally {
       // Create final report
       final completedAt = DateTime.now();
-      final success = errors.isEmpty &&
+      final success =
+          errors.isEmpty &&
           phase1.success &&
           phase3.success && // Phase 3 is CRITICAL
           phase7.success; // Phase 7 is CRITICAL for compliance
@@ -438,7 +463,9 @@ class GDPRAnonymizationService {
         phaseNumber: 7,
         phaseName: success ? 'Anonymization Complete' : 'Anonymization Failed',
         progress: 1.0,
-        message: success ? '✅ User account anonymized successfully' : '❌ Anonymization failed',
+        message: success
+            ? '✅ User account anonymized successfully'
+            : '❌ Anonymization failed',
         pointOfNoReturn: true,
       );
 
@@ -462,10 +489,7 @@ class GDPRAnonymizationService {
 
           _logger.error(
             'GDPR: Client logout completed',
-            data: {
-              'level': 'CRITICAL',
-              'anonymizationId': anonymizationId,
-            },
+            data: {'level': 'CRITICAL', 'anonymizationId': anonymizationId},
           );
         } catch (logoutError) {
           _logger.warning(
@@ -486,7 +510,8 @@ class GDPRAnonymizationService {
       userId: userId,
       startedAt: startedAt,
       completedAt: DateTime.now(),
-      success: errors.isEmpty && phase1.success && phase3.success && phase7.success,
+      success:
+          errors.isEmpty && phase1.success && phase3.success && phase7.success,
       errors: errors,
       phase1Validation: phase1,
       phase2Metadata: phase2,
@@ -510,7 +535,10 @@ class GDPRAnonymizationService {
     required UserConfirmations confirmations,
     void Function(AnonymizationProgress)? onProgress,
   }) async {
-    var report = PhaseReport.notStarted(1, 'Pre-Anonymization Validation').start();
+    var report = PhaseReport.notStarted(
+      1,
+      'Pre-Anonymization Validation',
+    ).start();
 
     _emitProgress(
       onProgress,
@@ -570,11 +598,13 @@ class GDPRAnonymizationService {
         pointOfNoReturn: false,
       );
 
-      return report.complete(additionalDetails: {
-        'sessionValid': true,
-        'confirmationsValid': true,
-        'syncCheckPassed': true,
-      });
+      return report.complete(
+        additionalDetails: {
+          'sessionValid': true,
+          'confirmationsValid': true,
+          'syncCheckPassed': true,
+        },
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'Phase 1 validation failed',
@@ -595,7 +625,10 @@ class GDPRAnonymizationService {
     required String anonymizationId,
     void Function(AnonymizationProgress)? onProgress,
   }) async {
-    var report = PhaseReport.notStarted(2, 'Account Metadata Anonymization').start();
+    var report = PhaseReport.notStarted(
+      2,
+      'Account Metadata Anonymization',
+    ).start();
 
     _emitProgress(
       onProgress,
@@ -708,12 +741,14 @@ class GDPRAnonymizationService {
         pointOfNoReturn: false,
       );
 
-      return report.complete(additionalDetails: {
-        'profileAnonymized': profileUpdated > 0,
-        'fullyAnonymized': fullyAnonymized,
-        'currentEmail': currentEmail,
-        'anonymousEmail': expectedEmail,
-      });
+      return report.complete(
+        additionalDetails: {
+          'profileAnonymized': profileUpdated > 0,
+          'fullyAnonymized': fullyAnonymized,
+          'currentEmail': currentEmail,
+          'anonymousEmail': expectedEmail,
+        },
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'Phase 2 metadata anonymization failed',
@@ -734,7 +769,10 @@ class GDPRAnonymizationService {
     required String anonymizationId,
     void Function(AnonymizationProgress)? onProgress,
   }) async {
-    var report = PhaseReport.notStarted(3, 'Encryption Key Destruction').start();
+    var report = PhaseReport.notStarted(
+      3,
+      'Encryption Key Destruction',
+    ).start();
 
     try {
       // Step 1: Destroy legacy device key
@@ -763,11 +801,12 @@ class GDPRAnonymizationService {
         pointOfNoReturn: false,
       );
 
-      final amkReport = await _accountKeyService.securelyDestroyAccountMasterKey(
-        userId: userId,
-        confirmationToken: 'DESTROY_AMK_$userId',
-        verifyBeforeDestroy: true,
-      );
+      final amkReport = await _accountKeyService
+          .securelyDestroyAccountMasterKey(
+            userId: userId,
+            confirmationToken: 'DESTROY_AMK_$userId',
+            verifyBeforeDestroy: true,
+          );
 
       // Step 3: Destroy cross-device keys
       _emitProgress(
@@ -779,23 +818,29 @@ class GDPRAnonymizationService {
         pointOfNoReturn: false,
       );
 
-      final crossDeviceReport = await _encryptionSyncService.securelyDestroyCrossDeviceKeys(
-        userId: userId,
-        confirmationToken: 'DESTROY_CROSS_DEVICE_KEYS_$userId',
-        verifyBeforeDestroy: true,
-      );
+      final crossDeviceReport = await _encryptionSyncService
+          .securelyDestroyCrossDeviceKeys(
+            userId: userId,
+            confirmationToken: 'DESTROY_CROSS_DEVICE_KEYS_$userId',
+            verifyBeforeDestroy: true,
+          );
 
       // Step 4: Combine reports
       final combinedReport = KeyDestructionReport(userId: userId);
-      combinedReport.legacyKeyExistedBeforeDestruction = legacyReport.legacyKeyExistedBeforeDestruction;
+      combinedReport.legacyKeyExistedBeforeDestruction =
+          legacyReport.legacyKeyExistedBeforeDestruction;
       combinedReport.legacyKeyDestroyed = legacyReport.legacyKeyDestroyed;
       combinedReport.memoryKeyDestroyed = legacyReport.memoryKeyDestroyed;
-      combinedReport.amkExistedBeforeDestruction = amkReport.amkExistedBeforeDestruction;
+      combinedReport.amkExistedBeforeDestruction =
+          amkReport.amkExistedBeforeDestruction;
       combinedReport.localAmkDestroyed = amkReport.localAmkDestroyed;
       combinedReport.remoteAmkDestroyed = amkReport.remoteAmkDestroyed;
-      combinedReport.crossDeviceAmkExistedBeforeDestruction = crossDeviceReport.crossDeviceAmkExistedBeforeDestruction;
-      combinedReport.localCrossDeviceKeyDestroyed = crossDeviceReport.localCrossDeviceKeyDestroyed;
-      combinedReport.remoteCrossDeviceKeyDestroyed = crossDeviceReport.remoteCrossDeviceKeyDestroyed;
+      combinedReport.crossDeviceAmkExistedBeforeDestruction =
+          crossDeviceReport.crossDeviceAmkExistedBeforeDestruction;
+      combinedReport.localCrossDeviceKeyDestroyed =
+          crossDeviceReport.localCrossDeviceKeyDestroyed;
+      combinedReport.remoteCrossDeviceKeyDestroyed =
+          crossDeviceReport.remoteCrossDeviceKeyDestroyed;
       combinedReport.errors.addAll(legacyReport.errors);
       combinedReport.errors.addAll(amkReport.errors);
       combinedReport.errors.addAll(crossDeviceReport.errors);
@@ -825,10 +870,12 @@ class GDPRAnonymizationService {
         );
       }
 
-      return report.complete(additionalDetails: {
-        'keysDestroyed': combinedReport.keysDestroyedCount,
-        'keyDestructionReport': combinedReport,
-      });
+      return report.complete(
+        additionalDetails: {
+          'keysDestroyed': combinedReport.keysDestroyedCount,
+          'keyDestructionReport': combinedReport,
+        },
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'CRITICAL: Phase 3 key destruction failed',
@@ -892,7 +939,8 @@ class GDPRAnonymizationService {
         body: {
           'userId': userId,
           'anonymizationId': anonymizationId,
-          'environment': const bool.fromEnvironment('dart.vm.product', defaultValue: false)
+          'environment':
+              const bool.fromEnvironment('dart.vm.product', defaultValue: false)
               ? 'production'
               : 'development',
         },
@@ -923,7 +971,9 @@ class GDPRAnonymizationService {
 
       if (!success) {
         final error = data['error'] as String? ?? 'Unknown error';
-        throw AnonymizationException('Edge Function returned success=false: $error');
+        throw AnonymizationException(
+          'Edge Function returned success=false: $error',
+        );
       }
 
       // Extract phase completion status
@@ -936,7 +986,8 @@ class GDPRAnonymizationService {
       // Extract details
       final details = data['details'] as Map<String, dynamic>? ?? {};
       final appCleanup = details['appCleanup'] as Map<String, dynamic>? ?? {};
-      final contentTombstoned = appCleanup['content_tombstoned'] as Map<String, dynamic>? ?? {};
+      final contentTombstoned =
+          appCleanup['content_tombstoned'] as Map<String, dynamic>? ?? {};
       final notesCount = contentTombstoned['notes'] as int? ?? 0;
       final tasksCount = contentTombstoned['tasks'] as int? ?? 0;
       final foldersCount = contentTombstoned['folders'] as int? ?? 0;
@@ -987,17 +1038,19 @@ class GDPRAnonymizationService {
         pointOfNoReturn: true,
       );
 
-      return report.complete(additionalDetails: {
-        'method': 'Edge Function',
-        'appDataCleanup': appDataCleanup,
-        'sessionRevocation': sessionRevocation,
-        'authUserDeletion': authUserDeletion,
-        'notesAnonymized': notesCount,
-        'tasksAnonymized': tasksCount,
-        'foldersAnonymized': foldersCount,
-        'remindersAnonymized': remindersCount,
-        'totalAnonymized': totalCount,
-      });
+      return report.complete(
+        additionalDetails: {
+          'method': 'Edge Function',
+          'appDataCleanup': appDataCleanup,
+          'sessionRevocation': sessionRevocation,
+          'authUserDeletion': authUserDeletion,
+          'notesAnonymized': notesCount,
+          'tasksAnonymized': tasksCount,
+          'foldersAnonymized': foldersCount,
+          'remindersAnonymized': remindersCount,
+          'totalAnonymized': totalCount,
+        },
+      );
     } catch (error, stackTrace) {
       _logger.error(
         'CRITICAL: Phase 4-6 atomic cleanup failed',
@@ -1016,7 +1069,10 @@ class GDPRAnonymizationService {
   }) async {
     // Phase 5 (metadata clearing) is handled by Phase 4's Edge Function
     // Mark as automatically completed
-    var report = PhaseReport.notStarted(5, 'Unencrypted Metadata Clearing').start();
+    var report = PhaseReport.notStarted(
+      5,
+      'Unencrypted Metadata Clearing',
+    ).start();
 
     _emitProgress(
       onProgress,
@@ -1032,10 +1088,12 @@ class GDPRAnonymizationService {
       data: {'anonymizationId': anonymizationId, 'userId': userId},
     );
 
-    return report.complete(additionalDetails: {
-      'method': 'Handled by Phase 4 Edge Function',
-      'note': 'Metadata cleared via anonymize_app_user SQL function',
-    });
+    return report.complete(
+      additionalDetails: {
+        'method': 'Handled by Phase 4 Edge Function',
+        'note': 'Metadata cleared via anonymize_app_user SQL function',
+      },
+    );
   }
 
   Future<PhaseReport> _executePhase6({
@@ -1045,7 +1103,10 @@ class GDPRAnonymizationService {
   }) async {
     // Phase 6 (auth deletion) is handled by Phase 4's Edge Function
     // Mark as automatically completed
-    var report = PhaseReport.notStarted(6, 'Auth User Deletion & Session Revocation').start();
+    var report = PhaseReport.notStarted(
+      6,
+      'Auth User Deletion & Session Revocation',
+    ).start();
 
     _emitProgress(
       onProgress,
@@ -1067,12 +1128,14 @@ class GDPRAnonymizationService {
       },
     );
 
-    return report.complete(additionalDetails: {
-      'method': 'Handled by Phase 4 Edge Function',
-      'authUserDeleted': true,
-      'sessionsRevoked': true,
-      'note': 'User cannot login anymore - auth.users entry removed',
-    });
+    return report.complete(
+      additionalDetails: {
+        'method': 'Handled by Phase 4 Edge Function',
+        'authUserDeleted': true,
+        'sessionsRevoked': true,
+        'note': 'User cannot login anymore - auth.users entry removed',
+      },
+    );
   }
 
   // ==========================================================================
@@ -1091,7 +1154,10 @@ class GDPRAnonymizationService {
     KeyDestructionReport? keyDestructionReport,
     void Function(AnonymizationProgress)? onProgress,
   }) async {
-    var report = PhaseReport.notStarted(7, 'Final Audit Trail & Compliance Proof').start();
+    var report = PhaseReport.notStarted(
+      7,
+      'Final Audit Trail & Compliance Proof',
+    ).start();
 
     _emitProgress(
       onProgress,
@@ -1149,10 +1215,7 @@ class GDPRAnonymizationService {
         userId: userId,
         eventType: 'COMPLETED',
         phaseNumber: 7,
-        details: {
-          'proofHash': proofHash,
-          'complianceProofStored': true,
-        },
+        details: {'proofHash': proofHash, 'complianceProofStored': true},
       );
 
       _emitProgress(
@@ -1165,10 +1228,12 @@ class GDPRAnonymizationService {
       );
 
       return (
-        report.complete(additionalDetails: {
-          'proofHash': proofHash,
-          'complianceProofStored': true,
-        }),
+        report.complete(
+          additionalDetails: {
+            'proofHash': proofHash,
+            'complianceProofStored': true,
+          },
+        ),
         proofHash,
       );
     } catch (error, stackTrace) {
@@ -1225,13 +1290,15 @@ class GDPRAnonymizationService {
     required bool pointOfNoReturn,
   }) {
     if (onProgress != null) {
-      onProgress(AnonymizationProgress(
-        currentPhase: phaseNumber,
-        phaseName: phaseName,
-        phaseProgress: progress,
-        statusMessage: message,
-        pointOfNoReturnReached: pointOfNoReturn,
-      ));
+      onProgress(
+        AnonymizationProgress(
+          currentPhase: phaseNumber,
+          phaseName: phaseName,
+          phaseProgress: progress,
+          statusMessage: message,
+          pointOfNoReturnReached: pointOfNoReturn,
+        ),
+      );
     }
   }
 }

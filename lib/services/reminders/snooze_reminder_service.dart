@@ -40,7 +40,10 @@ class SnoozeReminderService extends BaseReminderService {
 
   /// Snooze a reminder for the specified duration
   // MIGRATION v41: Changed from int to String (UUID)
-  Future<bool> snoozeReminder(String reminderId, SnoozeDuration duration) async {
+  Future<bool> snoozeReminder(
+    String reminderId,
+    SnoozeDuration duration,
+  ) async {
     try {
       // P0.5 SECURITY: Get current userId
       final userId = validateUserId('snooze reminder');

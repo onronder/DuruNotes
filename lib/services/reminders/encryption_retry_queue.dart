@@ -34,7 +34,7 @@ class EncryptionRetryQueue {
 
   /// Creates a retry queue with the given configuration
   EncryptionRetryQueue([ReminderServiceConfig? config])
-      : _config = config ?? ReminderServiceConfig.defaultConfig();
+    : _config = config ?? ReminderServiceConfig.defaultConfig();
 
   /// Add a reminder to the retry queue after encryption failure
   ///
@@ -62,10 +62,7 @@ class EncryptionRetryQueue {
       if (existing.retryCount >= _config.maxRetries) {
         _logger.error(
           '[EncryptionRetryQueue] Max retries exceeded, removing from queue',
-          data: {
-            'reminderId': reminderId,
-            'retryCount': existing.retryCount,
-          },
+          data: {'reminderId': reminderId, 'retryCount': existing.retryCount},
         );
         _queue.remove(reminderId);
         return false;
@@ -146,8 +143,7 @@ class EncryptionRetryQueue {
   bool isQueued(String reminderId) => _queue.containsKey(reminderId);
 
   /// Get retry metadata for a reminder
-  EncryptionRetryMetadata? getMetadata(String reminderId) =>
-      _queue[reminderId];
+  EncryptionRetryMetadata? getMetadata(String reminderId) => _queue[reminderId];
 
   /// Get current queue size
   int get size => _queue.length;
@@ -222,7 +218,7 @@ class EncryptionRetryQueue {
   /// Returns the number of reminders that still need retry
   Future<int> processRetries(
     Future<ReminderEncryptionResult> Function(EncryptionRetryMetadata)
-        retryCallback,
+    retryCallback,
   ) async {
     final ready = getReadyForRetry();
 

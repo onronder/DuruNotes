@@ -53,7 +53,8 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
     final deletedTasksAsync = ref.watch(deletedTasksProvider);
 
     // Count total items
-    final totalCount = (deletedNotesAsync.value?.length ?? 0) +
+    final totalCount =
+        (deletedNotesAsync.value?.length ?? 0) +
         (deletedFoldersAsync.value?.length ?? 0) +
         (deletedTasksAsync.value?.length ?? 0);
 
@@ -184,7 +185,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
     AsyncValue<List<domain_task.Task>> tasksAsync,
   ) {
     // Handle loading/error states
-    if (notesAsync.isLoading || foldersAsync.isLoading || tasksAsync.isLoading) {
+    if (notesAsync.isLoading ||
+        foldersAsync.isLoading ||
+        tasksAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
@@ -204,10 +207,7 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
               style: Theme.of(context).textTheme.titleMedium,
             ),
             SizedBox(height: DuruSpacing.sm),
-            TextButton(
-              onPressed: _refresh,
-              child: const Text('Retry'),
-            ),
+            TextButton(onPressed: _refresh, child: const Text('Retry')),
           ],
         ),
       );
@@ -220,37 +220,49 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
     // Filter by selected tab
     final List<_DeletedItem> items = [];
     if (_selectedTab == 'all' || _selectedTab == 'notes') {
-      items.addAll(notes.map((n) => _DeletedItem(
-        id: n.id,
-        type: _ItemType.note,
-        title: n.title.isEmpty ? 'Untitled Note' : n.title,
-        subtitle: _getPreview(n.body),
-        deletedAt: n.deletedAt ?? n.updatedAt,
-        scheduledPurgeAt: n.scheduledPurgeAt,
-        data: n,
-      )));
+      items.addAll(
+        notes.map(
+          (n) => _DeletedItem(
+            id: n.id,
+            type: _ItemType.note,
+            title: n.title.isEmpty ? 'Untitled Note' : n.title,
+            subtitle: _getPreview(n.body),
+            deletedAt: n.deletedAt ?? n.updatedAt,
+            scheduledPurgeAt: n.scheduledPurgeAt,
+            data: n,
+          ),
+        ),
+      );
     }
     if (_selectedTab == 'all' || _selectedTab == 'folders') {
-      items.addAll(folders.map((f) => _DeletedItem(
-        id: f.id,
-        type: _ItemType.folder,
-        title: f.name,
-        subtitle: 'Folder',
-        deletedAt: f.deletedAt ?? f.updatedAt,
-        scheduledPurgeAt: f.scheduledPurgeAt,
-        data: f,
-      )));
+      items.addAll(
+        folders.map(
+          (f) => _DeletedItem(
+            id: f.id,
+            type: _ItemType.folder,
+            title: f.name,
+            subtitle: 'Folder',
+            deletedAt: f.deletedAt ?? f.updatedAt,
+            scheduledPurgeAt: f.scheduledPurgeAt,
+            data: f,
+          ),
+        ),
+      );
     }
     if (_selectedTab == 'all' || _selectedTab == 'tasks') {
-      items.addAll(tasks.map((t) => _DeletedItem(
-        id: t.id,
-        type: _ItemType.task,
-        title: t.title,
-        subtitle: 'Task',
-        deletedAt: t.deletedAt ?? t.updatedAt,
-        scheduledPurgeAt: t.scheduledPurgeAt,
-        data: t,
-      )));
+      items.addAll(
+        tasks.map(
+          (t) => _DeletedItem(
+            id: t.id,
+            type: _ItemType.task,
+            title: t.title,
+            subtitle: 'Task',
+            deletedAt: t.deletedAt ?? t.updatedAt,
+            scheduledPurgeAt: t.scheduledPurgeAt,
+            data: t,
+          ),
+        ),
+      );
     }
 
     // Sort by deletion time (most recent first)
@@ -342,7 +354,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                     Text(
                       item.subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -351,7 +365,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                     Text(
                       'Deleted ${_formatDate(item.deletedAt)}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.4),
                         fontSize: 11,
                       ),
                     ),
@@ -360,7 +376,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                       Text(
                         _formatPurgeCountdown(item.scheduledPurgeAt!),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.7),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.error.withValues(alpha: 0.7),
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -372,16 +390,16 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
               // Selection checkbox or action button
               if (_isSelectionMode)
                 Icon(
-                  isSelected
-                      ? Icons.check_circle
-                      : Icons.circle_outlined,
+                  isSelected ? Icons.check_circle : Icons.circle_outlined,
                   color: isSelected ? DuruColors.primary : null,
                 )
               else
                 Icon(
                   CupertinoIcons.chevron_right,
                   size: 20,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.3),
                 ),
             ],
           ),
@@ -398,13 +416,17 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
           Icon(
             CupertinoIcons.trash,
             size: 80,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.2),
           ),
           SizedBox(height: DuruSpacing.lg),
           Text(
             'Trash is empty',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           SizedBox(height: DuruSpacing.sm),
@@ -413,7 +435,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
             child: Text(
               'Deleted items will appear here',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
               ),
               textAlign: TextAlign.center,
             ),
@@ -660,9 +684,11 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
 
     final items = <_DeletedItem>[];
     if (notesAsync.hasValue) {
-      items.addAll(notesAsync.value!
-          .where((n) => _selectedItemIds.contains(n.id))
-          .map((n) => _DeletedItem(
+      items.addAll(
+        notesAsync.value!
+            .where((n) => _selectedItemIds.contains(n.id))
+            .map(
+              (n) => _DeletedItem(
                 id: n.id,
                 type: _ItemType.note,
                 title: n.title,
@@ -670,12 +696,16 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                 deletedAt: n.deletedAt ?? n.updatedAt,
                 scheduledPurgeAt: n.scheduledPurgeAt,
                 data: n,
-              )));
+              ),
+            ),
+      );
     }
     if (foldersAsync.hasValue) {
-      items.addAll(foldersAsync.value!
-          .where((f) => _selectedItemIds.contains(f.id))
-          .map((f) => _DeletedItem(
+      items.addAll(
+        foldersAsync.value!
+            .where((f) => _selectedItemIds.contains(f.id))
+            .map(
+              (f) => _DeletedItem(
                 id: f.id,
                 type: _ItemType.folder,
                 title: f.name,
@@ -683,12 +713,16 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                 deletedAt: f.deletedAt ?? f.updatedAt,
                 scheduledPurgeAt: f.scheduledPurgeAt,
                 data: f,
-              )));
+              ),
+            ),
+      );
     }
     if (tasksAsync.hasValue) {
-      items.addAll(tasksAsync.value!
-          .where((t) => _selectedItemIds.contains(t.id))
-          .map((t) => _DeletedItem(
+      items.addAll(
+        tasksAsync.value!
+            .where((t) => _selectedItemIds.contains(t.id))
+            .map(
+              (t) => _DeletedItem(
                 id: t.id,
                 type: _ItemType.task,
                 title: t.title,
@@ -696,7 +730,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                 deletedAt: t.deletedAt ?? t.updatedAt,
                 scheduledPurgeAt: t.scheduledPurgeAt,
                 data: t,
-              )));
+              ),
+            ),
+      );
     }
 
     for (final item in items) {
@@ -742,9 +778,11 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
 
     final items = <_DeletedItem>[];
     if (notesAsync.hasValue) {
-      items.addAll(notesAsync.value!
-          .where((n) => _selectedItemIds.contains(n.id))
-          .map((n) => _DeletedItem(
+      items.addAll(
+        notesAsync.value!
+            .where((n) => _selectedItemIds.contains(n.id))
+            .map(
+              (n) => _DeletedItem(
                 id: n.id,
                 type: _ItemType.note,
                 title: n.title,
@@ -752,12 +790,16 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                 deletedAt: n.deletedAt ?? n.updatedAt,
                 scheduledPurgeAt: n.scheduledPurgeAt,
                 data: n,
-              )));
+              ),
+            ),
+      );
     }
     if (foldersAsync.hasValue) {
-      items.addAll(foldersAsync.value!
-          .where((f) => _selectedItemIds.contains(f.id))
-          .map((f) => _DeletedItem(
+      items.addAll(
+        foldersAsync.value!
+            .where((f) => _selectedItemIds.contains(f.id))
+            .map(
+              (f) => _DeletedItem(
                 id: f.id,
                 type: _ItemType.folder,
                 title: f.name,
@@ -765,12 +807,16 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                 deletedAt: f.deletedAt ?? f.updatedAt,
                 scheduledPurgeAt: f.scheduledPurgeAt,
                 data: f,
-              )));
+              ),
+            ),
+      );
     }
     if (tasksAsync.hasValue) {
-      items.addAll(tasksAsync.value!
-          .where((t) => _selectedItemIds.contains(t.id))
-          .map((t) => _DeletedItem(
+      items.addAll(
+        tasksAsync.value!
+            .where((t) => _selectedItemIds.contains(t.id))
+            .map(
+              (t) => _DeletedItem(
                 id: t.id,
                 type: _ItemType.task,
                 title: t.title,
@@ -778,7 +824,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
                 deletedAt: t.deletedAt ?? t.updatedAt,
                 scheduledPurgeAt: t.scheduledPurgeAt,
                 data: t,
-              )));
+              ),
+            ),
+      );
     }
 
     // Delete all selected items
@@ -814,7 +862,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
       if (failureCount == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$successCount ${successCount == 1 ? 'item' : 'items'} permanently deleted'),
+            content: Text(
+              '$successCount ${successCount == 1 ? 'item' : 'items'} permanently deleted',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -864,7 +914,9 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
     final tasksAsync = ref.read(deletedTasksProvider);
 
     // Check if providers are still loading
-    if (!notesAsync.hasValue || !foldersAsync.hasValue || !tasksAsync.hasValue) {
+    if (!notesAsync.hasValue ||
+        !foldersAsync.hasValue ||
+        !tasksAsync.hasValue) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Loading trash items, please wait...')),
@@ -873,15 +925,16 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
       return;
     }
 
-    final totalCount = (notesAsync.value?.length ?? 0) +
+    final totalCount =
+        (notesAsync.value?.length ?? 0) +
         (foldersAsync.value?.length ?? 0) +
         (tasksAsync.value?.length ?? 0);
 
     if (totalCount == 0) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Trash is already empty')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Trash is already empty')));
       }
       return;
     }
@@ -934,14 +987,18 @@ class _TrashScreenState extends ConsumerState<TrashScreen>
     if (result.failureCount == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Trash emptied: ${result.successCount} items permanently deleted'),
+          content: Text(
+            'Trash emptied: ${result.successCount} items permanently deleted',
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${result.successCount} deleted, ${result.failureCount} failed'),
+          content: Text(
+            '${result.successCount} deleted, ${result.failureCount} failed',
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

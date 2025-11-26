@@ -357,7 +357,10 @@ void main() {
 
       expect(result, equals(fakeCoordinator.reminderIdToReturn));
       expect(capturedUpdate, isNotNull);
-      expect(capturedUpdate!.reminderId.value, equals(UuidTestHelper.testReminder1));
+      expect(
+        capturedUpdate!.reminderId.value,
+        equals(UuidTestHelper.testReminder1),
+      );
       expect(capturedUpdate!.updatedAt.present, isTrue);
       verify(mockDb.updateTask('task-1', 'user-123', any)).called(1);
     });
@@ -365,12 +368,18 @@ void main() {
 
   group('cancelTaskReminder', () {
     test('clears reminder id and deletes remote reminder', () async {
-      when(mockAdvancedService.deleteReminder(UuidTestHelper.testReminder1)).thenAnswer((_) async {});
+      when(
+        mockAdvancedService.deleteReminder(UuidTestHelper.testReminder1),
+      ).thenAnswer((_) async {});
       when(mockDb.updateTask(any, any, any)).thenAnswer((_) async {});
 
-      await bridge.cancelTaskReminder(noteTask(reminderId: UuidTestHelper.testReminder1));
+      await bridge.cancelTaskReminder(
+        noteTask(reminderId: UuidTestHelper.testReminder1),
+      );
 
-      verify(mockAdvancedService.deleteReminder(UuidTestHelper.testReminder1)).called(1);
+      verify(
+        mockAdvancedService.deleteReminder(UuidTestHelper.testReminder1),
+      ).called(1);
       verify(mockDb.updateTask('task-1', 'user-123', any)).called(1);
     });
   });
@@ -382,7 +391,9 @@ void main() {
       ).thenAnswer((_) async => true);
 
       int getReminderCall = 0;
-      when(mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123')).thenAnswer((_) async {
+      when(
+        mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123'),
+      ).thenAnswer((_) async {
         getReminderCall++;
         if (getReminderCall == 1) {
           return noteReminder(
@@ -402,7 +413,10 @@ void main() {
       );
 
       verify(
-        mockSnoozeService.snoozeReminder(UuidTestHelper.testReminder1, SnoozeDuration.fifteenMinutes),
+        mockSnoozeService.snoozeReminder(
+          UuidTestHelper.testReminder1,
+          SnoozeDuration.fifteenMinutes,
+        ),
       ).called(1);
       verify(
         mockDb.getReminderById(UuidTestHelper.testReminder1, 'user-123'),

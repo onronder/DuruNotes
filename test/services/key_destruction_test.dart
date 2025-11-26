@@ -103,38 +103,47 @@ void main() {
     });
 
     group('Confirmation Token Validation', () {
-      test('throws SecurityException when confirmation token is invalid', () async {
-        // Act & Assert
-        expect(
-          () => keyManager.securelyDestroyAllKeys(
-            userId: testUserId,
-            confirmationToken: 'WRONG_TOKEN',
-          ),
-          throwsA(isA<SecurityException>()),
-        );
-      });
+      test(
+        'throws SecurityException when confirmation token is invalid',
+        () async {
+          // Act & Assert
+          expect(
+            () => keyManager.securelyDestroyAllKeys(
+              userId: testUserId,
+              confirmationToken: 'WRONG_TOKEN',
+            ),
+            throwsA(isA<SecurityException>()),
+          );
+        },
+      );
 
-      test('throws SecurityException when confirmation token is empty', () async {
-        // Act & Assert
-        expect(
-          () => keyManager.securelyDestroyAllKeys(
-            userId: testUserId,
-            confirmationToken: '',
-          ),
-          throwsA(isA<SecurityException>()),
-        );
-      });
+      test(
+        'throws SecurityException when confirmation token is empty',
+        () async {
+          // Act & Assert
+          expect(
+            () => keyManager.securelyDestroyAllKeys(
+              userId: testUserId,
+              confirmationToken: '',
+            ),
+            throwsA(isA<SecurityException>()),
+          );
+        },
+      );
 
-      test('throws SecurityException when confirmation token has wrong user ID', () async {
-        // Act & Assert
-        expect(
-          () => keyManager.securelyDestroyAllKeys(
-            userId: testUserId,
-            confirmationToken: 'DESTROY_ALL_KEYS_wrong-user',
-          ),
-          throwsA(isA<SecurityException>()),
-        );
-      });
+      test(
+        'throws SecurityException when confirmation token has wrong user ID',
+        () async {
+          // Act & Assert
+          expect(
+            () => keyManager.securelyDestroyAllKeys(
+              userId: testUserId,
+              confirmationToken: 'DESTROY_ALL_KEYS_wrong-user',
+            ),
+            throwsA(isA<SecurityException>()),
+          );
+        },
+      );
 
       test('accepts valid confirmation token', () async {
         // Arrange
@@ -152,36 +161,42 @@ void main() {
     });
 
     group('Pre-Destruction Verification', () {
-      test('verifies key exists before destruction when verifyBeforeDestroy=true', () async {
-        // Arrange
-        storageState[testKeyName] = testAmk;
+      test(
+        'verifies key exists before destruction when verifyBeforeDestroy=true',
+        () async {
+          // Arrange
+          storageState[testKeyName] = testAmk;
 
-        // Act
-        final report = await keyManager.securelyDestroyAllKeys(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        );
+          // Act
+          final report = await keyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          );
 
-        // Assert
-        expect(report.legacyKeyExistedBeforeDestruction, isTrue);
-        expect(report.legacyKeyDestroyed, isTrue);
-      });
+          // Assert
+          expect(report.legacyKeyExistedBeforeDestruction, isTrue);
+          expect(report.legacyKeyDestroyed, isTrue);
+        },
+      );
 
-      test('handles missing key gracefully when verifyBeforeDestroy=true', () async {
-        // Arrange - no key in storage
+      test(
+        'handles missing key gracefully when verifyBeforeDestroy=true',
+        () async {
+          // Arrange - no key in storage
 
-        // Act
-        final report = await keyManager.securelyDestroyAllKeys(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        );
+          // Act
+          final report = await keyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          );
 
-        // Assert
-        expect(report.legacyKeyExistedBeforeDestruction, isFalse);
-        expect(report.legacyKeyDestroyed, isTrue);
-      });
+          // Assert
+          expect(report.legacyKeyExistedBeforeDestruction, isFalse);
+          expect(report.legacyKeyDestroyed, isTrue);
+        },
+      );
 
       test('skips verification when verifyBeforeDestroy=false', () async {
         // Arrange
@@ -201,52 +216,58 @@ void main() {
     });
 
     group('Memory Overwriting (DoD 5220.22-M)', () {
-      test('in-memory keys are overwritten with zeros before deletion', () async {
-        // Arrange - use in-memory mode to test memory overwriting
-        final inMemoryKeyManager = KeyManager.inMemory(
-          accountKeyService: mockAccountKeyService,
-        );
+      test(
+        'in-memory keys are overwritten with zeros before deletion',
+        () async {
+          // Arrange - use in-memory mode to test memory overwriting
+          final inMemoryKeyManager = KeyManager.inMemory(
+            accountKeyService: mockAccountKeyService,
+          );
 
-        // Create key in memory
-        await inMemoryKeyManager.getOrCreateMasterKey(testUserId);
+          // Create key in memory
+          await inMemoryKeyManager.getOrCreateMasterKey(testUserId);
 
-        // Act
-        final report = await inMemoryKeyManager.securelyDestroyAllKeys(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-        );
+          // Act
+          final report = await inMemoryKeyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+          );
 
-        // Assert - key was destroyed
-        expect(report.memoryKeyDestroyed, isTrue);
-        expect(report.legacyKeyDestroyed, isTrue);
-      });
+          // Assert - key was destroyed
+          expect(report.memoryKeyDestroyed, isTrue);
+          expect(report.legacyKeyDestroyed, isTrue);
+        },
+      );
     });
 
     group('Post-Destruction Verification', () {
-      test('throws SecurityException if key still exists after deletion', () async {
-        // Arrange
-        storageState[testKeyName] = testAmk;
+      test(
+        'throws SecurityException if key still exists after deletion',
+        () async {
+          // Arrange
+          storageState[testKeyName] = testAmk;
 
-        // Mock delete to NOT actually delete (simulating failure)
-        when(
-          mockStorage.delete(
-            key: anyNamed('key'),
-            aOptions: anyNamed('aOptions'),
-            iOptions: anyNamed('iOptions'),
-          ),
-        ).thenAnswer((_) async {
-          // Don't actually delete - simulating deletion failure
-        });
+          // Mock delete to NOT actually delete (simulating failure)
+          when(
+            mockStorage.delete(
+              key: anyNamed('key'),
+              aOptions: anyNamed('aOptions'),
+              iOptions: anyNamed('iOptions'),
+            ),
+          ).thenAnswer((_) async {
+            // Don't actually delete - simulating deletion failure
+          });
 
-        // Act & Assert
-        expect(
-          () => keyManager.securelyDestroyAllKeys(
-            userId: testUserId,
-            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          ),
-          throwsA(isA<SecurityException>()),
-        );
-      });
+          // Act & Assert
+          expect(
+            () => keyManager.securelyDestroyAllKeys(
+              userId: testUserId,
+              confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            ),
+            throwsA(isA<SecurityException>()),
+          );
+        },
+      );
 
       test('confirms key no longer exists after deletion', () async {
         // Arrange

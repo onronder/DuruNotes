@@ -241,11 +241,7 @@ class _TaskListScreenState extends ConsumerState<TaskListScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    color: DuruColors.error,
-                    size: 48,
-                  ),
+                  Icon(Icons.error_outline, color: DuruColors.error, size: 48),
                   const SizedBox(height: 12),
                   Text(
                     'Error loading tasks',

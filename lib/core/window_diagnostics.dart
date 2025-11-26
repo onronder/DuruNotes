@@ -5,8 +5,9 @@ import 'package:flutter/services.dart';
 
 /// BLACK SCREEN FIX: Window diagnostics for iOS
 class WindowDiagnostics {
-  static const MethodChannel _channel =
-      MethodChannel('com.fittechs.durunotes/window_diagnostics');
+  static const MethodChannel _channel = MethodChannel(
+    'com.fittechs.durunotes/window_diagnostics',
+  );
 
   /// Get and print iOS window state diagnostics
   static Future<void> printWindowState() async {
@@ -18,8 +19,9 @@ class WindowDiagnostics {
     try {
       debugPrint('[WindowDiagnostics] ========== iOS WINDOW STATE ==========');
 
-      final Map<dynamic, dynamic> state =
-          await _channel.invokeMethod('getWindowState');
+      final Map<dynamic, dynamic> state = await _channel.invokeMethod(
+        'getWindowState',
+      );
 
       // Window existence
       final windowExists = state['window_exists'] ?? false;
@@ -27,7 +29,9 @@ class WindowDiagnostics {
 
       if (!windowExists) {
         debugPrint('[WindowDiagnostics] ❌ CRITICAL: Window does not exist!');
-        debugPrint('[WindowDiagnostics] ========================================');
+        debugPrint(
+          '[WindowDiagnostics] ========================================',
+        );
         return;
       }
 
@@ -35,9 +39,7 @@ class WindowDiagnostics {
       debugPrint(
         '[WindowDiagnostics] Window isKeyWindow: ${state['is_key_window']}',
       );
-      debugPrint(
-        '[WindowDiagnostics] Window isHidden: ${state['is_hidden']}',
-      );
+      debugPrint('[WindowDiagnostics] Window isHidden: ${state['is_hidden']}');
       debugPrint('[WindowDiagnostics] Window alpha: ${state['alpha']}');
       debugPrint(
         '[WindowDiagnostics] Window size: ${state['frame_width']} x ${state['frame_height']}',
@@ -52,13 +54,13 @@ class WindowDiagnostics {
         debugPrint(
           '[WindowDiagnostics] ❌ CRITICAL: Root view controller does not exist!',
         );
-        debugPrint('[WindowDiagnostics] ========================================');
+        debugPrint(
+          '[WindowDiagnostics] ========================================',
+        );
         return;
       }
 
-      debugPrint(
-        '[WindowDiagnostics] RootVC type: ${state['root_vc_type']}',
-      );
+      debugPrint('[WindowDiagnostics] RootVC type: ${state['root_vc_type']}');
       debugPrint(
         '[WindowDiagnostics] RootVC view alpha: ${state['root_vc_view_alpha']}',
       );
@@ -71,23 +73,21 @@ class WindowDiagnostics {
 
       // Flutter view controller
       final isFlutterVC = state['is_flutter_vc'] ?? false;
-      debugPrint(
-        '[WindowDiagnostics] Is FlutterViewController: $isFlutterVC',
-      );
+      debugPrint('[WindowDiagnostics] Is FlutterViewController: $isFlutterVC');
 
       if (!isFlutterVC) {
         debugPrint(
           '[WindowDiagnostics] ❌ CRITICAL: Root VC is NOT FlutterViewController!',
         );
-        debugPrint('[WindowDiagnostics] ========================================');
+        debugPrint(
+          '[WindowDiagnostics] ========================================',
+        );
         return;
       }
 
       // Flutter subviews
       final subviewsCount = state['flutter_subviews_count'] ?? 0;
-      debugPrint(
-        '[WindowDiagnostics] Flutter subviews count: $subviewsCount',
-      );
+      debugPrint('[WindowDiagnostics] Flutter subviews count: $subviewsCount');
 
       if (subviewsCount == 0) {
         debugPrint(
@@ -108,7 +108,9 @@ class WindowDiagnostics {
         );
       }
 
-      debugPrint('[WindowDiagnostics] ========================================');
+      debugPrint(
+        '[WindowDiagnostics] ========================================',
+      );
 
       // Analyze for black screen causes
       _analyzeForBlackScreen(state);
@@ -136,7 +138,9 @@ class WindowDiagnostics {
 
   /// Analyze the window state for potential black screen causes
   static void _analyzeForBlackScreen(Map<dynamic, dynamic> state) {
-    debugPrint('[WindowDiagnostics] ========== BLACK SCREEN ANALYSIS ==========');
+    debugPrint(
+      '[WindowDiagnostics] ========== BLACK SCREEN ANALYSIS ==========',
+    );
 
     final issues = <String>[];
 
@@ -181,6 +185,8 @@ class WindowDiagnostics {
       }
     }
 
-    debugPrint('[WindowDiagnostics] ================================================');
+    debugPrint(
+      '[WindowDiagnostics] ================================================',
+    );
   }
 }

@@ -14,9 +14,9 @@ class AdaptyService {
     required EnvironmentConfig environment,
     required AppLogger logger,
     required AnalyticsService analytics,
-  })  : _environment = environment,
-        _logger = logger,
-        _analytics = analytics;
+  }) : _environment = environment,
+       _logger = logger,
+       _analytics = analytics;
 
   final EnvironmentConfig _environment;
   final AppLogger _logger;
@@ -89,9 +89,7 @@ class AdaptyService {
       if (error.toString().contains('3005') ||
           error.toString().contains('activateOnceError') ||
           error.toString().contains('can only be activated once')) {
-        _logger.warning(
-          'Adapty already activated (error 3005) - continuing',
-        );
+        _logger.warning('Adapty already activated (error 3005) - continuing');
 
         _analytics.event(
           'adapty_initialized',

@@ -17,10 +17,10 @@ import '../../helpers/security_test_setup.dart';
 /// Test harness for soft delete functionality across all repositories
 class _SoftDeleteTestHarness {
   _SoftDeleteTestHarness()
-      : db = AppDb.forTesting(NativeDatabase.memory()),
-        userId = 'test-user-soft-delete',
-        client = _FakeSupabaseClient('test-user-soft-delete'),
-        indexer = _StubNoteIndexer() {
+    : db = AppDb.forTesting(NativeDatabase.memory()),
+      userId = 'test-user-soft-delete',
+      client = _FakeSupabaseClient('test-user-soft-delete'),
+      indexer = _StubNoteIndexer() {
     crypto = SecurityTestSetup.createTestCryptoBox();
     notesRepo = NotesCoreRepository(
       db: db,
@@ -28,16 +28,8 @@ class _SoftDeleteTestHarness {
       client: client,
       indexer: indexer,
     );
-    foldersRepo = FolderCoreRepository(
-      db: db,
-      crypto: crypto,
-      client: client,
-    );
-    tasksRepo = TaskCoreRepository(
-      db: db,
-      crypto: crypto,
-      client: client,
-    );
+    foldersRepo = FolderCoreRepository(db: db, crypto: crypto, client: client);
+    tasksRepo = TaskCoreRepository(db: db, crypto: crypto, client: client);
   }
 
   final AppDb db;
@@ -56,26 +48,26 @@ class _SoftDeleteTestHarness {
 
 class _FakeSupabaseClient extends SupabaseClient {
   _FakeSupabaseClient(String userId)
-      : _session = Session(
-          accessToken: 'token',
-          refreshToken: 'refresh',
-          tokenType: 'bearer',
-          expiresIn: 3600,
-          user: User(
-            id: userId,
-            appMetadata: const {},
-            userMetadata: const {},
-            aud: 'authenticated',
-            email: '$userId@example.com',
-            phone: '',
-            createdAt: DateTime.utc(2025, 1, 1).toIso8601String(),
-            updatedAt: DateTime.utc(2025, 1, 1).toIso8601String(),
-            role: 'authenticated',
-            identities: const [],
-            factors: const [],
-          ),
+    : _session = Session(
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        tokenType: 'bearer',
+        expiresIn: 3600,
+        user: User(
+          id: userId,
+          appMetadata: const {},
+          userMetadata: const {},
+          aud: 'authenticated',
+          email: '$userId@example.com',
+          phone: '',
+          createdAt: DateTime.utc(2025, 1, 1).toIso8601String(),
+          updatedAt: DateTime.utc(2025, 1, 1).toIso8601String(),
+          role: 'authenticated',
+          identities: const [],
+          factors: const [],
         ),
-        super('https://stub.supabase.co', 'anon-key');
+      ),
+      super('https://stub.supabase.co', 'anon-key');
 
   final Session _session;
 
@@ -182,22 +174,28 @@ void main() {
 
       // Verify deletedAt is approximately now
       expect(
-        deletedNote.deletedAt!.isAfter(beforeDelete.subtract(const Duration(seconds: 1))),
+        deletedNote.deletedAt!.isAfter(
+          beforeDelete.subtract(const Duration(seconds: 1)),
+        ),
         isTrue,
       );
       expect(
-        deletedNote.deletedAt!.isBefore(DateTime.now().add(const Duration(seconds: 1))),
+        deletedNote.deletedAt!.isBefore(
+          DateTime.now().add(const Duration(seconds: 1)),
+        ),
         isTrue,
       );
 
       // Verify scheduledPurgeAt is 30 days after deletedAt
-      final expectedPurgeAt =
-          deletedNote.deletedAt!.add(TrashService.retentionPeriod);
+      final expectedPurgeAt = deletedNote.deletedAt!.add(
+        TrashService.retentionPeriod,
+      );
       expect(
         deletedNote.scheduledPurgeAt!
-            .difference(expectedPurgeAt)
-            .abs()
-            .inSeconds < 1,
+                .difference(expectedPurgeAt)
+                .abs()
+                .inSeconds <
+            1,
         isTrue,
       );
     });
@@ -282,10 +280,16 @@ void main() {
       expect(restoredNote, isNotNull);
       expect(restoredNote!.deleted, isFalse);
       // restoreNote() should clear both deletion timestamps
-      expect(restoredNote.deletedAt, isNull,
-          reason: 'restoreNote() should clear deletedAt timestamp');
-      expect(restoredNote.scheduledPurgeAt, isNull,
-          reason: 'restoreNote() should clear scheduledPurgeAt timestamp');
+      expect(
+        restoredNote.deletedAt,
+        isNull,
+        reason: 'restoreNote() should clear deletedAt timestamp',
+      );
+      expect(
+        restoredNote.scheduledPurgeAt,
+        isNull,
+        reason: 'restoreNote() should clear scheduledPurgeAt timestamp',
+      );
 
       // Verify it's back in active notes
       final activeNotes = await harness.notesRepo.localNotes();
@@ -309,55 +313,63 @@ void main() {
       harness.dispose();
     });
 
-    test('deleteFolder sets deletedAt and scheduledPurgeAt timestamps',
-        () async {
-      // Create a folder
-      final folderId = await harness.foldersRepo.createOrUpdateFolder(
-        name: 'Test Folder',
-      );
+    test(
+      'deleteFolder sets deletedAt and scheduledPurgeAt timestamps',
+      () async {
+        // Create a folder
+        final folderId = await harness.foldersRepo.createOrUpdateFolder(
+          name: 'Test Folder',
+        );
 
-      final folder = await harness.foldersRepo.getFolder(folderId);
-      expect(folder, isNotNull);
-      expect(folder!.deletedAt, isNull);
+        final folder = await harness.foldersRepo.getFolder(folderId);
+        expect(folder, isNotNull);
+        expect(folder!.deletedAt, isNull);
 
-      final beforeDelete = DateTime.now();
+        final beforeDelete = DateTime.now();
 
-      // Delete the folder
-      await harness.foldersRepo.deleteFolder(folderId);
+        // Delete the folder
+        await harness.foldersRepo.deleteFolder(folderId);
 
-      // Verify timestamps were set
-      final deletedFolders = await harness.foldersRepo.getDeletedFolders();
-      expect(deletedFolders, hasLength(1));
+        // Verify timestamps were set
+        final deletedFolders = await harness.foldersRepo.getDeletedFolders();
+        expect(deletedFolders, hasLength(1));
 
-      final deletedFolder = deletedFolders.first;
-      expect(deletedFolder.deletedAt, isNotNull);
-      expect(deletedFolder.scheduledPurgeAt, isNotNull);
+        final deletedFolder = deletedFolders.first;
+        expect(deletedFolder.deletedAt, isNotNull);
+        expect(deletedFolder.scheduledPurgeAt, isNotNull);
 
-      // Verify deletedAt is approximately now
-      expect(
-        deletedFolder.deletedAt!.isAfter(beforeDelete.subtract(const Duration(seconds: 1))),
-        isTrue,
-      );
+        // Verify deletedAt is approximately now
+        expect(
+          deletedFolder.deletedAt!.isAfter(
+            beforeDelete.subtract(const Duration(seconds: 1)),
+          ),
+          isTrue,
+        );
 
-      // Verify scheduledPurgeAt is 30 days after deletedAt
-      final expectedPurgeAt =
-          deletedFolder.deletedAt!.add(TrashService.retentionPeriod);
-      expect(
-        deletedFolder.scheduledPurgeAt!
-            .difference(expectedPurgeAt)
-            .abs()
-            .inSeconds < 1,
-        isTrue,
-      );
-    });
+        // Verify scheduledPurgeAt is 30 days after deletedAt
+        final expectedPurgeAt = deletedFolder.deletedAt!.add(
+          TrashService.retentionPeriod,
+        );
+        expect(
+          deletedFolder.scheduledPurgeAt!
+                  .difference(expectedPurgeAt)
+                  .abs()
+                  .inSeconds <
+              1,
+          isTrue,
+        );
+      },
+    );
 
     test('getDeletedFolders returns only soft-deleted folders', () async {
       // Create three folders
       await harness.foldersRepo.createOrUpdateFolder(name: 'Active Folder');
-      final folder2Id =
-          await harness.foldersRepo.createOrUpdateFolder(name: 'To Delete 1');
-      final folder3Id =
-          await harness.foldersRepo.createOrUpdateFolder(name: 'To Delete 2');
+      final folder2Id = await harness.foldersRepo.createOrUpdateFolder(
+        name: 'To Delete 1',
+      );
+      final folder3Id = await harness.foldersRepo.createOrUpdateFolder(
+        name: 'To Delete 2',
+      );
 
       // Delete two folders
       await harness.foldersRepo.deleteFolder(folder2Id);
@@ -367,7 +379,9 @@ void main() {
       final deletedFolders = await harness.foldersRepo.getDeletedFolders();
       expect(deletedFolders, hasLength(2));
       expect(
-          deletedFolders.map((f) => f.id), containsAll([folder2Id, folder3Id]));
+        deletedFolders.map((f) => f.id),
+        containsAll([folder2Id, folder3Id]),
+      );
       expect(deletedFolders.every((f) => f.deletedAt != null), isTrue);
 
       // Verify listFolders excludes deleted folders
@@ -466,8 +480,7 @@ void main() {
       );
     }
 
-    test('deleteTask sets deletedAt and scheduledPurgeAt timestamps',
-        () async {
+    test('deleteTask sets deletedAt and scheduledPurgeAt timestamps', () async {
       // Create a task
       final createdTask = await harness.tasksRepo.createTask(
         buildTask('Test Task', containerNoteId),
@@ -492,18 +505,22 @@ void main() {
 
       // Verify deletedAt is approximately now
       expect(
-        deletedTask.deletedAt!.isAfter(beforeDelete.subtract(const Duration(seconds: 1))),
+        deletedTask.deletedAt!.isAfter(
+          beforeDelete.subtract(const Duration(seconds: 1)),
+        ),
         isTrue,
       );
 
       // Verify scheduledPurgeAt is 30 days after deletedAt
-      final expectedPurgeAt =
-          deletedTask.deletedAt!.add(TrashService.retentionPeriod);
+      final expectedPurgeAt = deletedTask.deletedAt!.add(
+        TrashService.retentionPeriod,
+      );
       expect(
         deletedTask.scheduledPurgeAt!
-            .difference(expectedPurgeAt)
-            .abs()
-            .inSeconds < 1,
+                .difference(expectedPurgeAt)
+                .abs()
+                .inSeconds <
+            1,
         isTrue,
       );
     });
@@ -531,8 +548,9 @@ void main() {
       expect(deletedTasks.every((t) => t.deletedAt != null), isTrue);
 
       // Verify getTasksForNote excludes deleted tasks
-      final activeTasks =
-          await harness.tasksRepo.getTasksForNote(containerNoteId);
+      final activeTasks = await harness.tasksRepo.getTasksForNote(
+        containerNoteId,
+      );
       expect(activeTasks, hasLength(1));
       expect(activeTasks.first.title, 'Active Task');
     });
@@ -555,8 +573,7 @@ void main() {
       deletedTasks = await harness.tasksRepo.getDeletedTasks();
       expect(deletedTasks, isEmpty);
 
-      final allTasks =
-          await harness.tasksRepo.getTasksForNote(containerNoteId);
+      final allTasks = await harness.tasksRepo.getTasksForNote(containerNoteId);
       expect(allTasks, isEmpty);
 
       final fetchedTask = await harness.tasksRepo.getTaskById(task.id);
@@ -585,8 +602,9 @@ void main() {
       expect(restoredTask.scheduledPurgeAt, isNull);
 
       // Verify it's back in active tasks
-      final activeTasks =
-          await harness.tasksRepo.getTasksForNote(containerNoteId);
+      final activeTasks = await harness.tasksRepo.getTasksForNote(
+        containerNoteId,
+      );
       expect(activeTasks, hasLength(1));
       expect(activeTasks.first.id, task.id);
 

@@ -97,21 +97,21 @@ void main() {
       taskRepo = _FakeTaskRepository();
 
       container = ProviderContainer(
-        overrides: [
-          loggerProvider.overrideWithValue(const ConsoleLogger()),
-        ],
+        overrides: [loggerProvider.overrideWithValue(const ConsoleLogger())],
       );
 
       service = container.read(
-        Provider((ref) => TrashService(
-          ref,
-          notesRepository: notesRepo,
-          folderRepository: folderRepo,
-          taskRepository: taskRepo,
-          notesRepositoryProvided: true,
-          folderRepositoryProvided: true,
-          taskRepositoryProvided: true,
-        )),
+        Provider(
+          (ref) => TrashService(
+            ref,
+            notesRepository: notesRepo,
+            folderRepository: folderRepo,
+            taskRepository: taskRepo,
+            notesRepositoryProvided: true,
+            folderRepositoryProvided: true,
+            taskRepositoryProvided: true,
+          ),
+        ),
       );
     });
 
@@ -131,7 +131,14 @@ void main() {
     test('daysUntilPurge calculates correctly', () {
       // Use fixed timestamps to avoid timing flakiness
       final now = DateTime(2025, 1, 1, 12, 0, 0);
-      final scheduledPurgeAt = DateTime(2025, 1, 16, 12, 0, 0); // Exactly 15 days later
+      final scheduledPurgeAt = DateTime(
+        2025,
+        1,
+        16,
+        12,
+        0,
+        0,
+      ); // Exactly 15 days later
 
       // Calculate difference manually to verify the method
       final difference = scheduledPurgeAt.difference(now);
@@ -141,7 +148,9 @@ void main() {
 
       // Now test the service method with a current date close to 'now'
       // Add small buffer to avoid edge cases
-      final testPurgeAt = DateTime.now().add(const Duration(days: 15, hours: 1));
+      final testPurgeAt = DateTime.now().add(
+        const Duration(days: 15, hours: 1),
+      );
       final result = service.daysUntilPurge(testPurgeAt);
 
       // Should be 15 days (the hour buffer prevents flaking to 14)
@@ -153,7 +162,9 @@ void main() {
     });
 
     test('isOverdueForPurge returns true for past dates', () {
-      final scheduledPurgeAt = DateTime.now().subtract(const Duration(hours: 1));
+      final scheduledPurgeAt = DateTime.now().subtract(
+        const Duration(hours: 1),
+      );
 
       expect(service.isOverdueForPurge(scheduledPurgeAt), isTrue);
     });
@@ -501,24 +512,29 @@ void main() {
     });
 
     // Negative path tests
-    test('permanentlyDeleteTask throws StateError when task repository is null', () async {
-      final serviceWithoutTasks = container.read(
-        Provider((ref) => TrashService(
-          ref,
-          notesRepository: notesRepo,
-          folderRepository: folderRepo,
-          taskRepository: null, // Explicitly null
-          notesRepositoryProvided: true,
-          folderRepositoryProvided: true,
-          taskRepositoryProvided: false,
-        )),
-      );
+    test(
+      'permanentlyDeleteTask throws StateError when task repository is null',
+      () async {
+        final serviceWithoutTasks = container.read(
+          Provider(
+            (ref) => TrashService(
+              ref,
+              notesRepository: notesRepo,
+              folderRepository: folderRepo,
+              taskRepository: null, // Explicitly null
+              notesRepositoryProvided: true,
+              folderRepositoryProvided: true,
+              taskRepositoryProvided: false,
+            ),
+          ),
+        );
 
-      expect(
-        () => serviceWithoutTasks.permanentlyDeleteTask('task1'),
-        throwsStateError,
-      );
-    });
+        expect(
+          () => serviceWithoutTasks.permanentlyDeleteTask('task1'),
+          throwsStateError,
+        );
+      },
+    );
 
     test('emptyTrash handles mixed success and failure', () async {
       // Add two notes - one will fail, one will succeed

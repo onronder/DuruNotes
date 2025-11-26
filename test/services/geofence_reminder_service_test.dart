@@ -147,8 +147,8 @@ void main() {
         'location_123',
         'geofence_456',
         'other_789',
-        'reminder',  // Missing UUID
-        '_reminder_550e8400-e29b-41d4-a716-446655440000',  // Wrong prefix
+        'reminder', // Missing UUID
+        '_reminder_550e8400-e29b-41d4-a716-446655440000', // Wrong prefix
       ];
 
       for (final id in nonReminderIds) {
@@ -172,7 +172,7 @@ void main() {
       expect(90.0, lessThanOrEqualTo(90.0));
 
       // Typical coordinates
-      expect(37.7749, greaterThanOrEqualTo(-90.0));  // San Francisco
+      expect(37.7749, greaterThanOrEqualTo(-90.0)); // San Francisco
       expect(37.7749, lessThanOrEqualTo(90.0));
     });
 
@@ -186,7 +186,7 @@ void main() {
       expect(180.0, lessThanOrEqualTo(180.0));
 
       // Typical coordinates
-      expect(-122.4194, greaterThanOrEqualTo(-180.0));  // San Francisco
+      expect(-122.4194, greaterThanOrEqualTo(-180.0)); // San Francisco
       expect(-122.4194, lessThanOrEqualTo(180.0));
     });
 
@@ -197,10 +197,10 @@ void main() {
       expect(double.negativeInfinity.isInfinite, isTrue);
 
       // Out of range
-      expect(91.0 > 90.0, isTrue);  // Invalid latitude
-      expect(-91.0 < -90.0, isTrue);  // Invalid latitude
-      expect(181.0 > 180.0, isTrue);  // Invalid longitude
-      expect(-181.0 < -180.0, isTrue);  // Invalid longitude
+      expect(91.0 > 90.0, isTrue); // Invalid latitude
+      expect(-91.0 < -90.0, isTrue); // Invalid latitude
+      expect(181.0 > 180.0, isTrue); // Invalid longitude
+      expect(-181.0 < -180.0, isTrue); // Invalid longitude
     });
   });
 
@@ -228,7 +228,7 @@ void main() {
       final defaultRadius = config.geofenceDefaultRadiusMeters;
 
       expect(defaultRadius, greaterThan(0));
-      expect(defaultRadius, lessThanOrEqualTo(10000));  // Not more than 10km
+      expect(defaultRadius, lessThanOrEqualTo(10000)); // Not more than 10km
       expect(defaultRadius.isFinite, isTrue);
     });
   });

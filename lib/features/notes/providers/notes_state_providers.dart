@@ -54,7 +54,9 @@ final filteredNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((
 ) async {
   // CRITICAL FIX: Safety check to prevent crashes during startup
   if (!SecurityInitialization.isInitialized) {
-    debugPrint('[filteredNotesProvider] Security not initialized, returning empty');
+    debugPrint(
+      '[filteredNotesProvider] Security not initialized, returning empty',
+    );
     return <domain.Note>[];
   }
 
@@ -182,7 +184,9 @@ final notesPageProvider =
       // This prevents race conditions during app startup where the provider
       // might be created before security services are ready
       if (!SecurityInitialization.isInitialized) {
-        debugPrint('[notesPageProvider] Security not initialized, returning empty notifier');
+        debugPrint(
+          '[notesPageProvider] Security not initialized, returning empty notifier',
+        );
         // Return empty notifier that no-ops all operations until security is ready
         return NotesPaginationNotifier.empty(ref);
       }
@@ -193,7 +197,9 @@ final notesPageProvider =
       // PHASE 5 FIX: Create notifier WITHOUT calling loadMore() immediately
       // Let the UI explicitly trigger the first load when it's ready
       // This prevents database queries during the critical startup path
-      debugPrint('[notesPageProvider] Creating active notifier (loadMore deferred to UI)');
+      debugPrint(
+        '[notesPageProvider] Creating active notifier (loadMore deferred to UI)',
+      );
       return NotesPaginationNotifier(ref, repo, mutationBus: mutationBus);
     });
 
@@ -224,7 +230,9 @@ final notesLoadingProvider = Provider<bool>((ref) {
 ///
 /// Fetches all soft-deleted notes from the repository for display in the Trash screen.
 /// Notes are ordered by updated_at (deletion time) in descending order.
-final deletedNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((ref) async {
+final deletedNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((
+  ref,
+) async {
   final repo = ref.watch(notesCoreRepositoryProvider);
   return repo.getDeletedNotes();
 });
@@ -232,21 +240,24 @@ final deletedNotesProvider = FutureProvider.autoDispose<List<domain.Note>>((ref)
 /// Provider for deleted folders
 ///
 /// Fetches all soft-deleted folders from the repository for display in the Trash screen.
-final deletedFoldersProvider = FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
-  final repo = ref.watch(folderCoreRepositoryProvider);
-  return repo.getDeletedFolders();
-});
+final deletedFoldersProvider =
+    FutureProvider.autoDispose<List<domain_folder.Folder>>((ref) async {
+      final repo = ref.watch(folderCoreRepositoryProvider);
+      return repo.getDeletedFolders();
+    });
 
 /// Provider for deleted tasks
 ///
 /// Fetches all soft-deleted tasks from the repository for display in the Trash screen.
-final deletedTasksProvider = FutureProvider.autoDispose<List<domain_task.Task>>((ref) async {
-  final repo = ref.watch(taskCoreRepositoryProvider);
-  if (repo == null) {
-    return <domain_task.Task>[];
-  }
-  return repo.getDeletedTasks();
-});
+final deletedTasksProvider = FutureProvider.autoDispose<List<domain_task.Task>>(
+  (ref) async {
+    final repo = ref.watch(taskCoreRepositoryProvider);
+    if (repo == null) {
+      return <domain_task.Task>[];
+    }
+    return repo.getDeletedTasks();
+  },
+);
 
 /// Provider for total count of deleted items across all types
 ///
@@ -259,9 +270,11 @@ final deletedItemsCountProvider = Provider.autoDispose<AsyncValue<int>>((ref) {
   // Wait for all providers to load
   return notesAsync.whenData((notes) {
     return foldersAsync.whenData((folders) {
-      return tasksAsync.whenData((tasks) {
-        return notes.length + folders.length + tasks.length;
-      }).valueOrNull ?? 0;
-    }).valueOrNull ?? 0;
+          return tasksAsync.whenData((tasks) {
+                return notes.length + folders.length + tasks.length;
+              }).valueOrNull ??
+              0;
+        }).valueOrNull ??
+        0;
   });
 });

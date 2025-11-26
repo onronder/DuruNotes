@@ -21,7 +21,9 @@ class Migration40SoftDeleteTimestamps {
   static final AppLogger _logger = LoggerFactory.instance;
 
   /// 30-day retention period in microseconds (Drift stores DateTime as microseconds)
-  static final int _retentionPeriodMicros = const Duration(days: 30).inMicroseconds;
+  static final int _retentionPeriodMicros = const Duration(
+    days: 30,
+  ).inMicroseconds;
 
   /// Apply soft delete timestamp columns for Phase 1.1
   static Future<void> apply(DatabaseConnectionUser db) async {
@@ -86,9 +88,7 @@ class Migration40SoftDeleteTimestamps {
           'ALTER TABLE $tableName ADD COLUMN deleted_at INTEGER',
         ),
       );
-      _logger.debug(
-        '[Migration 40] Added deleted_at column to $tableName',
-      );
+      _logger.debug('[Migration 40] Added deleted_at column to $tableName');
     }
 
     // Add scheduled_purge_at column if not exists
@@ -118,9 +118,7 @@ class Migration40SoftDeleteTimestamps {
     await _backfillTable(db, tableName: 'local_folders');
     await _backfillTable(db, tableName: 'note_tasks');
 
-    _logger.debug(
-      '[Migration 40] Backfill completed for all tables',
-    );
+    _logger.debug('[Migration 40] Backfill completed for all tables');
   }
 
   /// Backfill timestamps for a specific table
@@ -130,15 +128,15 @@ class Migration40SoftDeleteTimestamps {
     required String tableName,
   }) async {
     // Count items that need backfill
-    final countResult = await db.customSelect(
-      'SELECT COUNT(*) as count FROM $tableName WHERE deleted = 1 AND deleted_at IS NULL',
-    ).getSingle();
+    final countResult = await db
+        .customSelect(
+          'SELECT COUNT(*) as count FROM $tableName WHERE deleted = 1 AND deleted_at IS NULL',
+        )
+        .getSingle();
 
     final count = countResult.read<int>('count');
     if (count == 0) {
-      _logger.debug(
-        '[Migration 40] No items to backfill in $tableName',
-      );
+      _logger.debug('[Migration 40] No items to backfill in $tableName');
       return;
     }
 

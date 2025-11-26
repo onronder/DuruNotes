@@ -385,10 +385,7 @@ void main() {
       final result = parser.parse('tag:first tag:second tag:third');
 
       expect(result.filters.tags, hasLength(3));
-      expect(
-        result.filters.tags,
-        containsAll(['first', 'second', 'third']),
-      );
+      expect(result.filters.tags, containsAll(['first', 'second', 'third']));
     });
   });
 

@@ -92,7 +92,9 @@ void main() {
 
   Future<void> seedNote({required String noteId}) async {
     final now = DateTime.utc(2025, 11, 19);
-    await db.into(db.localNotes).insert(
+    await db
+        .into(db.localNotes)
+        .insert(
           LocalNotesCompanion.insert(
             id: noteId,
             titleEncrypted: const Value('encrypted-title'),
@@ -112,9 +114,13 @@ void main() {
       // Arrange
       await seedNote(noteId: 'note-1');
 
-      final localTitleEnc = Uint8List.fromList('local-encrypted-title'.codeUnits);
+      final localTitleEnc = Uint8List.fromList(
+        'local-encrypted-title'.codeUnits,
+      );
       final localBodyEnc = Uint8List.fromList('local-encrypted-body'.codeUnits);
-      final localLocationEnc = Uint8List.fromList('local-encrypted-location'.codeUnits);
+      final localLocationEnc = Uint8List.fromList(
+        'local-encrypted-location'.codeUnits,
+      );
 
       // Create local reminder with encryption (newer)
       final reminderId = UuidTestHelper.deterministicUuid('conflict-test-1');
@@ -137,8 +143,12 @@ void main() {
       );
 
       // Remote reminder with different encryption (older)
-      final remoteTitleEnc = Uint8List.fromList('remote-encrypted-title'.codeUnits);
-      final remoteBodyEnc = Uint8List.fromList('remote-encrypted-body'.codeUnits);
+      final remoteTitleEnc = Uint8List.fromList(
+        'remote-encrypted-title'.codeUnits,
+      );
+      final remoteBodyEnc = Uint8List.fromList(
+        'remote-encrypted-body'.codeUnits,
+      );
 
       final remoteReminder = {
         'id': reminderId,
@@ -168,10 +178,18 @@ void main() {
         'notification_image': null,
         'time_zone': 'UTC',
         'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
-        'updated_at': DateTime.utc(2025, 11, 19, 11, 0).toIso8601String(), // Older
+        'updated_at': DateTime.utc(
+          2025,
+          11,
+          19,
+          11,
+          0,
+        ).toIso8601String(), // Older
       };
 
-      when(mockNoteApi.getReminders()).thenAnswer((_) async => [remoteReminder]);
+      when(
+        mockNoteApi.getReminders(),
+      ).thenAnswer((_) async => [remoteReminder]);
 
       // Act - Trigger sync (conflict should be detected)
       final result = await service.syncRemindersForTest();
@@ -197,7 +215,9 @@ void main() {
       // Arrange
       await seedNote(noteId: 'note-2');
 
-      final localTitleEnc = Uint8List.fromList('local-encrypted-title'.codeUnits);
+      final localTitleEnc = Uint8List.fromList(
+        'local-encrypted-title'.codeUnits,
+      );
       final localBodyEnc = Uint8List.fromList('local-encrypted-body'.codeUnits);
 
       // Create local reminder with encryption (older)
@@ -219,9 +239,15 @@ void main() {
       );
 
       // Remote reminder with different encryption (newer)
-      final remoteTitleEnc = Uint8List.fromList('remote-encrypted-title'.codeUnits);
-      final remoteBodyEnc = Uint8List.fromList('remote-encrypted-body'.codeUnits);
-      final remoteLocationEnc = Uint8List.fromList('remote-encrypted-location'.codeUnits);
+      final remoteTitleEnc = Uint8List.fromList(
+        'remote-encrypted-title'.codeUnits,
+      );
+      final remoteBodyEnc = Uint8List.fromList(
+        'remote-encrypted-body'.codeUnits,
+      );
+      final remoteLocationEnc = Uint8List.fromList(
+        'remote-encrypted-location'.codeUnits,
+      );
 
       final remoteReminder = {
         'id': reminderId,
@@ -251,10 +277,18 @@ void main() {
         'notification_image': null,
         'time_zone': 'UTC',
         'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
-        'updated_at': DateTime.utc(2025, 11, 19, 12, 0).toIso8601String(), // Newer
+        'updated_at': DateTime.utc(
+          2025,
+          11,
+          19,
+          12,
+          0,
+        ).toIso8601String(), // Newer
       };
 
-      when(mockNoteApi.getReminders()).thenAnswer((_) async => [remoteReminder]);
+      when(
+        mockNoteApi.getReminders(),
+      ).thenAnswer((_) async => [remoteReminder]);
 
       // Act - Trigger sync (conflict should be detected)
       final result = await service.syncRemindersForTest();
@@ -276,80 +310,95 @@ void main() {
       expect(stored.bodyEncrypted, isNot(equals(localBodyEnc)));
     });
 
-    test('preserves local encryption when remote is missing encryption', () async {
-      // Arrange
-      await seedNote(noteId: 'note-3');
+    test(
+      'preserves local encryption when remote is missing encryption',
+      () async {
+        // Arrange
+        await seedNote(noteId: 'note-3');
 
-      final localTitleEnc = Uint8List.fromList('local-encrypted-title'.codeUnits);
-      final localBodyEnc = Uint8List.fromList('local-encrypted-body'.codeUnits);
+        final localTitleEnc = Uint8List.fromList(
+          'local-encrypted-title'.codeUnits,
+        );
+        final localBodyEnc = Uint8List.fromList(
+          'local-encrypted-body'.codeUnits,
+        );
 
-      // Create local reminder with encryption
-      final reminderId = UuidTestHelper.deterministicUuid('conflict-test-3');
-      await db.createReminder(
-        NoteRemindersCompanion.insert(
-          id: Value(reminderId),
-          noteId: 'note-3',
-          userId: 'user-123',
-          type: ReminderType.time,
-          title: const Value('Encrypted Title'),
-          body: const Value('Encrypted Body'),
-          titleEncrypted: Value(localTitleEnc),
-          bodyEncrypted: Value(localBodyEnc),
-          encryptionVersion: const Value(1),
-          createdAt: Value(DateTime.utc(2025, 11, 19, 10, 0)),
-          updatedAt: Value(DateTime.utc(2025, 11, 19, 11, 0)),
-        ),
-      );
+        // Create local reminder with encryption
+        final reminderId = UuidTestHelper.deterministicUuid('conflict-test-3');
+        await db.createReminder(
+          NoteRemindersCompanion.insert(
+            id: Value(reminderId),
+            noteId: 'note-3',
+            userId: 'user-123',
+            type: ReminderType.time,
+            title: const Value('Encrypted Title'),
+            body: const Value('Encrypted Body'),
+            titleEncrypted: Value(localTitleEnc),
+            bodyEncrypted: Value(localBodyEnc),
+            encryptionVersion: const Value(1),
+            createdAt: Value(DateTime.utc(2025, 11, 19, 10, 0)),
+            updatedAt: Value(DateTime.utc(2025, 11, 19, 11, 0)),
+          ),
+        );
 
-      // Remote reminder WITHOUT encryption (pre-v42 or encryption failed)
-      final remoteReminder = {
-        'id': reminderId,
-        'note_id': 'note-3',
-        'user_id': 'user-123',
-        'title': 'Plaintext Title',
-        'body': 'Plaintext Body',
-        'location_name': null,
-        'title_enc': null, // No encryption
-        'body_enc': null,
-        'location_name_enc': null,
-        'encryption_version': null,
-        'type': 'time',
-        'remind_at': DateTime.utc(2025, 11, 20, 10).toIso8601String(),
-        'is_active': true,
-        'recurrence_pattern': 'none',
-        'recurrence_interval': 1,
-        'latitude': null,
-        'longitude': null,
-        'radius': null,
-        'snoozed_until': null,
-        'snooze_count': 0,
-        'trigger_count': 0,
-        'last_triggered': null,
-        'notification_title': null,
-        'notification_body': null,
-        'notification_image': null,
-        'time_zone': 'UTC',
-        'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
-        'updated_at': DateTime.utc(2025, 11, 19, 12, 0).toIso8601String(), // Newer but unencrypted
-      };
+        // Remote reminder WITHOUT encryption (pre-v42 or encryption failed)
+        final remoteReminder = {
+          'id': reminderId,
+          'note_id': 'note-3',
+          'user_id': 'user-123',
+          'title': 'Plaintext Title',
+          'body': 'Plaintext Body',
+          'location_name': null,
+          'title_enc': null, // No encryption
+          'body_enc': null,
+          'location_name_enc': null,
+          'encryption_version': null,
+          'type': 'time',
+          'remind_at': DateTime.utc(2025, 11, 20, 10).toIso8601String(),
+          'is_active': true,
+          'recurrence_pattern': 'none',
+          'recurrence_interval': 1,
+          'latitude': null,
+          'longitude': null,
+          'radius': null,
+          'snoozed_until': null,
+          'snooze_count': 0,
+          'trigger_count': 0,
+          'last_triggered': null,
+          'notification_title': null,
+          'notification_body': null,
+          'notification_image': null,
+          'time_zone': 'UTC',
+          'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
+          'updated_at': DateTime.utc(
+            2025,
+            11,
+            19,
+            12,
+            0,
+          ).toIso8601String(), // Newer but unencrypted
+        };
 
-      when(mockNoteApi.getReminders()).thenAnswer((_) async => [remoteReminder]);
+        when(
+          mockNoteApi.getReminders(),
+        ).thenAnswer((_) async => [remoteReminder]);
 
-      // Act
-      final result = await service.syncRemindersForTest();
+        // Act
+        final result = await service.syncRemindersForTest();
 
-      // Assert
-      expect(result.success, isTrue);
+        // Assert
+        expect(result.success, isTrue);
 
-      final stored = await db.getReminderById(reminderId, 'user-123');
-      expect(stored, isNotNull);
+        final stored = await db.getReminderById(reminderId, 'user-123');
+        expect(stored, isNotNull);
 
-      // CRITICAL #5: Verify local encryption PRESERVED despite remote being newer
-      // This prevents encryption loss when syncing with unencrypted devices
-      expect(stored!.titleEncrypted, equals(localTitleEnc));
-      expect(stored.bodyEncrypted, equals(localBodyEnc));
-      expect(stored.encryptionVersion, 1);
-    });
+        // CRITICAL #5: Verify local encryption PRESERVED despite remote being newer
+        // This prevents encryption loss when syncing with unencrypted devices
+        expect(stored!.titleEncrypted, equals(localTitleEnc));
+        expect(stored.bodyEncrypted, equals(localBodyEnc));
+        expect(stored.encryptionVersion, 1);
+      },
+    );
 
     test('uses remote encryption when local is missing encryption', () async {
       // Arrange
@@ -366,13 +415,19 @@ void main() {
           title: const Value('Plaintext Title'),
           body: const Value('Plaintext Body'),
           createdAt: Value(DateTime.utc(2025, 11, 19, 10, 0)),
-          updatedAt: Value(DateTime.utc(2025, 11, 19, 12, 0)), // Newer but unencrypted
+          updatedAt: Value(
+            DateTime.utc(2025, 11, 19, 12, 0),
+          ), // Newer but unencrypted
         ),
       );
 
       // Remote reminder WITH encryption (older but encrypted)
-      final remoteTitleEnc = Uint8List.fromList('remote-encrypted-title'.codeUnits);
-      final remoteBodyEnc = Uint8List.fromList('remote-encrypted-body'.codeUnits);
+      final remoteTitleEnc = Uint8List.fromList(
+        'remote-encrypted-title'.codeUnits,
+      );
+      final remoteBodyEnc = Uint8List.fromList(
+        'remote-encrypted-body'.codeUnits,
+      );
 
       final remoteReminder = {
         'id': reminderId,
@@ -402,10 +457,18 @@ void main() {
         'notification_image': null,
         'time_zone': 'UTC',
         'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
-        'updated_at': DateTime.utc(2025, 11, 19, 11, 0).toIso8601String(), // Older but encrypted
+        'updated_at': DateTime.utc(
+          2025,
+          11,
+          19,
+          11,
+          0,
+        ).toIso8601String(), // Older but encrypted
       };
 
-      when(mockNoteApi.getReminders()).thenAnswer((_) async => [remoteReminder]);
+      when(
+        mockNoteApi.getReminders(),
+      ).thenAnswer((_) async => [remoteReminder]);
 
       // Act
       final result = await service.syncRemindersForTest();
@@ -470,10 +533,18 @@ void main() {
         'notification_image': null,
         'time_zone': 'UTC',
         'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
-        'updated_at': DateTime.utc(2025, 11, 19, 12, 0).toIso8601String(), // Newer
+        'updated_at': DateTime.utc(
+          2025,
+          11,
+          19,
+          12,
+          0,
+        ).toIso8601String(), // Newer
       };
 
-      when(mockNoteApi.getReminders()).thenAnswer((_) async => [remoteReminder]);
+      when(
+        mockNoteApi.getReminders(),
+      ).thenAnswer((_) async => [remoteReminder]);
 
       // Act
       final result = await service.syncRemindersForTest();
@@ -494,100 +565,111 @@ void main() {
       expect(stored.body, 'New Plaintext Body');
     });
 
-    test('conflict resolution still applies other strategies with encryption', () async {
-      // Verify that encryption preservation doesn't interfere with other conflict strategies
-      await seedNote(noteId: 'note-6');
+    test(
+      'conflict resolution still applies other strategies with encryption',
+      () async {
+        // Verify that encryption preservation doesn't interfere with other conflict strategies
+        await seedNote(noteId: 'note-6');
 
-      final localTitleEnc = Uint8List.fromList('local-title-enc'.codeUnits);
-      final localBodyEnc = Uint8List.fromList('local-body-enc'.codeUnits);
+        final localTitleEnc = Uint8List.fromList('local-title-enc'.codeUnits);
+        final localBodyEnc = Uint8List.fromList('local-body-enc'.codeUnits);
 
-      // Create local reminder: encrypted, snoozed, triggered
-      final reminderId = UuidTestHelper.deterministicUuid('conflict-test-6');
-      await db.createReminder(
-        NoteRemindersCompanion.insert(
-          id: Value(reminderId),
-          noteId: 'note-6',
-          userId: 'user-123',
-          type: ReminderType.time,
-          title: const Value('Local'),
-          body: const Value('Local'),
-          titleEncrypted: Value(localTitleEnc),
-          bodyEncrypted: Value(localBodyEnc),
-          encryptionVersion: const Value(1),
-          isActive: const Value(true),
-          snoozedUntil: Value(DateTime.utc(2025, 11, 20, 10)),
-          snoozeCount: const Value(2),
-          triggerCount: const Value(3),
-          createdAt: Value(DateTime.utc(2025, 11, 19, 10, 0)),
-          updatedAt: Value(DateTime.utc(2025, 11, 19, 11, 0)), // Older
-        ),
-      );
+        // Create local reminder: encrypted, snoozed, triggered
+        final reminderId = UuidTestHelper.deterministicUuid('conflict-test-6');
+        await db.createReminder(
+          NoteRemindersCompanion.insert(
+            id: Value(reminderId),
+            noteId: 'note-6',
+            userId: 'user-123',
+            type: ReminderType.time,
+            title: const Value('Local'),
+            body: const Value('Local'),
+            titleEncrypted: Value(localTitleEnc),
+            bodyEncrypted: Value(localBodyEnc),
+            encryptionVersion: const Value(1),
+            isActive: const Value(true),
+            snoozedUntil: Value(DateTime.utc(2025, 11, 20, 10)),
+            snoozeCount: const Value(2),
+            triggerCount: const Value(3),
+            createdAt: Value(DateTime.utc(2025, 11, 19, 10, 0)),
+            updatedAt: Value(DateTime.utc(2025, 11, 19, 11, 0)), // Older
+          ),
+        );
 
-      final remoteTitleEnc = Uint8List.fromList('remote-title-enc'.codeUnits);
-      final remoteBodyEnc = Uint8List.fromList('remote-body-enc'.codeUnits);
+        final remoteTitleEnc = Uint8List.fromList('remote-title-enc'.codeUnits);
+        final remoteBodyEnc = Uint8List.fromList('remote-body-enc'.codeUnits);
 
-      // Remote: newer, inactive, no snooze, different trigger count
-      final remoteReminder = {
-        'id': reminderId,
-        'note_id': 'note-6',
-        'user_id': 'user-123',
-        'title': 'Remote',
-        'body': 'Remote',
-        'location_name': null,
-        'title_enc': remoteTitleEnc,
-        'body_enc': remoteBodyEnc,
-        'location_name_enc': null,
-        'encryption_version': 1,
-        'type': 'time',
-        'remind_at': DateTime.utc(2025, 11, 20, 15).toIso8601String(),
-        'is_active': false, // Deactivated
-        'recurrence_pattern': 'none',
-        'recurrence_interval': 1,
-        'latitude': null,
-        'longitude': null,
-        'radius': null,
-        'snoozed_until': null, // No snooze
-        'snooze_count': 0,
-        'trigger_count': 5, // Different trigger count
-        'last_triggered': null,
-        'notification_title': null,
-        'notification_body': null,
-        'notification_image': null,
-        'time_zone': 'UTC',
-        'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
-        'updated_at': DateTime.utc(2025, 11, 19, 12, 0).toIso8601String(), // Newer
-      };
+        // Remote: newer, inactive, no snooze, different trigger count
+        final remoteReminder = {
+          'id': reminderId,
+          'note_id': 'note-6',
+          'user_id': 'user-123',
+          'title': 'Remote',
+          'body': 'Remote',
+          'location_name': null,
+          'title_enc': remoteTitleEnc,
+          'body_enc': remoteBodyEnc,
+          'location_name_enc': null,
+          'encryption_version': 1,
+          'type': 'time',
+          'remind_at': DateTime.utc(2025, 11, 20, 15).toIso8601String(),
+          'is_active': false, // Deactivated
+          'recurrence_pattern': 'none',
+          'recurrence_interval': 1,
+          'latitude': null,
+          'longitude': null,
+          'radius': null,
+          'snoozed_until': null, // No snooze
+          'snooze_count': 0,
+          'trigger_count': 5, // Different trigger count
+          'last_triggered': null,
+          'notification_title': null,
+          'notification_body': null,
+          'notification_image': null,
+          'time_zone': 'UTC',
+          'created_at': DateTime.utc(2025, 11, 19, 10, 0).toIso8601String(),
+          'updated_at': DateTime.utc(
+            2025,
+            11,
+            19,
+            12,
+            0,
+          ).toIso8601String(), // Newer
+        };
 
-      when(mockNoteApi.getReminders()).thenAnswer((_) async => [remoteReminder]);
+        when(
+          mockNoteApi.getReminders(),
+        ).thenAnswer((_) async => [remoteReminder]);
 
-      // Act
-      final result = await service.syncRemindersForTest();
+        // Act
+        final result = await service.syncRemindersForTest();
 
-      // Assert
-      expect(result.success, isTrue);
+        // Assert
+        expect(result.success, isTrue);
 
-      final stored = await db.getReminderById(reminderId, 'user-123');
-      expect(stored, isNotNull);
+        final stored = await db.getReminderById(reminderId, 'user-123');
+        expect(stored, isNotNull);
 
-      // CRITICAL #5: Verify remote encryption (newer)
-      expect(stored!.titleEncrypted, equals(remoteTitleEnc));
-      expect(stored.bodyEncrypted, equals(remoteBodyEnc));
+        // CRITICAL #5: Verify remote encryption (newer)
+        expect(stored!.titleEncrypted, equals(remoteTitleEnc));
+        expect(stored.bodyEncrypted, equals(remoteBodyEnc));
 
-      // STRATEGY 1: Prefer snoozed_until (local has it, remote doesn't)
-      expect(stored.snoozedUntil, isNotNull);
-      // Compare timestamps accounting for potential timezone conversion
-      final expectedSnooze = DateTime.utc(2025, 11, 20, 10);
-      expect(
-        stored.snoozedUntil!.toUtc(),
-        equals(expectedSnooze),
-        reason: 'Snoozed time should match (accounting for timezone)',
-      );
+        // STRATEGY 1: Prefer snoozed_until (local has it, remote doesn't)
+        expect(stored.snoozedUntil, isNotNull);
+        // Compare timestamps accounting for potential timezone conversion
+        final expectedSnooze = DateTime.utc(2025, 11, 20, 10);
+        expect(
+          stored.snoozedUntil!.toUtc(),
+          equals(expectedSnooze),
+          reason: 'Snoozed time should match (accounting for timezone)',
+        );
 
-      // STRATEGY 2: Merge trigger_count (sum)
-      expect(stored.triggerCount, 8); // 3 + 5
+        // STRATEGY 2: Merge trigger_count (sum)
+        expect(stored.triggerCount, 8); // 3 + 5
 
-      // STRATEGY 3: Prefer is_active=false
-      expect(stored.isActive, false);
-    });
+        // STRATEGY 3: Prefer is_active=false
+        expect(stored.isActive, false);
+      },
+    );
   });
 }

@@ -92,7 +92,8 @@ class ServiceAdapter {
       final position = _readInt(task.metadata['position']) ?? 0;
       final parentTaskId = task.metadata['parentTaskId'] as String?;
       final deleted =
-          task.deletedAt != null || (_readBool(task.metadata['deleted']) ?? false);
+          task.deletedAt != null ||
+          (_readBool(task.metadata['deleted']) ?? false);
 
       // Get user ID for encryption
       final userId = client.auth.currentUser?.id;
@@ -237,8 +238,8 @@ class ServiceAdapter {
             : DateTime.now().toUtc(),
         updatedAt: DateTime.parse(data['updated_at'] as String),
         userId: (data['user_id'] ?? '') as String,
-        deleted: ((data['deleted'] ?? false) as bool) ||
-            data['deleted_at'] != null,
+        deleted:
+            ((data['deleted'] ?? false) as bool) || data['deleted_at'] != null,
         deletedAt: data['deleted_at'] != null
             ? DateTime.parse(data['deleted_at'] as String)
             : null,
@@ -422,7 +423,10 @@ class ServiceAdapter {
       final createdAt = data['created_at'] as String?;
       final updatedAt = data['updated_at'] as String?;
 
-      if (id == null || name == null || createdAt == null || updatedAt == null) {
+      if (id == null ||
+          name == null ||
+          createdAt == null ||
+          updatedAt == null) {
         _logger.warning(
           'Skipping folder with null required fields (likely anonymized)',
           data: {

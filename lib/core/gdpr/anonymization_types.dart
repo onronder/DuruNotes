@@ -76,16 +76,17 @@ class UserConfirmations {
   /// Validate confirmation token (case-insensitive)
   bool validateToken(String userId) {
     final expectedToken = generateConfirmationToken(userId);
-    return finalConfirmationToken.trim().toUpperCase() == expectedToken.toUpperCase();
+    return finalConfirmationToken.trim().toUpperCase() ==
+        expectedToken.toUpperCase();
   }
 
   Map<String, dynamic> toJson() => {
-        'dataBackupComplete': dataBackupComplete,
-        'understandsIrreversibility': understandsIrreversibility,
-        'finalConfirmationTokenProvided': finalConfirmationToken.isNotEmpty,
-        'acknowledgesRisks': acknowledgesRisks,
-        'allowProductionOverride': allowProductionOverride,
-      };
+    'dataBackupComplete': dataBackupComplete,
+    'understandsIrreversibility': understandsIrreversibility,
+    'finalConfirmationTokenProvided': finalConfirmationToken.isNotEmpty,
+    'acknowledgesRisks': acknowledgesRisks,
+    'allowProductionOverride': allowProductionOverride,
+  };
 }
 
 /// Progress updates for real-time UI feedback during anonymization
@@ -151,14 +152,14 @@ class AnonymizationProgress {
   }
 
   Map<String, dynamic> toJson() => {
-        'currentPhase': currentPhase,
-        'phaseName': phaseName,
-        'phaseProgress': phaseProgress,
-        'statusMessage': statusMessage,
-        'pointOfNoReturnReached': pointOfNoReturnReached,
-        'overallProgress': overallProgress,
-        'overallProgressPercent': overallProgressPercent,
-      };
+    'currentPhase': currentPhase,
+    'phaseName': phaseName,
+    'phaseProgress': phaseProgress,
+    'statusMessage': statusMessage,
+    'pointOfNoReturnReached': pointOfNoReturnReached,
+    'overallProgress': overallProgress,
+    'overallProgressPercent': overallProgressPercent,
+  };
 }
 
 /// Report for individual anonymization phase
@@ -208,8 +209,8 @@ class PhaseReport {
     this.completedAt,
     List<String>? errors,
     Map<String, dynamic>? details,
-  })  : errors = errors ?? [],
-        details = details ?? {};
+  }) : errors = errors ?? [],
+       details = details ?? {};
 
   /// Duration of phase execution
   Duration? get duration {
@@ -271,16 +272,16 @@ class PhaseReport {
   }
 
   Map<String, dynamic> toJson() => {
-        'phaseNumber': phaseNumber,
-        'phaseName': phaseName,
-        'completed': completed,
-        'success': success,
-        'startedAt': startedAt?.toIso8601String(),
-        'completedAt': completedAt?.toIso8601String(),
-        'durationMs': duration?.inMilliseconds,
-        'errors': errors,
-        'details': details,
-      };
+    'phaseNumber': phaseNumber,
+    'phaseName': phaseName,
+    'completed': completed,
+    'success': success,
+    'startedAt': startedAt?.toIso8601String(),
+    'completedAt': completedAt?.toIso8601String(),
+    'durationMs': duration?.inMilliseconds,
+    'errors': errors,
+    'details': details,
+  };
 }
 
 /// Complete GDPR anonymization report for compliance and audit trail
@@ -422,7 +423,9 @@ class GDPRAnonymizationReport {
     buffer.writeln('Anonymization ID: $anonymizationId');
     buffer.writeln('User ID (Anonymized): ${_hashUserId(userId)}');
     buffer.writeln('Started At: ${startedAt.toIso8601String()}');
-    buffer.writeln('Completed At: ${completedAt?.toIso8601String() ?? 'IN PROGRESS'}');
+    buffer.writeln(
+      'Completed At: ${completedAt?.toIso8601String() ?? 'IN PROGRESS'}',
+    );
     buffer.writeln('Duration: ${duration?.inSeconds ?? 0} seconds');
     buffer.writeln('Status: ${success ? '✅ SUCCESS' : '❌ FAILED'}');
     buffer.writeln();
@@ -461,8 +464,12 @@ class GDPRAnonymizationReport {
     buffer.writeln();
 
     buffer.writeln('='.padRight(70, '='));
-    buffer.writeln('This certificate serves as proof that personal data has been');
-    buffer.writeln('irreversibly anonymized in compliance with GDPR Article 17.');
+    buffer.writeln(
+      'This certificate serves as proof that personal data has been',
+    );
+    buffer.writeln(
+      'irreversibly anonymized in compliance with GDPR Article 17.',
+    );
     buffer.writeln('='.padRight(70, '='));
 
     return buffer.toString();
@@ -471,7 +478,9 @@ class GDPRAnonymizationReport {
   void _writePhaseSummary(StringBuffer buffer, PhaseReport phase) {
     final status = phase.success ? '✅' : (phase.completed ? '❌' : '⏳');
     buffer.writeln('Phase ${phase.phaseNumber}: ${phase.phaseName}');
-    buffer.writeln('  Status: $status ${phase.success ? 'SUCCESS' : (phase.completed ? 'FAILED' : 'PENDING')}');
+    buffer.writeln(
+      '  Status: $status ${phase.success ? 'SUCCESS' : (phase.completed ? 'FAILED' : 'PENDING')}',
+    );
     if (phase.duration != null) {
       buffer.writeln('  Duration: ${phase.duration!.inMilliseconds}ms');
     }
@@ -489,27 +498,27 @@ class GDPRAnonymizationReport {
 
   /// Convert to JSON for audit trail storage
   Map<String, dynamic> toJson() => {
-        'anonymizationId': anonymizationId,
-        'userId': userId,
-        'startedAt': startedAt.toIso8601String(),
-        'completedAt': completedAt?.toIso8601String(),
-        'durationSeconds': duration?.inSeconds,
-        'success': success,
-        'errors': errors,
-        'successfulPhasesCount': successfulPhasesCount,
-        'pointOfNoReturnReached': pointOfNoReturnReached,
-        'phases': {
-          'phase1': phase1Validation.toJson(),
-          'phase2': phase2Metadata.toJson(),
-          'phase3': phase3KeyDestruction.toJson(),
-          'phase4': phase4Tombstoning.toJson(),
-          'phase5': phase5MetadataClearing.toJson(),
-          'phase6': phase6SyncInvalidation.toJson(),
-          'phase7': phase7ComplianceProof.toJson(),
-        },
-        'keyDestruction': keyDestructionReport?.toJson(),
-        'proofHash': proofHash,
-      };
+    'anonymizationId': anonymizationId,
+    'userId': userId,
+    'startedAt': startedAt.toIso8601String(),
+    'completedAt': completedAt?.toIso8601String(),
+    'durationSeconds': duration?.inSeconds,
+    'success': success,
+    'errors': errors,
+    'successfulPhasesCount': successfulPhasesCount,
+    'pointOfNoReturnReached': pointOfNoReturnReached,
+    'phases': {
+      'phase1': phase1Validation.toJson(),
+      'phase2': phase2Metadata.toJson(),
+      'phase3': phase3KeyDestruction.toJson(),
+      'phase4': phase4Tombstoning.toJson(),
+      'phase5': phase5MetadataClearing.toJson(),
+      'phase6': phase6SyncInvalidation.toJson(),
+      'phase7': phase7ComplianceProof.toJson(),
+    },
+    'keyDestruction': keyDestructionReport?.toJson(),
+    'proofHash': proofHash,
+  };
 
   /// Convert to pretty-printed JSON string
   String toPrettyJson() {

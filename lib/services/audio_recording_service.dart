@@ -33,7 +33,8 @@ class AudioRecordingService {
   final Ref _ref;
   AppLogger get _logger => _ref.read(loggerProvider);
   AnalyticsService get _analytics => _ref.read(analyticsProvider);
-  AttachmentService get _attachmentService => _ref.read(attachmentServiceProvider);
+  AttachmentService get _attachmentService =>
+      _ref.read(attachmentServiceProvider);
   final AudioRecorder _recorder = AudioRecorder();
 
   bool _isRecording = false;
@@ -78,10 +79,7 @@ class AudioRecordingService {
 
       _analytics.featureUsed(
         'audio_recording_start',
-        properties: {
-          'session_id': sessionId,
-          'recording_type': 'voice_note',
-        },
+        properties: {'session_id': sessionId, 'recording_type': 'voice_note'},
       );
 
       _logger.info(

@@ -112,7 +112,9 @@ final voiceNotesServiceProvider = Provider<VoiceNotesService>((ref) {
 });
 
 /// Voice transcription service provider for speech-to-text dictation
-final voiceTranscriptionServiceProvider = Provider<VoiceTranscriptionService>((ref) {
+final voiceTranscriptionServiceProvider = Provider<VoiceTranscriptionService>((
+  ref,
+) {
   final service = VoiceTranscriptionService(ref);
   ref.onDispose(service.dispose);
   return service;
@@ -321,7 +323,9 @@ final encryptionSyncServiceProvider = Provider<EncryptionSyncService>((ref) {
 /// 7. Final Audit Trail & Compliance Proof
 ///
 /// WARNING: Phase 3 is irreversible - all encrypted data becomes permanently inaccessible
-final gdprAnonymizationServiceProvider = Provider<GDPRAnonymizationService>((ref) {
+final gdprAnonymizationServiceProvider = Provider<GDPRAnonymizationService>((
+  ref,
+) {
   final keyManager = ref.watch(keyManagerProvider);
   final accountKeyService = ref.watch(accountKeyServiceProvider);
   final encryptionSyncService = ref.watch(encryptionSyncServiceProvider);

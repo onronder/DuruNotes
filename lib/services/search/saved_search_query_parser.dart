@@ -96,10 +96,9 @@ class SavedSearchQueryParser {
       if (char == '"') {
         if (inQuotes) {
           // End of quoted text
-          tokens.add(QueryToken(
-            type: TokenType.text,
-            value: buffer.toString(),
-          ));
+          tokens.add(
+            QueryToken(type: TokenType.text, value: buffer.toString()),
+          );
           buffer.clear();
           inQuotes = false;
         } else {
@@ -126,10 +125,7 @@ class SavedSearchQueryParser {
     if (buffer.isNotEmpty) {
       if (inQuotes) {
         // Unclosed quote - treat as text
-        tokens.add(QueryToken(
-          type: TokenType.text,
-          value: buffer.toString(),
-        ));
+        tokens.add(QueryToken(type: TokenType.text, value: buffer.toString()));
       } else {
         _processBuffer(buffer.toString(), tokens);
       }
@@ -143,20 +139,15 @@ class SavedSearchQueryParser {
     if (content.contains(':')) {
       final parts = content.split(':');
       if (parts.length == 2 && _isValidFilterKey(parts[0])) {
-        tokens.add(QueryToken(
-          type: TokenType.filter,
-          key: parts[0],
-          value: parts[1],
-        ));
+        tokens.add(
+          QueryToken(type: TokenType.filter, key: parts[0], value: parts[1]),
+        );
         return;
       }
     }
 
     // Not a filter, treat as text
-    tokens.add(QueryToken(
-      type: TokenType.text,
-      value: content,
-    ));
+    tokens.add(QueryToken(type: TokenType.text, value: content));
   }
 
   /// Check if key is a valid filter
@@ -242,7 +233,9 @@ class SavedSearchQueryParser {
 
       case 'reminder':
       case 'reminders':
-        return filters.copyWith(isPinned: true); // Reusing isPinned for reminder flag
+        return filters.copyWith(
+          isPinned: true,
+        ); // Reusing isPinned for reminder flag
 
       default:
         errors.add('Unknown "has" filter value: $value');
@@ -291,11 +284,7 @@ enum TokenType {
 
 /// Parsed query token
 class QueryToken {
-  const QueryToken({
-    required this.type,
-    this.key,
-    required this.value,
-  });
+  const QueryToken({required this.type, this.key, required this.value});
 
   final TokenType type;
   final String? key;

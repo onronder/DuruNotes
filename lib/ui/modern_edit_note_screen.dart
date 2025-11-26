@@ -19,9 +19,13 @@ import 'package:duru_notes/infrastructure/providers/repository_providers.dart'
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
     show noteFolderProvider;
 import 'package:duru_notes/services/providers/services_providers.dart'
-    show attachmentServiceProvider, quickCaptureServiceProvider, voiceTranscriptionServiceProvider;
+    show
+        attachmentServiceProvider,
+        quickCaptureServiceProvider,
+        voiceTranscriptionServiceProvider;
 import 'package:duru_notes/services/permission_manager.dart';
-import 'package:duru_notes/services/voice_transcription_service.dart' show DictationLocale;
+import 'package:duru_notes/services/voice_transcription_service.dart'
+    show DictationLocale;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:duru_notes/features/notes/providers/notes_pagination_providers.dart'
     show notesPageProvider;
@@ -1083,9 +1087,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         children: [
           Text(
             'Voice Recordings',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           ...voiceRecordings.map((recording) {
@@ -1110,7 +1114,10 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         ],
       );
     } catch (e) {
-      _logger.warning('Failed to parse voice recordings', data: {'error': e.toString()});
+      _logger.warning(
+        'Failed to parse voice recordings',
+        data: {'error': e.toString()},
+      );
       return null;
     }
   }
@@ -1296,8 +1303,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
                 tooltip: _isDictating
                     ? 'Stop Dictation'
                     : _selectedDictationLocale != null
-                        ? 'Dictate (${_selectedDictationLocale!.localeId}) • Long press for language'
-                        : 'Dictate • Long press for language',
+                    ? 'Dictate (${_selectedDictationLocale!.localeId}) • Long press for language'
+                    : 'Dictate • Long press for language',
                 onPressed: _toggleDictation,
                 onLongPress: _isDictating ? null : _showDictationLocalePicker,
                 colorScheme: colorScheme,
@@ -1467,7 +1474,9 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             child: Icon(
               icon,
               size: kToolbarIconSize,
-              color: isActive ? colorScheme.error : colorScheme.onSurfaceVariant,
+              color: isActive
+                  ? colorScheme.error
+                  : colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -1784,18 +1793,21 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         onFinal: _onDictationFinal,
         onPartial: null, // Ignore partials for MVP
         onError: _onDictationError,
-        localeId: _selectedDictationLocale?.localeId, // Use selected locale or system default
+        localeId: _selectedDictationLocale
+            ?.localeId, // Use selected locale or system default
       );
       setState(() => _isDictating = true);
 
       // Analytics
-      ref.read(analyticsProvider).event(
-        'editor.dictation_started',
-        properties: {
-          'noteId': widget.noteId ?? 'new',
-          'locale': _selectedDictationLocale?.localeId ?? 'system_default',
-        },
-      );
+      ref
+          .read(analyticsProvider)
+          .event(
+            'editor.dictation_started',
+            properties: {
+              'noteId': widget.noteId ?? 'new',
+              'locale': _selectedDictationLocale?.localeId ?? 'system_default',
+            },
+          );
 
       HapticFeedback.lightImpact();
     } catch (e) {
@@ -1814,10 +1826,12 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     setState(() => _isDictating = false);
 
     // Analytics
-    ref.read(analyticsProvider).event(
-      'editor.dictation_stopped',
-      properties: {'noteId': widget.noteId ?? 'new'},
-    );
+    ref
+        .read(analyticsProvider)
+        .event(
+          'editor.dictation_stopped',
+          properties: {'noteId': widget.noteId ?? 'new'},
+        );
 
     HapticFeedback.lightImpact();
   }
@@ -1838,7 +1852,8 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
         : text.length;
 
     // Add space before if needed (auto-spacing)
-    final needsLeadingSpace = start > 0 &&
+    final needsLeadingSpace =
+        start > 0 &&
         text.isNotEmpty &&
         !RegExp(r'\s').hasMatch(text[start - 1]);
     final insertText = needsLeadingSpace ? ' $transcript' : transcript;
@@ -1855,14 +1870,16 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
     setState(() => _hasChanges = true);
 
     // Analytics
-    ref.read(analyticsProvider).event(
-      'editor.dictation_text_inserted',
-      properties: {
-        'noteId': widget.noteId ?? 'new',
-        'textLength': transcript.length,
-        'wordCount': transcript.split(RegExp(r'\s+')).length,
-      },
-    );
+    ref
+        .read(analyticsProvider)
+        .event(
+          'editor.dictation_text_inserted',
+          properties: {
+            'noteId': widget.noteId ?? 'new',
+            'textLength': transcript.length,
+            'wordCount': transcript.split(RegExp(r'\s+')).length,
+          },
+        );
   }
 
   void _onDictationError(String error) {
@@ -2428,9 +2445,11 @@ class _DictationLocalePickerSheetState
     if (_searchQuery.isEmpty) return widget.locales;
     final query = _searchQuery.toLowerCase();
     return widget.locales
-        .where((locale) =>
-            locale.name.toLowerCase().contains(query) ||
-            locale.localeId.toLowerCase().contains(query))
+        .where(
+          (locale) =>
+              locale.name.toLowerCase().contains(query) ||
+              locale.localeId.toLowerCase().contains(query),
+        )
         .toList();
   }
 
@@ -2504,8 +2523,10 @@ class _DictationLocalePickerSheetState
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
@@ -2634,8 +2655,9 @@ class _LocaleTile extends StatelessWidget {
                                 ? '${locale.name} (System Default)'
                                 : locale.name,
                             style: textTheme.bodyLarge?.copyWith(
-                              fontWeight:
-                                  isSelected ? FontWeight.w600 : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2653,10 +2675,7 @@ class _LocaleTile extends StatelessWidget {
               ),
               // Checkmark for selected
               if (isSelected)
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.check_circle_rounded, color: colorScheme.primary),
             ],
           ),
         ),

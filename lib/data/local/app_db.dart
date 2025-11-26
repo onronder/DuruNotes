@@ -130,7 +130,8 @@ enum SnoozeDuration {
 @DataClassName('NoteReminder')
 class NoteReminders extends Table {
   // MIGRATION v41: Changed from INTEGER to TEXT (UUID) to match Supabase schema
-  TextColumn get id => text().clientDefault(() => const Uuid().v4())(); // Primary key UUID
+  TextColumn get id =>
+      text().clientDefault(() => const Uuid().v4())(); // Primary key UUID
   TextColumn get noteId => text()(); // Foreign key to note
 
   @override
@@ -2128,10 +2129,14 @@ class AppDb extends _$AppDb {
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
   /// MIGRATION v41: Changed parameter from int to String (UUID)
   /// MIGRATION v44: Excludes soft-deleted reminders (use getReminderByIdIncludingDeleted for trash)
-  Future<NoteReminder?> getReminderById(String id, String userId) => (select(
-    noteReminders,
-  )..where((r) => r.id.equals(id) & r.userId.equals(userId) & r.deletedAt.isNull()))
-      .getSingleOrNull();
+  Future<NoteReminder?> getReminderById(String id, String userId) =>
+      (select(noteReminders)..where(
+            (r) =>
+                r.id.equals(id) &
+                r.userId.equals(userId) &
+                r.deletedAt.isNull(),
+          ))
+          .getSingleOrNull();
 
   /// Get a specific reminder by ID, including soft-deleted ones (for trash view)
   ///
@@ -2140,9 +2145,9 @@ class AppDb extends _$AppDb {
   Future<NoteReminder?> getReminderByIdIncludingDeleted(
     String id,
     String userId,
-  ) =>
-      (select(noteReminders)..where((r) => r.id.equals(id) & r.userId.equals(userId)))
-          .getSingleOrNull();
+  ) => (select(
+    noteReminders,
+  )..where((r) => r.id.equals(id) & r.userId.equals(userId))).getSingleOrNull();
 
   /// Create a new reminder
   /// MIGRATION v41: Returns String (UUID) instead of int
@@ -2176,13 +2181,14 @@ class AppDb extends _$AppDb {
     final now = DateTime.now();
     final purgeAt = now.add(const Duration(days: 30));
 
-    await (update(noteReminders)..where(
-            (r) => r.id.equals(id) & r.userId.equals(userId),
-          ))
-        .write(NoteRemindersCompanion(
-      deletedAt: Value(now),
-      scheduledPurgeAt: Value(purgeAt),
-    ));
+    await (update(
+      noteReminders,
+    )..where((r) => r.id.equals(id) & r.userId.equals(userId))).write(
+      NoteRemindersCompanion(
+        deletedAt: Value(now),
+        scheduledPurgeAt: Value(purgeAt),
+      ),
+    );
   }
 
   /// Delete all reminders for a note
@@ -2193,13 +2199,14 @@ class AppDb extends _$AppDb {
     final now = DateTime.now();
     final purgeAt = now.add(const Duration(days: 30));
 
-    await (update(noteReminders)..where(
-            (r) => r.noteId.equals(noteId) & r.userId.equals(userId),
-          ))
-        .write(NoteRemindersCompanion(
-      deletedAt: Value(now),
-      scheduledPurgeAt: Value(purgeAt),
-    ));
+    await (update(
+      noteReminders,
+    )..where((r) => r.noteId.equals(noteId) & r.userId.equals(userId))).write(
+      NoteRemindersCompanion(
+        deletedAt: Value(now),
+        scheduledPurgeAt: Value(purgeAt),
+      ),
+    );
   }
 
   /// Restore a soft-deleted reminder (undo deletion within 30-day window)
@@ -2207,13 +2214,14 @@ class AppDb extends _$AppDb {
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
   /// MIGRATION v44: Recovery functionality for soft delete
   Future<void> restoreReminderById(String id, String userId) async {
-    await (update(noteReminders)..where(
-            (r) => r.id.equals(id) & r.userId.equals(userId),
-          ))
-        .write(const NoteRemindersCompanion(
-      deletedAt: Value(null),
-      scheduledPurgeAt: Value(null),
-    ));
+    await (update(
+      noteReminders,
+    )..where((r) => r.id.equals(id) & r.userId.equals(userId))).write(
+      const NoteRemindersCompanion(
+        deletedAt: Value(null),
+        scheduledPurgeAt: Value(null),
+      ),
+    );
   }
 
   /// Get all deleted reminders for a user (trash view)
@@ -2221,13 +2229,11 @@ class AppDb extends _$AppDb {
   /// P0.5 SECURITY: Filters by userId to prevent cross-user reminder access
   /// MIGRATION v44: Trash view functionality
   Future<List<NoteReminder>> getDeletedReminders(String userId) async {
-    return (select(noteReminders)..where(
-            (r) => r.userId.equals(userId) & r.deletedAt.isNotNull(),
-          )..orderBy([
-            (r) => OrderingTerm(
-                  expression: r.deletedAt,
-                  mode: OrderingMode.desc,
-                ),
+    return (select(noteReminders)
+          ..where((r) => r.userId.equals(userId) & r.deletedAt.isNotNull())
+          ..orderBy([
+            (r) =>
+                OrderingTerm(expression: r.deletedAt, mode: OrderingMode.desc),
           ]))
         .get();
   }
@@ -2240,20 +2246,21 @@ class AppDb extends _$AppDb {
     final now = DateTime.now();
 
     // Count before deletion
-    final countBefore = await (select(noteReminders)..where(
-            (r) =>
-                r.scheduledPurgeAt.isNotNull() &
-                r.scheduledPurgeAt.isSmallerOrEqualValue(now),
-          ))
-        .get()
-        .then((list) => list.length);
+    final countBefore =
+        await (select(noteReminders)..where(
+              (r) =>
+                  r.scheduledPurgeAt.isNotNull() &
+                  r.scheduledPurgeAt.isSmallerOrEqualValue(now),
+            ))
+            .get()
+            .then((list) => list.length);
 
     // Permanently delete
     await (delete(noteReminders)..where(
-            (r) =>
-                r.scheduledPurgeAt.isNotNull() &
-                r.scheduledPurgeAt.isSmallerOrEqualValue(now),
-          ))
+          (r) =>
+              r.scheduledPurgeAt.isNotNull() &
+              r.scheduledPurgeAt.isSmallerOrEqualValue(now),
+        ))
         .go();
 
     return countBefore;
@@ -2516,7 +2523,9 @@ class AppDb extends _$AppDb {
   /// See: DELETION_PATTERNS.md v1.0.0 for correct deletion patterns
   ///
   /// @nodoc - Internal use only, not part of public API
-  @Deprecated('Repository-only: Use TaskCoreRepository.deleteTask() for soft delete')
+  @Deprecated(
+    'Repository-only: Use TaskCoreRepository.deleteTask() for soft delete',
+  )
   Future<void> hardDeleteTaskById(String id, String userId) => (delete(
     noteTasks,
   )..where((t) => t.id.equals(id) & t.userId.equals(userId))).go();

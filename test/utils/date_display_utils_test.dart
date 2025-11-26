@@ -7,10 +7,7 @@ void main() {
       test('returns createdAt when timestamps are identical', () {
         final date = DateTime(2024, 1, 1, 12, 0, 0);
 
-        final result = getDisplayDate(
-          createdAt: date,
-          updatedAt: date,
-        );
+        final result = getDisplayDate(createdAt: date, updatedAt: date);
 
         expect(result, equals(date));
         expect(result, equals(date)); // Verify it's createdAt, not updatedAt
@@ -20,10 +17,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 1, 1, 12, 0, 1); // 1 second later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         // Within tolerance - treat as "never edited"
         expect(result, equals(created));
@@ -33,10 +27,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0, 0);
         final updated = DateTime(2024, 1, 1, 12, 0, 0, 500); // 500ms later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(created));
       });
@@ -45,10 +36,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 1);
         final updated = DateTime(2024, 1, 1, 12, 0, 0); // 1 second before
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         // Absolute difference is 1 second - within tolerance
         expect(result, equals(created));
@@ -60,10 +48,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 1, 1, 12, 0, 2); // 2 seconds later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -72,10 +57,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 1, 1, 12, 5, 0); // 5 minutes later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -84,10 +66,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 1, 1, 15, 30, 0); // 3.5 hours later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -96,10 +75,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 1, 5, 12, 0, 0); // 4 days later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -108,10 +84,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 3, 15, 12, 0, 0); // ~2.5 months later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -120,10 +93,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2025, 6, 15, 12, 0, 0); // ~1.5 years later
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -134,10 +104,7 @@ void main() {
         final created = DateTime.utc(2024, 1, 1, 12, 0, 0);
         final updated = DateTime.utc(2024, 1, 1, 12, 0, 0);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(created));
       });
@@ -146,10 +113,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 1, 1, 12, 0, 0);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(created));
       });
@@ -159,10 +123,7 @@ void main() {
         final updated = DateTime(2024, 1, 1, 12, 0, 0);
 
         // This may not be identical due to timezone, but should handle gracefully
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         // Result should be one of the input dates
         expect([created, updated].contains(result), isTrue);
@@ -172,10 +133,7 @@ void main() {
         final created = DateTime(2000, 1, 1, 0, 0, 0);
         final updated = DateTime(2000, 1, 1, 0, 0, 0);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(created));
       });
@@ -184,10 +142,7 @@ void main() {
         final created = DateTime(2099, 12, 31, 23, 59, 59);
         final updated = DateTime(2099, 12, 31, 23, 59, 59);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(created));
       });
@@ -196,10 +151,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0, 123);
         final updated = DateTime(2024, 1, 1, 12, 0, 0, 456);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         // 333ms difference - within 1 second tolerance
         expect(result, equals(created));
@@ -209,10 +161,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0, 0, 123);
         final updated = DateTime(2024, 1, 1, 12, 0, 0, 0, 456);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         // Tiny difference - within tolerance
         expect(result, equals(created));
@@ -237,10 +186,7 @@ void main() {
         final created = DateTime(2024, 1, 15, 12, 0, 0);
         final updated = DateTime(2024, 1, 15, 12, 0, 5);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -249,10 +195,7 @@ void main() {
         final created = DateTime(2024, 1, 14, 10, 0, 0);
         final updated = DateTime(2024, 1, 15, 14, 30, 0);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -262,10 +205,7 @@ void main() {
         final created = DateTime(2024, 1, 1, 12, 0, 0);
         final updated = DateTime(2024, 1, 1, 12, 0, 1);
 
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         // Treat as "never edited" due to tolerance
         expect(result, equals(created));
@@ -342,10 +282,7 @@ void main() {
         final updated = DateTime(2024, 1, 15, 14, 30, 0);
 
         // After reinstall
-        final result = getDisplayDate(
-          createdAt: created,
-          updatedAt: updated,
-        );
+        final result = getDisplayDate(createdAt: created, updatedAt: updated);
 
         expect(result, equals(updated));
       });
@@ -357,10 +294,7 @@ void main() {
       final created = DateTime(2024, 1, 1, 12, 0, 0);
       final updated = DateTime(2024, 1, 1, 12, 0, 0);
 
-      final result = getSafeDisplayDate(
-        createdAt: created,
-        updatedAt: updated,
-      );
+      final result = getSafeDisplayDate(createdAt: created, updatedAt: updated);
 
       expect(result, equals(created));
     });
@@ -368,10 +302,7 @@ void main() {
     test('uses updatedAt when createdAt is null', () {
       final updated = DateTime(2024, 1, 5, 15, 30, 0);
 
-      final result = getSafeDisplayDate(
-        createdAt: null,
-        updatedAt: updated,
-      );
+      final result = getSafeDisplayDate(createdAt: null, updatedAt: updated);
 
       expect(result, equals(updated));
     });
@@ -379,10 +310,7 @@ void main() {
     test('uses createdAt when updatedAt is null', () {
       final created = DateTime(2024, 1, 1, 12, 0, 0);
 
-      final result = getSafeDisplayDate(
-        createdAt: created,
-        updatedAt: null,
-      );
+      final result = getSafeDisplayDate(createdAt: created, updatedAt: null);
 
       expect(result, equals(created));
     });
@@ -390,10 +318,7 @@ void main() {
     test('uses current time when both are null', () {
       final before = DateTime.now();
 
-      final result = getSafeDisplayDate(
-        createdAt: null,
-        updatedAt: null,
-      );
+      final result = getSafeDisplayDate(createdAt: null, updatedAt: null);
 
       final after = DateTime.now();
 
@@ -406,10 +331,7 @@ void main() {
       final created = DateTime(2024, 1, 1, 12, 0, 0);
       final updated = DateTime(2024, 1, 5, 15, 30, 0);
 
-      final result = getSafeDisplayDate(
-        createdAt: created,
-        updatedAt: updated,
-      );
+      final result = getSafeDisplayDate(createdAt: created, updatedAt: updated);
 
       // Should use getDisplayDate logic (updatedAt for edited)
       expect(result, equals(updated));

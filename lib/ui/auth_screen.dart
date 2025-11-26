@@ -81,14 +81,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     // Start entrance animation once the first frame is ready so layout is stable.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
-        debugPrint('[AuthScreen] ⚠️ Not mounted in post-frame callback, skipping animation start');
+        debugPrint(
+          '[AuthScreen] ⚠️ Not mounted in post-frame callback, skipping animation start',
+        );
         return;
       }
       debugPrint('[AuthScreen] ✅ Starting intro animation (fade + slide)');
       try {
         _fadeController.forward();
         _slideController.forward();
-        debugPrint('[AuthScreen] 🎬 Animation controllers started successfully');
+        debugPrint(
+          '[AuthScreen] 🎬 Animation controllers started successfully',
+        );
       } catch (e) {
         debugPrint('[AuthScreen] ❌ Error starting animations: $e');
         // Ensure visibility even if animation start fails
@@ -112,9 +116,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           !_slideController.isAnimating && _slideController.value < 1.0;
 
       if (fadeStalled || slideStalled) {
-        debugPrint('[AuthScreen] ⚡ Animation fallback triggered — forcing content visible');
-        debugPrint('[AuthScreen]   Fade: value=${_fadeController.value.toStringAsFixed(2)}, animating=${_fadeController.isAnimating}');
-        debugPrint('[AuthScreen]   Slide: value=${_slideController.value.toStringAsFixed(2)}, animating=${_slideController.isAnimating}');
+        debugPrint(
+          '[AuthScreen] ⚡ Animation fallback triggered — forcing content visible',
+        );
+        debugPrint(
+          '[AuthScreen]   Fade: value=${_fadeController.value.toStringAsFixed(2)}, animating=${_fadeController.isAnimating}',
+        );
+        debugPrint(
+          '[AuthScreen]   Slide: value=${_slideController.value.toStringAsFixed(2)}, animating=${_slideController.isAnimating}',
+        );
       }
 
       if (fadeStalled) {
@@ -127,7 +137,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       }
 
       if (!fadeStalled && !slideStalled) {
-        debugPrint('[AuthScreen] ✅ Animations completed successfully within 300ms');
+        debugPrint(
+          '[AuthScreen] ✅ Animations completed successfully within 300ms',
+        );
       }
     });
   }

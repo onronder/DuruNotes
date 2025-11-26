@@ -31,7 +31,9 @@ void main() {
     EncryptionRetryQueue().clear();
 
     // Create a test note for reminders
-    await db.into(db.localNotes).insert(
+    await db
+        .into(db.localNotes)
+        .insert(
           LocalNotesCompanion.insert(
             id: 'note-1',
             titleEncrypted: const Value('encrypted-title'),
@@ -274,10 +276,7 @@ void main() {
       // Assert
       expect(result.success, isFalse);
       expect(result.isRetryable, isTrue); // CryptoBox unavailable is retryable
-      expect(
-        result.failureReason,
-        contains('CryptoBox not available'),
-      );
+      expect(result.failureReason, contains('CryptoBox not available'));
     });
 
     test('fails with retryable error for timeout', () async {

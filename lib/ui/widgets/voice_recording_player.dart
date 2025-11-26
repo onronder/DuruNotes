@@ -23,7 +23,8 @@ class VoiceRecordingPlayer extends ConsumerStatefulWidget {
   final String? title;
 
   @override
-  ConsumerState<VoiceRecordingPlayer> createState() => _VoiceRecordingPlayerState();
+  ConsumerState<VoiceRecordingPlayer> createState() =>
+      _VoiceRecordingPlayerState();
 }
 
 class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
@@ -85,9 +86,7 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
     final analytics = ref.read(analyticsProvider);
     analytics.featureUsed(
       'voice_note_play_completed',
-      properties: {
-        'duration_seconds': widget.durationSeconds,
-      },
+      properties: {'duration_seconds': widget.durationSeconds},
     );
   }
 
@@ -131,9 +130,7 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
+        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -177,7 +174,8 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
                     icon: Icon(iconData),
                     iconSize: 32,
                     color: theme.colorScheme.primary,
-                    onPressed: (processingState == ProcessingState.loading ||
+                    onPressed:
+                        (processingState == ProcessingState.loading ||
                             processingState == ProcessingState.buffering)
                         ? null
                         : _togglePlayPause,
@@ -191,7 +189,9 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
                   stream: _player.positionStream,
                   builder: (context, snapshot) {
                     final position = snapshot.data ?? Duration.zero;
-                    final duration = _player.duration ?? Duration(seconds: widget.durationSeconds);
+                    final duration =
+                        _player.duration ??
+                        Duration(seconds: widget.durationSeconds);
 
                     return Column(
                       mainAxisSize: MainAxisSize.min,
@@ -210,7 +210,9 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
                             value: position.inMilliseconds.toDouble(),
                             max: duration.inMilliseconds.toDouble(),
                             onChanged: (value) async {
-                              await _player.seek(Duration(milliseconds: value.toInt()));
+                              await _player.seek(
+                                Duration(milliseconds: value.toInt()),
+                              );
                             },
                           ),
                         ),
@@ -222,15 +224,21 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
                               Text(
                                 _formatDuration(position),
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                  fontFeatures: [const FontFeature.tabularFigures()],
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.6),
+                                  fontFeatures: [
+                                    const FontFeature.tabularFigures(),
+                                  ],
                                 ),
                               ),
                               Text(
                                 _formatDuration(duration),
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                  fontFeatures: [const FontFeature.tabularFigures()],
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.6),
+                                  fontFeatures: [
+                                    const FontFeature.tabularFigures(),
+                                  ],
                                 ),
                               ),
                             ],
@@ -263,10 +271,7 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           const SizedBox(width: 16),
-          Text(
-            'Loading audio...',
-            style: theme.textTheme.bodyMedium,
-          ),
+          Text('Loading audio...', style: theme.textTheme.bodyMedium),
         ],
       ),
     );
@@ -281,10 +286,7 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline,
-            color: theme.colorScheme.onErrorContainer,
-          ),
+          Icon(Icons.error_outline, color: theme.colorScheme.onErrorContainer),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

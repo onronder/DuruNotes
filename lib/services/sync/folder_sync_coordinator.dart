@@ -738,9 +738,15 @@ class FolderSyncCoordinator {
     if (id == null || name == null) {
       logger.error(
         'Cannot create folder from remote: missing required fields',
-        data: {'remote': remote, 'missingId': id == null, 'missingName': name == null},
+        data: {
+          'remote': remote,
+          'missingId': id == null,
+          'missingName': name == null,
+        },
       );
-      throw ArgumentError('Remote folder data missing required fields (id or name)');
+      throw ArgumentError(
+        'Remote folder data missing required fields (id or name)',
+      );
     }
 
     // Use createOrUpdateFolder which accepts id parameter for sync

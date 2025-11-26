@@ -20,10 +20,7 @@ class UuidTestHelper {
   /// expect(id1, equals(id2)); // true - same seed produces same UUID
   /// ```
   static String deterministicUuid(String seed) {
-    return _cache.putIfAbsent(
-      seed,
-      () => _uuid.v5(Uuid.NAMESPACE_OID, seed),
-    );
+    return _cache.putIfAbsent(seed, () => _uuid.v5(Uuid.NAMESPACE_OID, seed));
   }
 
   /// Generate new random UUID (v4)
@@ -65,10 +62,7 @@ class UuidTestHelper {
   /// // ['uuid-for-reminder-0', 'uuid-for-reminder-1', ...]
   /// ```
   static List<String> generateList(String prefix, {required int count}) {
-    return List.generate(
-      count,
-      (index) => deterministicUuid('$prefix-$index'),
-    );
+    return List.generate(count, (index) => deterministicUuid('$prefix-$index'));
   }
 
   /// Common test UUIDs for convenience

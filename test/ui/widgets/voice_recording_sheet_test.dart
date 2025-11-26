@@ -39,7 +39,9 @@ void main() {
       overrides: [
         loggerProvider.overrideWithValue(mockLogger),
         analyticsProvider.overrideWithValue(mockAnalytics),
-        audioRecordingServiceProvider.overrideWithValue(mockAudioRecordingService),
+        audioRecordingServiceProvider.overrideWithValue(
+          mockAudioRecordingService,
+        ),
         voiceNotesServiceProvider.overrideWithValue(mockVoiceNotesService),
       ],
       child: MaterialApp(
@@ -83,10 +85,12 @@ void main() {
 
     testWidgets('shows recording state when recording starts', (tester) async {
       // Arrange
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.tap(find.text('Show Sheet'));
@@ -106,12 +110,16 @@ void main() {
       verify(mockAudioRecordingService.startRecording()).called(1);
     });
 
-    testWidgets('shows permission denied dialog when permission is denied', (tester) async {
+    testWidgets('shows permission denied dialog when permission is denied', (
+      tester,
+    ) async {
       // Arrange
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => false);
-      when(mockAudioRecordingService.requestPermission())
-          .thenAnswer((_) async => false); // Permission request denied
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => false);
+      when(
+        mockAudioRecordingService.requestPermission(),
+      ).thenAnswer((_) async => false); // Permission request denied
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.tap(find.text('Show Sheet'));
@@ -133,12 +141,15 @@ void main() {
 
     testWidgets('shows title input after recording stops', (tester) async {
       // Arrange
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.stopRecording())
-          .thenAnswer((_) async => '/tmp/voice_note_test.m4a');
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.stopRecording(),
+      ).thenAnswer((_) async => '/tmp/voice_note_test.m4a');
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.tap(find.text('Show Sheet'));
@@ -162,20 +173,26 @@ void main() {
       verify(mockAudioRecordingService.stopRecording()).called(1);
     });
 
-    testWidgets('creates voice note when save is tapped with valid title', (tester) async {
+    testWidgets('creates voice note when save is tapped with valid title', (
+      tester,
+    ) async {
       // Arrange
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.stopRecording())
-          .thenAnswer((_) async => '/tmp/voice_note_test.m4a');
-      when(mockAudioRecordingService.finalizeAndUpload())
-          .thenAnswer((_) async => const RecordingResult(
-                url: 'https://example.com/test.m4a',
-                filename: 'test.m4a',
-                durationSeconds: 45,
-              ));
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.stopRecording(),
+      ).thenAnswer((_) async => '/tmp/voice_note_test.m4a');
+      when(mockAudioRecordingService.finalizeAndUpload()).thenAnswer(
+        (_) async => const RecordingResult(
+          url: 'https://example.com/test.m4a',
+          filename: 'test.m4a',
+          durationSeconds: 45,
+        ),
+      );
 
       final testNote = Note(
         id: 'note-123',
@@ -190,11 +207,13 @@ void main() {
         userId: 'user-123',
       );
 
-      when(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: anyNamed('title'),
-        folderId: anyNamed('folderId'),
-      )).thenAnswer((_) async => testNote);
+      when(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: anyNamed('title'),
+          folderId: anyNamed('folderId'),
+        ),
+      ).thenAnswer((_) async => testNote);
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.tap(find.text('Show Sheet'));
@@ -215,23 +234,29 @@ void main() {
 
       // Assert - verify voice note creation
       verify(mockAudioRecordingService.finalizeAndUpload()).called(1);
-      verify(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: 'My Recording',
-        folderId: null,
-      )).called(1);
+      verify(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: 'My Recording',
+          folderId: null,
+        ),
+      ).called(1);
     });
 
     testWidgets('shows error when upload fails', (tester) async {
       // Arrange
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.stopRecording())
-          .thenAnswer((_) async => '/tmp/voice_note_test.m4a');
-      when(mockAudioRecordingService.finalizeAndUpload())
-          .thenAnswer((_) async => null); // Upload failed
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.stopRecording(),
+      ).thenAnswer((_) async => '/tmp/voice_note_test.m4a');
+      when(
+        mockAudioRecordingService.finalizeAndUpload(),
+      ).thenAnswer((_) async => null); // Upload failed
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.tap(find.text('Show Sheet'));
@@ -248,24 +273,33 @@ void main() {
       await tester.pumpAndSettle();
 
       // Assert - verify error message
-      expect(find.text('Failed to upload recording. Please check your connection.'), findsOneWidget);
-      verifyNever(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: anyNamed('title'),
-        folderId: anyNamed('folderId'),
-      ));
+      expect(
+        find.text('Failed to upload recording. Please check your connection.'),
+        findsOneWidget,
+      );
+      verifyNever(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: anyNamed('title'),
+          folderId: anyNamed('folderId'),
+        ),
+      );
     });
 
     testWidgets('cancels recording and closes sheet', (tester) async {
       // Arrange
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.stopRecording())
-          .thenAnswer((_) async => '/tmp/voice_note_test.m4a');
-      when(mockAudioRecordingService.cancelRecording())
-          .thenAnswer((_) async {});
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.stopRecording(),
+      ).thenAnswer((_) async => '/tmp/voice_note_test.m4a');
+      when(
+        mockAudioRecordingService.cancelRecording(),
+      ).thenAnswer((_) async {});
 
       await tester.pumpWidget(createWidgetUnderTest());
       await tester.tap(find.text('Show Sheet'));
@@ -288,18 +322,22 @@ void main() {
       // Arrange
       const testFolderId = 'folder-456';
 
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.stopRecording())
-          .thenAnswer((_) async => '/tmp/voice_note_test.m4a');
-      when(mockAudioRecordingService.finalizeAndUpload())
-          .thenAnswer((_) async => const RecordingResult(
-                url: 'https://example.com/test.m4a',
-                filename: 'test.m4a',
-                durationSeconds: 45,
-              ));
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.stopRecording(),
+      ).thenAnswer((_) async => '/tmp/voice_note_test.m4a');
+      when(mockAudioRecordingService.finalizeAndUpload()).thenAnswer(
+        (_) async => const RecordingResult(
+          url: 'https://example.com/test.m4a',
+          filename: 'test.m4a',
+          durationSeconds: 45,
+        ),
+      );
 
       final testNote = Note(
         id: 'note-123',
@@ -315,11 +353,13 @@ void main() {
         folderId: testFolderId,
       );
 
-      when(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: anyNamed('title'),
-        folderId: anyNamed('folderId'),
-      )).thenAnswer((_) async => testNote);
+      when(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: anyNamed('title'),
+          folderId: anyNamed('folderId'),
+        ),
+      ).thenAnswer((_) async => testNote);
 
       await tester.pumpWidget(createWidgetUnderTest(folderId: testFolderId));
       await tester.tap(find.text('Show Sheet'));
@@ -336,11 +376,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Assert - verify folderId was passed
-      verify(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: anyNamed('title'),
-        folderId: testFolderId,
-      )).called(1);
+      verify(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: anyNamed('title'),
+          folderId: testFolderId,
+        ),
+      ).called(1);
     });
   });
 }

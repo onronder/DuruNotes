@@ -176,34 +176,34 @@ class KeyDestructionReport {
   /// - GDPR compliance proof
   /// - Debugging destruction failures
   Map<String, dynamic> toJson() => {
-        'userId': userId,
-        'timestamp': timestamp.toIso8601String(),
-        'preDestruction': {
-          'legacyKeyExisted': legacyKeyExistedBeforeDestruction,
-          'amkExisted': amkExistedBeforeDestruction,
-          'remoteAmkExisted': remoteAmkExistedBeforeDestruction,
-          'crossDeviceAmkExisted': crossDeviceAmkExistedBeforeDestruction,
-          'remoteCrossDeviceKeyExisted':
-              remoteCrossDeviceKeyExistedBeforeDestruction,
-          'anyKeysExisted': anyKeysExisted,
-          'keysExistedCount': keysExistedCount,
-        },
-        'destruction': {
-          'memoryKeyDestroyed': memoryKeyDestroyed,
-          'legacyKeyDestroyed': legacyKeyDestroyed,
-          'localAmkDestroyed': localAmkDestroyed,
-          'remoteAmkDestroyed': remoteAmkDestroyed,
-          'localCrossDeviceKeyDestroyed': localCrossDeviceKeyDestroyed,
-          'remoteCrossDeviceKeyDestroyed': remoteCrossDeviceKeyDestroyed,
-          'keysDestroyedCount': keysDestroyedCount,
-        },
-        'result': {
-          'success': success,
-          'allKeysDestroyed': allKeysDestroyed,
-          'hasErrors': hasErrors,
-          'errors': errors,
-        },
-      };
+    'userId': userId,
+    'timestamp': timestamp.toIso8601String(),
+    'preDestruction': {
+      'legacyKeyExisted': legacyKeyExistedBeforeDestruction,
+      'amkExisted': amkExistedBeforeDestruction,
+      'remoteAmkExisted': remoteAmkExistedBeforeDestruction,
+      'crossDeviceAmkExisted': crossDeviceAmkExistedBeforeDestruction,
+      'remoteCrossDeviceKeyExisted':
+          remoteCrossDeviceKeyExistedBeforeDestruction,
+      'anyKeysExisted': anyKeysExisted,
+      'keysExistedCount': keysExistedCount,
+    },
+    'destruction': {
+      'memoryKeyDestroyed': memoryKeyDestroyed,
+      'legacyKeyDestroyed': legacyKeyDestroyed,
+      'localAmkDestroyed': localAmkDestroyed,
+      'remoteAmkDestroyed': remoteAmkDestroyed,
+      'localCrossDeviceKeyDestroyed': localCrossDeviceKeyDestroyed,
+      'remoteCrossDeviceKeyDestroyed': remoteCrossDeviceKeyDestroyed,
+      'keysDestroyedCount': keysDestroyedCount,
+    },
+    'result': {
+      'success': success,
+      'allKeysDestroyed': allKeysDestroyed,
+      'hasErrors': hasErrors,
+      'errors': errors,
+    },
+  };
 
   /// Convert JSON to KeyDestructionReport (for audit log retrieval)
   factory KeyDestructionReport.fromJson(Map<String, dynamic> json) {
@@ -291,32 +291,33 @@ class KeyDestructionReport {
     buffer.writeln('Pre-Destruction State:');
     buffer.writeln('  Legacy Key Existed: $legacyKeyExistedBeforeDestruction');
     buffer.writeln('  AMK Existed: $amkExistedBeforeDestruction');
+    buffer.writeln('  Remote AMK Existed: $remoteAmkExistedBeforeDestruction');
     buffer.writeln(
-        '  Remote AMK Existed: $remoteAmkExistedBeforeDestruction');
+      '  Cross-Device AMK Existed: $crossDeviceAmkExistedBeforeDestruction',
+    );
     buffer.writeln(
-        '  Cross-Device AMK Existed: $crossDeviceAmkExistedBeforeDestruction');
-    buffer.writeln(
-        '  Remote Cross-Device Key Existed: $remoteCrossDeviceKeyExistedBeforeDestruction');
+      '  Remote Cross-Device Key Existed: $remoteCrossDeviceKeyExistedBeforeDestruction',
+    );
     buffer.writeln('  Total Keys Found: $keysExistedCount');
     buffer.writeln('');
 
     buffer.writeln('Destruction Results:');
+    buffer.writeln('  Memory Key Destroyed: ${memoryKeyDestroyed ? '✅' : '❌'}');
+    buffer.writeln('  Legacy Key Destroyed: ${legacyKeyDestroyed ? '✅' : '❌'}');
+    buffer.writeln('  Local AMK Destroyed: ${localAmkDestroyed ? '✅' : '❌'}');
+    buffer.writeln('  Remote AMK Destroyed: ${remoteAmkDestroyed ? '✅' : '❌'}');
     buffer.writeln(
-        '  Memory Key Destroyed: ${memoryKeyDestroyed ? '✅' : '❌'}');
+      '  Local Cross-Device Key Destroyed: ${localCrossDeviceKeyDestroyed ? '✅' : '❌'}',
+    );
     buffer.writeln(
-        '  Legacy Key Destroyed: ${legacyKeyDestroyed ? '✅' : '❌'}');
-    buffer.writeln(
-        '  Local AMK Destroyed: ${localAmkDestroyed ? '✅' : '❌'}');
-    buffer.writeln(
-        '  Remote AMK Destroyed: ${remoteAmkDestroyed ? '✅' : '❌'}');
-    buffer.writeln(
-        '  Local Cross-Device Key Destroyed: ${localCrossDeviceKeyDestroyed ? '✅' : '❌'}');
-    buffer.writeln(
-        '  Remote Cross-Device Key Destroyed: ${remoteCrossDeviceKeyDestroyed ? '✅' : '❌'}');
+      '  Remote Cross-Device Key Destroyed: ${remoteCrossDeviceKeyDestroyed ? '✅' : '❌'}',
+    );
     buffer.writeln('  Total Keys Destroyed: $keysDestroyedCount/6');
     buffer.writeln('');
 
-    buffer.writeln('Overall Status: ${allKeysDestroyed ? '✅ SUCCESS' : '❌ FAILED'}');
+    buffer.writeln(
+      'Overall Status: ${allKeysDestroyed ? '✅ SUCCESS' : '❌ FAILED'}',
+    );
 
     if (hasErrors) {
       buffer.writeln('');
@@ -340,6 +341,7 @@ class SecurityException implements Exception {
   final Object? originalError;
 
   @override
-  String toString() => 'SecurityException: $message'
+  String toString() =>
+      'SecurityException: $message'
       '${originalError != null ? ' (caused by: $originalError)' : ''}';
 }

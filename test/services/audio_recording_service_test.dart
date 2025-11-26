@@ -15,11 +15,7 @@ import 'package:mockito/mockito.dart';
 
 import 'audio_recording_service_test.mocks.dart';
 
-@GenerateMocks([
-  AppLogger,
-  AnalyticsService,
-  AttachmentService,
-])
+@GenerateMocks([AppLogger, AnalyticsService, AttachmentService])
 void main() {
   late MockAppLogger mockLogger;
   late MockAnalyticsService mockAnalytics;
@@ -59,15 +55,20 @@ void main() {
         await testFile.writeAsBytes(testBytes);
 
         // Mock AttachmentService.uploadFromBytes
-        when(mockAttachmentService.uploadFromBytes(
-          bytes: anyNamed('bytes'),
-          filename: anyNamed('filename'),
-        )).thenAnswer((_) async => AttachmentBlockData(
-          url: 'https://example.supabase.co/storage/v1/object/public/attachments/test.m4a',
-          fileName: 'voice_note_test.m4a',
-          fileSize: testBytes.length,
-          mimeType: 'audio/m4a',
-        ));
+        when(
+          mockAttachmentService.uploadFromBytes(
+            bytes: anyNamed('bytes'),
+            filename: anyNamed('filename'),
+          ),
+        ).thenAnswer(
+          (_) async => AttachmentBlockData(
+            url:
+                'https://example.supabase.co/storage/v1/object/public/attachments/test.m4a',
+            fileName: 'voice_note_test.m4a',
+            fileSize: testBytes.length,
+            mimeType: 'audio/m4a',
+          ),
+        );
 
         // Manually set recording state (simulating stopped recording)
         // Note: We can't easily test the full startRecording -> stopRecording flow
@@ -92,16 +93,15 @@ void main() {
 
         // Assert
         expect(result, isNull);
-        verify(mockLogger.warning(
-          'No recording path available for upload',
-        )).called(1);
-        verify(mockAnalytics.endTiming(
-          'voice_note_finalize_upload',
-          properties: {
-            'success': false,
-            'reason': 'no_recording',
-          },
-        )).called(1);
+        verify(
+          mockLogger.warning('No recording path available for upload'),
+        ).called(1);
+        verify(
+          mockAnalytics.endTiming(
+            'voice_note_finalize_upload',
+            properties: {'success': false, 'reason': 'no_recording'},
+          ),
+        ).called(1);
       });
 
       test('returns null when reading recording bytes fails', () async {
@@ -114,10 +114,12 @@ void main() {
         final service = container.read(audioRecordingServiceProvider);
 
         // Mock uploadFromBytes to return null (failure)
-        when(mockAttachmentService.uploadFromBytes(
-          bytes: anyNamed('bytes'),
-          filename: anyNamed('filename'),
-        )).thenAnswer((_) async => null);
+        when(
+          mockAttachmentService.uploadFromBytes(
+            bytes: anyNamed('bytes'),
+            filename: anyNamed('filename'),
+          ),
+        ).thenAnswer((_) async => null);
 
         // Act - would need to set up recording state first
         // This is challenging without exposing internal state

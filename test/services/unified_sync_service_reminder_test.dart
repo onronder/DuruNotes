@@ -194,7 +194,10 @@ void main() {
       verify(mockNoteApi.getReminders()).called(1);
       verifyNever(mockNoteApi.upsertReminder(any));
 
-      final stored = await db.getReminderById(UuidTestHelper.testReminder1, 'user-123');
+      final stored = await db.getReminderById(
+        UuidTestHelper.testReminder1,
+        'user-123',
+      );
       expect(stored, isNotNull);
       expect(stored!.title, 'Remote Reminder');
       expect(stored.body, 'Imported from cloud');

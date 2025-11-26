@@ -18,10 +18,8 @@ import 'package:uuid/uuid.dart';
 /// - Error handling and logging
 /// - Sentry integration for monitoring
 class SavedSearchCoreRepository implements ISavedSearchRepository {
-  SavedSearchCoreRepository({
-    required this.db,
-    required this.client,
-  }) : _logger = LoggerFactory.instance;
+  SavedSearchCoreRepository({required this.db, required this.client})
+    : _logger = LoggerFactory.instance;
 
   final AppDb db;
   final SupabaseClient client;
@@ -33,7 +31,9 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
   String _requireUserId({required String method, Map<String, dynamic>? data}) {
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) {
-      final error = StateError('No authenticated user for saved search operation');
+      final error = StateError(
+        'No authenticated user for saved search operation',
+      );
       _logger.warning('$method denied - unauthenticated user', data: data);
       _captureRepositoryException(
         method: method,
@@ -107,7 +107,9 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
   }
 
   @override
-  Future<List<domain.SavedSearch>> getSavedSearchesByType(String searchType) async {
+  Future<List<domain.SavedSearch>> getSavedSearchesByType(
+    String searchType,
+  ) async {
     final userId = _requireUserId(
       method: 'getSavedSearchesByType',
       data: {'searchType': searchType},
@@ -164,7 +166,9 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
         _logger.warning(
           '[SavedSearchRepository] Access denied - user $userId attempted to access saved search $id owned by ${dbSearch.userId}',
         );
-        throw StateError('Access denied: saved search belongs to different user');
+        throw StateError(
+          'Access denied: saved search belongs to different user',
+        );
       }
 
       return SavedSearchMapper.toDomain(dbSearch);
@@ -185,7 +189,9 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
   }
 
   @override
-  Future<domain.SavedSearch> upsertSavedSearch(domain.SavedSearch search) async {
+  Future<domain.SavedSearch> upsertSavedSearch(
+    domain.SavedSearch search,
+  ) async {
     final userId = _requireUserId(
       method: 'upsertSavedSearch',
       data: {'searchId': search.id, 'searchName': search.name},
@@ -236,7 +242,9 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
       // Verify ownership before deletion
       final search = await getSavedSearchById(id);
       if (search == null) {
-        _logger.warning('[SavedSearchRepository] Cannot delete non-existent saved search: $id');
+        _logger.warning(
+          '[SavedSearchRepository] Cannot delete non-existent saved search: $id',
+        );
         return;
       }
 
@@ -270,13 +278,17 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
       // Verify ownership
       final search = await getSavedSearchById(id);
       if (search == null) {
-        _logger.warning('[SavedSearchRepository] Cannot update usage for non-existent saved search: $id');
+        _logger.warning(
+          '[SavedSearchRepository] Cannot update usage for non-existent saved search: $id',
+        );
         return;
       }
 
       await db.updateSavedSearchUsage(id);
 
-      _logger.debug('[SavedSearchRepository] Updated usage statistics for saved search: $id');
+      _logger.debug(
+        '[SavedSearchRepository] Updated usage statistics for saved search: $id',
+      );
     } catch (e, stack) {
       _logger.error(
         'Failed to update usage statistics for saved search: $id',
@@ -295,16 +307,15 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
 
   @override
   Future<void> togglePin(String id) async {
-    final userId = _requireUserId(
-      method: 'togglePin',
-      data: {'id': id},
-    );
+    final userId = _requireUserId(method: 'togglePin', data: {'id': id});
 
     try {
       // Verify ownership
       final search = await getSavedSearchById(id);
       if (search == null) {
-        _logger.warning('[SavedSearchRepository] Cannot toggle pin for non-existent saved search: $id');
+        _logger.warning(
+          '[SavedSearchRepository] Cannot toggle pin for non-existent saved search: $id',
+        );
         return;
       }
 
@@ -339,7 +350,9 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
       for (final id in orderedIds) {
         final search = await getSavedSearchById(id);
         if (search == null) {
-          throw StateError('Cannot reorder: saved search $id does not exist or access denied');
+          throw StateError(
+            'Cannot reorder: saved search $id does not exist or access denied',
+          );
         }
       }
 

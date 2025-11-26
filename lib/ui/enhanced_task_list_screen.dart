@@ -314,8 +314,7 @@ class _EnhancedTaskListScreenState extends ConsumerState<EnhancedTaskListScreen>
         onPressed: _isCreatingTask
             ? null // Disable while creating to prevent duplicates
             : () => _showCreateStandaloneTaskDialog(context),
-        backgroundColor:
-            _isCreatingTask ? Colors.grey : DuruColors.primary,
+        backgroundColor: _isCreatingTask ? Colors.grey : DuruColors.primary,
         icon: _isCreatingTask
             ? const SizedBox(
                 width: 20,

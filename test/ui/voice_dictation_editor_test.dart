@@ -51,7 +51,8 @@ void main() {
           : text.length;
 
       // Add space before if needed (auto-spacing)
-      final needsLeadingSpace = start > 0 &&
+      final needsLeadingSpace =
+          start > 0 &&
           text.isNotEmpty &&
           !RegExp(r'\s').hasMatch(text[start - 1]);
       final insertText = needsLeadingSpace ? ' $transcript' : transcript;

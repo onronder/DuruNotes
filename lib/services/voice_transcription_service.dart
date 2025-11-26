@@ -74,10 +74,10 @@ class VoiceTranscriptionService {
     try {
       final locales = await _speechToText.locales();
       return locales
-          .map((locale) => DictationLocale(
-                localeId: locale.localeId,
-                name: locale.name,
-              ))
+          .map(
+            (locale) =>
+                DictationLocale(localeId: locale.localeId, name: locale.name),
+          )
           .toList()
         ..sort((a, b) => a.name.compareTo(b.name));
     } catch (e) {
@@ -274,10 +274,7 @@ class VoiceTranscriptionService {
 
 /// Represents a locale available for speech recognition.
 class DictationLocale {
-  const DictationLocale({
-    required this.localeId,
-    required this.name,
-  });
+  const DictationLocale({required this.localeId, required this.name});
 
   /// The locale identifier (e.g., 'en_US', 'es_ES', 'fr_FR').
   final String localeId;

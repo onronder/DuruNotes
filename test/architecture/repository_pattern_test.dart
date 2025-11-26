@@ -60,7 +60,10 @@ void main() {
 
       for (final file in serviceFiles) {
         final content = file.readAsStringSync();
-        final fileName = file.path.replaceFirst(RegExp(r'^.*/lib/services/'), '');
+        final fileName = file.path.replaceFirst(
+          RegExp(r'^.*/lib/services/'),
+          '',
+        );
 
         // Skip files with explicit exemptions
         if (_isExempted(fileName, content)) {
@@ -91,7 +94,8 @@ void main() {
       }
 
       if (violations.isNotEmpty) {
-        final message = '''
+        final message =
+            '''
 
 ❌ REPOSITORY PATTERN VIOLATIONS DETECTED
 
@@ -123,48 +127,54 @@ WHY THIS MATTERS:
       }
     });
 
-    test('Services should use repository interfaces, not concrete implementations', () {
-      // This test ensures services depend on abstractions (ITaskRepository)
-      // rather than concrete implementations (TaskCoreRepository)
+    test(
+      'Services should use repository interfaces, not concrete implementations',
+      () {
+        // This test ensures services depend on abstractions (ITaskRepository)
+        // rather than concrete implementations (TaskCoreRepository)
 
-      final serviceDir = Directory('lib/services');
-      final violations = <String>[];
+        final serviceDir = Directory('lib/services');
+        final violations = <String>[];
 
-      if (!serviceDir.existsSync()) {
-        return; // Skip if services don't exist
-      }
+        if (!serviceDir.existsSync()) {
+          return; // Skip if services don't exist
+        }
 
-      final serviceFiles = serviceDir
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))
-          .toList();
+        final serviceFiles = serviceDir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'))
+            .toList();
 
-      for (final file in serviceFiles) {
-        final content = file.readAsStringSync();
-        final fileName = file.path.replaceFirst(RegExp(r'^.*/lib/services/'), '');
+        for (final file in serviceFiles) {
+          final content = file.readAsStringSync();
+          final fileName = file.path.replaceFirst(
+            RegExp(r'^.*/lib/services/'),
+            '',
+          );
 
-        // Check for concrete repository usage in field declarations
-        final concretePatterns = [
-          'TaskCoreRepository',  // Should be ITaskRepository
-          'NoteCoreRepository',  // Should be INoteRepository
-          'FolderCoreRepository', // Should be IFolderRepository
-        ];
+          // Check for concrete repository usage in field declarations
+          final concretePatterns = [
+            'TaskCoreRepository', // Should be ITaskRepository
+            'NoteCoreRepository', // Should be INoteRepository
+            'FolderCoreRepository', // Should be IFolderRepository
+          ];
 
-        for (final pattern in concretePatterns) {
-          // Look for field declarations like: final TaskCoreRepository _repo;
-          final regex = RegExp(r'final\s+' + pattern + r'\s+\w+;');
-          if (regex.hasMatch(content)) {
-            violations.add(
-              '$fileName: Uses concrete `$pattern`\n'
-              '  → Should use interface (e.g., I$pattern)',
-            );
+          for (final pattern in concretePatterns) {
+            // Look for field declarations like: final TaskCoreRepository _repo;
+            final regex = RegExp(r'final\s+' + pattern + r'\s+\w+;');
+            if (regex.hasMatch(content)) {
+              violations.add(
+                '$fileName: Uses concrete `$pattern`\n'
+                '  → Should use interface (e.g., I$pattern)',
+              );
+            }
           }
         }
-      }
 
-      if (violations.isNotEmpty) {
-        final message = '''
+        if (violations.isNotEmpty) {
+          final message =
+              '''
 
 ⚠️ DEPENDENCY INVERSION PRINCIPLE VIOLATION
 
@@ -185,10 +195,11 @@ WHY:
 
 ''';
 
-        // This is a warning, not a hard failure (for now)
-        print(message);
-      }
-    });
+          // This is a warning, not a hard failure (for now)
+          print(message);
+        }
+      },
+    );
 
     test('Database layer hard-delete methods should be private', () {
       // Ensure AppDb hard-delete methods are private (start with _)
@@ -223,7 +234,8 @@ WHY:
           if (line.contains('Future<void> $method(') ||
               line.contains('Future<void>$method(')) {
             // Check if previous lines contain @Deprecated
-            final hasDeprecation = i > 0 && lines[i - 1].contains('@Deprecated');
+            final hasDeprecation =
+                i > 0 && lines[i - 1].contains('@Deprecated');
             if (!hasDeprecation) {
               violations.add(
                 'app_db.dart:${i + 1}: Method `$method` should be @Deprecated\n'
@@ -235,7 +247,8 @@ WHY:
       }
 
       if (violations.isNotEmpty) {
-        final message = '''
+        final message =
+            '''
 
 ⚠️ DATABASE LAYER ENCAPSULATION VIOLATION
 
@@ -266,13 +279,13 @@ Services must use repository.deleteX() for soft delete.
 bool _isExempted(String fileName, String content) {
   // Files that legitimately need direct DB access
   final exemptedFiles = [
-    'database_optimizer.dart',  // DB maintenance operations
-    'purge_scheduler_service.dart',  // Needs raw DB access for purge
+    'database_optimizer.dart', // DB maintenance operations
+    'purge_scheduler_service.dart', // Needs raw DB access for purge
     // MIGRATION v41: TaskReminderBridge exempted (architectural decision)
     // See: ARCHITECTURE_VIOLATIONS.md "ARCHITECTURAL EXEMPTIONS" section
     // Reason: Platform reminder APIs require NoteTask (database layer objects)
     // Future work: Refactor to use domain.Task instead (P2 priority)
-    'task_reminder_bridge.dart',  // Infrastructure: NoteTask coordination for platform APIs
+    'task_reminder_bridge.dart', // Infrastructure: NoteTask coordination for platform APIs
   ];
 
   if (exemptedFiles.any((exempt) => fileName.contains(exempt))) {

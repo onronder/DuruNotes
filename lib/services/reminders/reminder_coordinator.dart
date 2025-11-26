@@ -32,12 +32,8 @@ import 'package:duru_notes/services/security/security_audit_trail.dart';
 ///
 /// The coordinator uses feature flags to enable gradual rollout of the refactored services.
 class ReminderCoordinator {
-  ReminderCoordinator(
-    this._ref,
-    this._plugin,
-    this._db, {
-    CryptoBox? cryptoBox,
-  }) : _cryptoBox = cryptoBox {
+  ReminderCoordinator(this._ref, this._plugin, this._db, {CryptoBox? cryptoBox})
+    : _cryptoBox = cryptoBox {
     // Use consolidated reminder services (Phase 1 complete)
     // MIGRATION v42: Pass CryptoBox for encryption support
     _recurringService = RecurringReminderService(
@@ -448,7 +444,10 @@ class ReminderCoordinator {
 
   /// Snooze an existing reminder
   // MIGRATION v41: Changed from int to String (UUID)
-  Future<bool> snoozeReminder(String reminderId, SnoozeDuration duration) async {
+  Future<bool> snoozeReminder(
+    String reminderId,
+    SnoozeDuration duration,
+  ) async {
     await initialize();
 
     if (!await hasNotificationPermissions()) {

@@ -602,7 +602,8 @@ class AccountKeyService {
           );
         }
 
-        if (!report.amkExistedBeforeDestruction && !report.remoteAmkExistedBeforeDestruction) {
+        if (!report.amkExistedBeforeDestruction &&
+            !report.remoteAmkExistedBeforeDestruction) {
           _logger.info(
             'No AMK found (local or remote) before destruction',
             data: {'userId': userId},
@@ -639,7 +640,11 @@ class AccountKeyService {
 
       _logger.debug(
         'Deleted local AMK and metadata from secure storage',
-        data: {'userId': userId, 'localAmkKey': localAmkKey, 'localMetaKey': localMetaKey},
+        data: {
+          'userId': userId,
+          'localAmkKey': localAmkKey,
+          'localMetaKey': localMetaKey,
+        },
       );
 
       // ======================================================================
@@ -666,10 +671,7 @@ class AccountKeyService {
 
       report.localAmkDestroyed = true;
 
-      _logger.debug(
-        'Verified local AMK deletion',
-        data: {'userId': userId},
-      );
+      _logger.debug('Verified local AMK deletion', data: {'userId': userId});
 
       // ======================================================================
       // Step 6: Delete Remote Wrapped AMK from Database
@@ -677,10 +679,7 @@ class AccountKeyService {
       //
       // Delete from user_keys table in Supabase.
       try {
-        await _client
-            .from('user_keys')
-            .delete()
-            .eq('user_id', userId);
+        await _client.from('user_keys').delete().eq('user_id', userId);
 
         _logger.debug(
           'Deleted remote wrapped AMK from user_keys table',
@@ -701,19 +700,13 @@ class AccountKeyService {
         if (stillExistsRemote != null) {
           final error = 'Remote AMK still exists after deletion attempt';
           report.errors.add(error);
-          _logger.error(
-            error,
-            data: {'userId': userId},
-          );
+          _logger.error(error, data: {'userId': userId});
           throw SecurityException(error);
         }
 
         report.remoteAmkDestroyed = true;
 
-        _logger.debug(
-          'Verified remote AMK deletion',
-          data: {'userId': userId},
-        );
+        _logger.debug('Verified remote AMK deletion', data: {'userId': userId});
       } catch (error, stackTrace) {
         // Remote deletion/verification failed
         final errorMsg = 'Failed to destroy remote AMK: $error';

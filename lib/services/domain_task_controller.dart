@@ -130,7 +130,9 @@ class DomainTaskController {
 
     var stepStopwatch = Stopwatch()..start();
     final effectiveNoteId = noteId ?? await _ensureStandaloneNote();
-    debugPrint('[PERF] ensureStandaloneNote: ${stepStopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+      '[PERF] ensureStandaloneNote: ${stepStopwatch.elapsedMilliseconds}ms',
+    );
 
     debugPrint(
       '[DomainTaskController] createTask request -> '
@@ -163,7 +165,9 @@ class DomainTaskController {
       estimatedMinutes: estimatedMinutes,
       createReminder: shouldScheduleReminder,
     );
-    debugPrint('[PERF] enhancedTaskService.createTask: ${stepStopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+      '[PERF] enhancedTaskService.createTask: ${stepStopwatch.elapsedMilliseconds}ms',
+    );
 
     if (shouldCreateCustomReminder) {
       // ignore: unnecessary_non_null_assertion
@@ -187,7 +191,9 @@ class DomainTaskController {
             debugPrint(
               '[DomainTaskController] custom reminder scheduled for task $taskId',
             );
-            debugPrint('[PERF] setCustomTaskReminder: ${stopwatch.elapsedMilliseconds}ms');
+            debugPrint(
+              '[PERF] setCustomTaskReminder: ${stopwatch.elapsedMilliseconds}ms',
+            );
           } catch (error, stackTrace) {
             _logger.error(
               'Failed to schedule custom reminder (non-blocking)',
@@ -204,7 +210,9 @@ class DomainTaskController {
 
     stepStopwatch = Stopwatch()..start();
     final created = await _taskRepository.getTaskById(taskId);
-    debugPrint('[PERF] taskRepository.getTaskById: ${stepStopwatch.elapsedMilliseconds}ms');
+    debugPrint(
+      '[PERF] taskRepository.getTaskById: ${stepStopwatch.elapsedMilliseconds}ms',
+    );
 
     if (created == null) {
       throw StateError('Task $taskId not found after creation');

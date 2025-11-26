@@ -172,9 +172,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final voiceService = ref.read(voiceTranscriptionServiceProvider);
         final locales = await voiceService.getAvailableLocales();
         final savedLocale = locales.cast<DictationLocale?>().firstWhere(
-              (l) => l?.localeId == savedLocaleId,
-              orElse: () => null,
-            );
+          (l) => l?.localeId == savedLocaleId,
+          orElse: () => null,
+        );
         if (mounted && savedLocale != null) {
           setState(() => _selectedDictationLocale = savedLocale);
         }
@@ -1430,7 +1430,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                    color: colorScheme.secondaryContainer.withValues(
+                      alpha: 0.5,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -2536,9 +2538,9 @@ class _DictationLocalePickerSheetState
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
                 'Dictation Language',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             // Search

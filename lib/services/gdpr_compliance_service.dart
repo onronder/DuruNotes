@@ -479,7 +479,9 @@ class GDPRComplianceService {
 
   Future<List<Map<String, dynamic>>> _exportAllReminders(String userId) async {
     try {
-      _logger.info('[GDPR] Exporting reminders with decryption for user: $userId');
+      _logger.info(
+        '[GDPR] Exporting reminders with decryption for user: $userId',
+      );
       // P0.5 SECURITY: Get reminders only for this user
       // Defense-in-depth: Filter by both userId AND noteId
       final userNoteIds = await (db.select(
@@ -581,17 +583,18 @@ class GDPRComplianceService {
             'body': body,
             'locationName': locationName,
             'reminderTime': reminder.remindAt?.toIso8601String(),
-            'isRecurring':
-                reminder.recurrencePattern != RecurrencePattern.none,
+            'isRecurring': reminder.recurrencePattern != RecurrencePattern.none,
             'recurringPattern': reminder.recurrencePattern.name,
             'isActive': reminder.isActive,
             'type': reminder.type.name,
             'createdAt': reminder.createdAt.toIso8601String(),
             'updatedAt': reminder.updatedAt?.toIso8601String(),
-            'encryptionStatus':
-                reminder.encryptionVersion != null ? 'encrypted' : 'plaintext',
+            'encryptionStatus': reminder.encryptionVersion != null
+                ? 'encrypted'
+                : 'plaintext',
             // Include location coordinates if present
-            if (reminder.latitude != null) 'locationLatitude': reminder.latitude,
+            if (reminder.latitude != null)
+              'locationLatitude': reminder.latitude,
             if (reminder.longitude != null)
               'locationLongitude': reminder.longitude,
             if (reminder.radius != null) 'locationRadius': reminder.radius,
@@ -817,17 +820,20 @@ class GDPRComplianceService {
           await (db.update(db.noteReminders)..where(
                 (r) => r.userId.equals(userId) & r.noteId.isIn(userNoteIds),
               ))
-              .write(NoteRemindersCompanion(
-            // Overwrite encrypted fields with zeros
-            titleEncrypted: Value(Uint8List.fromList(List.filled(32, 0))),
-            bodyEncrypted: Value(Uint8List.fromList(List.filled(32, 0))),
-            locationNameEncrypted:
-                Value(Uint8List.fromList(List.filled(32, 0))),
-            // Also clear plaintext fields
-            title: const Value(''),
-            body: const Value(''),
-            locationName: const Value(''),
-          ));
+              .write(
+                NoteRemindersCompanion(
+                  // Overwrite encrypted fields with zeros
+                  titleEncrypted: Value(Uint8List.fromList(List.filled(32, 0))),
+                  bodyEncrypted: Value(Uint8List.fromList(List.filled(32, 0))),
+                  locationNameEncrypted: Value(
+                    Uint8List.fromList(List.filled(32, 0)),
+                  ),
+                  // Also clear plaintext fields
+                  title: const Value(''),
+                  body: const Value(''),
+                  locationName: const Value(''),
+                ),
+              );
 
           // Now delete the rows
           await (db.delete(db.noteReminders)..where(

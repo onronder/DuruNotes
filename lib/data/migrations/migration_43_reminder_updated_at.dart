@@ -51,7 +51,9 @@ class Migration43ReminderUpdatedAt {
       await db.customStatement(
         'UPDATE note_reminders SET updated_at = created_at WHERE updated_at IS NULL',
       );
-      debugPrint('[Migration 43] ✅ Backfilled updated_at for existing reminders');
+      debugPrint(
+        '[Migration 43] ✅ Backfilled updated_at for existing reminders',
+      );
 
       // Step 3: Add index for conflict resolution queries
       await db.customStatement(
@@ -79,17 +81,21 @@ class Migration43ReminderUpdatedAt {
   /// - without_updated_at: Reminders missing updatedAt (should be 0 after migration)
   static Future<Map<String, int>> getProgress(AppDb db) async {
     try {
-      final total = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders',
-      ).getSingle();
+      final total = await db
+          .customSelect('SELECT COUNT(*) as count FROM note_reminders')
+          .getSingle();
 
-      final withUpdatedAt = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders WHERE updated_at IS NOT NULL',
-      ).getSingle();
+      final withUpdatedAt = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders WHERE updated_at IS NOT NULL',
+          )
+          .getSingle();
 
-      final withoutUpdatedAt = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders WHERE updated_at IS NULL',
-      ).getSingle();
+      final withoutUpdatedAt = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders WHERE updated_at IS NULL',
+          )
+          .getSingle();
 
       return {
         'total': total.read<int>('count'),
@@ -97,11 +103,7 @@ class Migration43ReminderUpdatedAt {
         'without_updated_at': withoutUpdatedAt.read<int>('count'),
       };
     } catch (error) {
-      return {
-        'total': 0,
-        'with_updated_at': 0,
-        'without_updated_at': 0,
-      };
+      return {'total': 0, 'with_updated_at': 0, 'without_updated_at': 0};
     }
   }
 }

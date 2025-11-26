@@ -34,10 +34,7 @@ void main() {
 
       // Simulate a record where both timestamps are set to the same value
       // This happens when a note is created and both timestamps are set
-      final result = getDisplayDate(
-        createdAt: now,
-        updatedAt: now,
-      );
+      final result = getDisplayDate(createdAt: now, updatedAt: now);
 
       // Should return createdAt (never edited)
       expect(result, equals(now));

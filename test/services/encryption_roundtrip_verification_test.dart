@@ -74,394 +74,418 @@ void main() {
     }
 
     group('Success Cases', () {
-      test('verification passes when encryption roundtrips correctly', () async {
-        // ARRANGE
-        final reminder = createMockReminder(
-          title: 'Buy milk',
-          body: 'From the store',
-        );
+      test(
+        'verification passes when encryption roundtrips correctly',
+        () async {
+          // ARRANGE
+          final reminder = createMockReminder(
+            title: 'Buy milk',
+            body: 'From the store',
+          );
 
-        final titleEncrypted = Uint8List.fromList('Buy milk'.codeUnits);
-        final bodyEncrypted = Uint8List.fromList('From the store'.codeUnits);
+          final titleEncrypted = Uint8List.fromList('Buy milk'.codeUnits);
+          final bodyEncrypted = Uint8List.fromList('From the store'.codeUnits);
 
-        // Mock encryption
-        when(
-          mockCryptoBox.encryptStringForNote(
+          // Mock encryption
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              text: 'Buy milk',
+            ),
+          ).thenAnswer((_) async => titleEncrypted);
+
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              text: 'From the store',
+            ),
+          ).thenAnswer((_) async => bodyEncrypted);
+
+          // Mock verification (decrypt back to original)
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: titleEncrypted,
+            ),
+          ).thenAnswer((_) async => 'Buy milk');
+
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: bodyEncrypted,
+            ),
+          ).thenAnswer((_) async => 'From the store');
+
+          // ACT
+          final result = await helper.encryptForSync(
+            reminder: reminder,
             userId: testUserId,
-            noteId: testNoteId,
-            text: 'Buy milk',
-          ),
-        ).thenAnswer((_) async => titleEncrypted);
+          );
 
-        when(
-          mockCryptoBox.encryptStringForNote(
+          // ASSERT
+          expect(result.success, isTrue);
+          expect(result.titleEncrypted, equals(titleEncrypted));
+          expect(result.bodyEncrypted, equals(bodyEncrypted));
+
+          // Verify that decryption was called (roundtrip verification happened)
+          verify(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: titleEncrypted,
+            ),
+          ).called(1);
+
+          verify(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: bodyEncrypted,
+            ),
+          ).called(1);
+        },
+      );
+
+      test(
+        'verification passes for all fields including locationName',
+        () async {
+          // ARRANGE
+          final reminder = createMockReminder(
+            title: 'Meeting',
+            body: 'Team sync',
+            locationName: 'Conference Room A',
+          );
+
+          final titleEnc = Uint8List.fromList('Meeting'.codeUnits);
+          final bodyEnc = Uint8List.fromList('Team sync'.codeUnits);
+          final locationEnc = Uint8List.fromList('Conference Room A'.codeUnits);
+
+          // Mock encryption
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              text: 'Meeting',
+            ),
+          ).thenAnswer((_) async => titleEnc);
+
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              text: 'Team sync',
+            ),
+          ).thenAnswer((_) async => bodyEnc);
+
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              text: 'Conference Room A',
+            ),
+          ).thenAnswer((_) async => locationEnc);
+
+          // Mock verification (all roundtrip correctly)
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              data: titleEnc,
+            ),
+          ).thenAnswer((_) async => 'Meeting');
+
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              data: bodyEnc,
+            ),
+          ).thenAnswer((_) async => 'Team sync');
+
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              data: locationEnc,
+            ),
+          ).thenAnswer((_) async => 'Conference Room A');
+
+          // ACT
+          final result = await helper.encryptForSync(
+            reminder: reminder,
             userId: testUserId,
-            noteId: testNoteId,
-            text: 'From the store',
-          ),
-        ).thenAnswer((_) async => bodyEncrypted);
+          );
 
-        // Mock verification (decrypt back to original)
-        when(
-          mockCryptoBox.decryptStringForNote(
+          // ASSERT
+          expect(result.success, isTrue);
+          expect(result.titleEncrypted, equals(titleEnc));
+          expect(result.bodyEncrypted, equals(bodyEnc));
+          expect(result.locationNameEncrypted, equals(locationEnc));
+        },
+      );
+
+      test(
+        'verification passes for existing encryption when consistent',
+        () async {
+          // ARRANGE
+          final titleEnc = Uint8List.fromList('Encrypted title'.codeUnits);
+          final bodyEnc = Uint8List.fromList('Encrypted body'.codeUnits);
+
+          final reminder = createMockReminder(
+            title: 'My Title',
+            body: 'My Body',
+            titleEncrypted: titleEnc,
+            bodyEncrypted: bodyEnc,
+            encryptionVersion: 1,
+          );
+
+          // Mock verification (decrypt to original)
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: titleEnc,
+            ),
+          ).thenAnswer((_) async => 'My Title');
+
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: bodyEnc,
+            ),
+          ).thenAnswer((_) async => 'My Body');
+
+          // ACT
+          final result = await helper.encryptForSync(
+            reminder: reminder,
             userId: testUserId,
-            noteId: testNoteId,
-            data: titleEncrypted,
-          ),
-        ).thenAnswer((_) async => 'Buy milk');
+          );
 
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: bodyEncrypted,
-          ),
-        ).thenAnswer((_) async => 'From the store');
+          // ASSERT
+          expect(result.success, isTrue);
+          expect(result.titleEncrypted, equals(titleEnc));
+          expect(result.bodyEncrypted, equals(bodyEnc));
 
-        // ACT
-        final result = await helper.encryptForSync(
-          reminder: reminder,
-          userId: testUserId,
-        );
-
-        // ASSERT
-        expect(result.success, isTrue);
-        expect(result.titleEncrypted, equals(titleEncrypted));
-        expect(result.bodyEncrypted, equals(bodyEncrypted));
-
-        // Verify that decryption was called (roundtrip verification happened)
-        verify(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: titleEncrypted,
-          ),
-        ).called(1);
-
-        verify(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: bodyEncrypted,
-          ),
-        ).called(1);
-      });
-
-      test('verification passes for all fields including locationName', () async {
-        // ARRANGE
-        final reminder = createMockReminder(
-          title: 'Meeting',
-          body: 'Team sync',
-          locationName: 'Conference Room A',
-        );
-
-        final titleEnc = Uint8List.fromList('Meeting'.codeUnits);
-        final bodyEnc = Uint8List.fromList('Team sync'.codeUnits);
-        final locationEnc = Uint8List.fromList('Conference Room A'.codeUnits);
-
-        // Mock encryption
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            text: 'Meeting',
-          ),
-        ).thenAnswer((_) async => titleEnc);
-
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            text: 'Team sync',
-          ),
-        ).thenAnswer((_) async => bodyEnc);
-
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            text: 'Conference Room A',
-          ),
-        ).thenAnswer((_) async => locationEnc);
-
-        // Mock verification (all roundtrip correctly)
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            data: titleEnc,
-          ),
-        ).thenAnswer((_) async => 'Meeting');
-
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            data: bodyEnc,
-          ),
-        ).thenAnswer((_) async => 'Team sync');
-
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            data: locationEnc,
-          ),
-        ).thenAnswer((_) async => 'Conference Room A');
-
-        // ACT
-        final result = await helper.encryptForSync(
-          reminder: reminder,
-          userId: testUserId,
-        );
-
-        // ASSERT
-        expect(result.success, isTrue);
-        expect(result.titleEncrypted, equals(titleEnc));
-        expect(result.bodyEncrypted, equals(bodyEnc));
-        expect(result.locationNameEncrypted, equals(locationEnc));
-      });
-
-      test('verification passes for existing encryption when consistent', () async {
-        // ARRANGE
-        final titleEnc = Uint8List.fromList('Encrypted title'.codeUnits);
-        final bodyEnc = Uint8List.fromList('Encrypted body'.codeUnits);
-
-        final reminder = createMockReminder(
-          title: 'My Title',
-          body: 'My Body',
-          titleEncrypted: titleEnc,
-          bodyEncrypted: bodyEnc,
-          encryptionVersion: 1,
-        );
-
-        // Mock verification (decrypt to original)
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: titleEnc,
-          ),
-        ).thenAnswer((_) async => 'My Title');
-
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: bodyEnc,
-          ),
-        ).thenAnswer((_) async => 'My Body');
-
-        // ACT
-        final result = await helper.encryptForSync(
-          reminder: reminder,
-          userId: testUserId,
-        );
-
-        // ASSERT
-        expect(result.success, isTrue);
-        expect(result.titleEncrypted, equals(titleEnc));
-        expect(result.bodyEncrypted, equals(bodyEnc));
-
-        // Should NOT call encrypt (reuses existing)
-        verifyNever(
-          mockCryptoBox.encryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            text: anyNamed('text'),
-          ),
-        );
-      });
+          // Should NOT call encrypt (reuses existing)
+          verifyNever(
+            mockCryptoBox.encryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              text: anyNamed('text'),
+            ),
+          );
+        },
+      );
     });
 
     group('Failure Cases', () {
-      test('verification fails when title decrypts to different value', () async {
-        // ARRANGE
-        final reminder = createMockReminder(
-          title: 'Original Title',
-          body: 'Original Body',
-        );
+      test(
+        'verification fails when title decrypts to different value',
+        () async {
+          // ARRANGE
+          final reminder = createMockReminder(
+            title: 'Original Title',
+            body: 'Original Body',
+          );
 
-        final titleEnc = Uint8List.fromList('encrypted'.codeUnits);
-        final bodyEnc = Uint8List.fromList('encrypted'.codeUnits);
+          final titleEnc = Uint8List.fromList('encrypted'.codeUnits);
+          final bodyEnc = Uint8List.fromList('encrypted'.codeUnits);
 
-        // Mock encryption succeeds
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            text: 'Original Title',
-          ),
-        ).thenAnswer((_) async => titleEnc);
+          // Mock encryption succeeds
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              text: 'Original Title',
+            ),
+          ).thenAnswer((_) async => titleEnc);
 
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            text: 'Original Body',
-          ),
-        ).thenAnswer((_) async => bodyEnc);
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              text: 'Original Body',
+            ),
+          ).thenAnswer((_) async => bodyEnc);
 
-        // Mock verification fails (decrypts to WRONG value)
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: anyNamed('userId'),
-            noteId: anyNamed('noteId'),
-            data: titleEnc,
-          ),
-        ).thenAnswer((_) async => 'CORRUPTED TITLE');  // ❌ Mismatch!
+          // Mock verification fails (decrypts to WRONG value)
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: anyNamed('userId'),
+              noteId: anyNamed('noteId'),
+              data: titleEnc,
+            ),
+          ).thenAnswer((_) async => 'CORRUPTED TITLE'); // ❌ Mismatch!
 
-        // ACT
-        final result = await helper.encryptForSync(
-          reminder: reminder,
-          userId: testUserId,
-        );
-
-        // ASSERT
-        expect(result.success, isFalse);
-        expect(result.failureReason, contains('Encryption verification failed'));
-        expect(result.failureReason, contains('Title'));
-        expect(result.isRetryable, isTrue);
-      });
-
-      test('verification fails when body decrypts to different value', () async {
-        // ARRANGE
-        final reminder = createMockReminder(
-          title: 'Title',
-          body: 'Original Body',
-        );
-
-        final titleEnc = Uint8List.fromList('titleenc'.codeUnits);
-        final bodyEnc = Uint8List.fromList('bodyenc'.codeUnits);
-
-        // Mock encryption - return different bytes for title and body
-        when(
-          mockCryptoBox.encryptStringForNote(
+          // ACT
+          final result = await helper.encryptForSync(
+            reminder: reminder,
             userId: testUserId,
-            noteId: testNoteId,
-            text: 'Title',
-          ),
-        ).thenAnswer((_) async => titleEnc);
+          );
 
-        when(
-          mockCryptoBox.encryptStringForNote(
+          // ASSERT
+          expect(result.success, isFalse);
+          expect(
+            result.failureReason,
+            contains('Encryption verification failed'),
+          );
+          expect(result.failureReason, contains('Title'));
+          expect(result.isRetryable, isTrue);
+        },
+      );
+
+      test(
+        'verification fails when body decrypts to different value',
+        () async {
+          // ARRANGE
+          final reminder = createMockReminder(
+            title: 'Title',
+            body: 'Original Body',
+          );
+
+          final titleEnc = Uint8List.fromList('titleenc'.codeUnits);
+          final bodyEnc = Uint8List.fromList('bodyenc'.codeUnits);
+
+          // Mock encryption - return different bytes for title and body
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              text: 'Title',
+            ),
+          ).thenAnswer((_) async => titleEnc);
+
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              text: 'Original Body',
+            ),
+          ).thenAnswer((_) async => bodyEnc);
+
+          // Mock verification: title OK, body FAILS
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: titleEnc,
+            ),
+          ).thenAnswer((_) async => 'Title'); // ✅ Correct
+
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: bodyEnc,
+            ),
+          ).thenAnswer((_) async => 'CORRUPTED BODY'); // ❌ Mismatch!
+
+          // ACT
+          final result = await helper.encryptForSync(
+            reminder: reminder,
             userId: testUserId,
-            noteId: testNoteId,
-            text: 'Original Body',
-          ),
-        ).thenAnswer((_) async => bodyEnc);
+          );
 
-        // Mock verification: title OK, body FAILS
-        when(
-          mockCryptoBox.decryptStringForNote(
+          // ASSERT
+          expect(result.success, isFalse);
+          expect(
+            result.failureReason,
+            contains('Encryption verification failed'),
+          );
+          expect(result.failureReason, contains('Body'));
+          expect(result.isRetryable, isTrue);
+        },
+      );
+
+      test(
+        'verification fails when locationName decrypts incorrectly',
+        () async {
+          // ARRANGE
+          final reminder = createMockReminder(
+            title: 'Meeting',
+            body: 'Important',
+            locationName: 'Room 123',
+          );
+
+          final titleEnc = Uint8List.fromList('tenc'.codeUnits);
+          final bodyEnc = Uint8List.fromList('benc'.codeUnits);
+          final locationEnc = Uint8List.fromList('lenc'.codeUnits);
+
+          // Mock encryption - each field gets unique bytes
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              text: 'Meeting',
+            ),
+          ).thenAnswer((_) async => titleEnc);
+
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              text: 'Important',
+            ),
+          ).thenAnswer((_) async => bodyEnc);
+
+          when(
+            mockCryptoBox.encryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              text: 'Room 123',
+            ),
+          ).thenAnswer((_) async => locationEnc);
+
+          // Mock verification: title and body OK, location FAILS
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: titleEnc,
+            ),
+          ).thenAnswer((_) async => 'Meeting'); // ✅ Correct
+
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: bodyEnc,
+            ),
+          ).thenAnswer((_) async => 'Important'); // ✅ Correct
+
+          when(
+            mockCryptoBox.decryptStringForNote(
+              userId: testUserId,
+              noteId: testNoteId,
+              data: locationEnc,
+            ),
+          ).thenAnswer((_) async => 'Wrong Room'); // ❌ Mismatch!
+
+          // ACT
+          final result = await helper.encryptForSync(
+            reminder: reminder,
             userId: testUserId,
-            noteId: testNoteId,
-            data: titleEnc,
-          ),
-        ).thenAnswer((_) async => 'Title');  // ✅ Correct
+          );
 
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: bodyEnc,
-          ),
-        ).thenAnswer((_) async => 'CORRUPTED BODY');  // ❌ Mismatch!
-
-        // ACT
-        final result = await helper.encryptForSync(
-          reminder: reminder,
-          userId: testUserId,
-        );
-
-        // ASSERT
-        expect(result.success, isFalse);
-        expect(result.failureReason, contains('Encryption verification failed'));
-        expect(result.failureReason, contains('Body'));
-        expect(result.isRetryable, isTrue);
-      });
-
-      test('verification fails when locationName decrypts incorrectly', () async {
-        // ARRANGE
-        final reminder = createMockReminder(
-          title: 'Meeting',
-          body: 'Important',
-          locationName: 'Room 123',
-        );
-
-        final titleEnc = Uint8List.fromList('tenc'.codeUnits);
-        final bodyEnc = Uint8List.fromList('benc'.codeUnits);
-        final locationEnc = Uint8List.fromList('lenc'.codeUnits);
-
-        // Mock encryption - each field gets unique bytes
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            text: 'Meeting',
-          ),
-        ).thenAnswer((_) async => titleEnc);
-
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            text: 'Important',
-          ),
-        ).thenAnswer((_) async => bodyEnc);
-
-        when(
-          mockCryptoBox.encryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            text: 'Room 123',
-          ),
-        ).thenAnswer((_) async => locationEnc);
-
-        // Mock verification: title and body OK, location FAILS
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: titleEnc,
-          ),
-        ).thenAnswer((_) async => 'Meeting');  // ✅ Correct
-
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: bodyEnc,
-          ),
-        ).thenAnswer((_) async => 'Important');  // ✅ Correct
-
-        when(
-          mockCryptoBox.decryptStringForNote(
-            userId: testUserId,
-            noteId: testNoteId,
-            data: locationEnc,
-          ),
-        ).thenAnswer((_) async => 'Wrong Room');  // ❌ Mismatch!
-
-        // ACT
-        final result = await helper.encryptForSync(
-          reminder: reminder,
-          userId: testUserId,
-        );
-
-        // ASSERT
-        expect(result.success, isFalse);
-        expect(result.failureReason, contains('Encryption verification failed'));
-        expect(result.failureReason, contains('Location'));
-        expect(result.isRetryable, isTrue);
-      });
+          // ASSERT
+          expect(result.success, isFalse);
+          expect(
+            result.failureReason,
+            contains('Encryption verification failed'),
+          );
+          expect(result.failureReason, contains('Location'));
+          expect(result.isRetryable, isTrue);
+        },
+      );
 
       test('failed verification is queued for retry', () async {
         // ARRANGE
-        final reminder = createMockReminder(
-          title: 'Test',
-          body: 'Test',
-        );
+        final reminder = createMockReminder(title: 'Test', body: 'Test');
 
         final enc = Uint8List.fromList('e'.codeUnits);
 
@@ -501,10 +525,7 @@ void main() {
     group('Edge Cases', () {
       test('handles decryption exception during verification', () async {
         // ARRANGE
-        final reminder = createMockReminder(
-          title: 'Test',
-          body: 'Test',
-        );
+        final reminder = createMockReminder(title: 'Test', body: 'Test');
 
         final enc = Uint8List.fromList('e'.codeUnits);
 
@@ -539,10 +560,7 @@ void main() {
 
       test('verification handles empty strings correctly', () async {
         // ARRANGE
-        final reminder = createMockReminder(
-          title: '',
-          body: '',
-        );
+        final reminder = createMockReminder(title: '', body: '');
 
         final titleEnc = Uint8List(0);
         final bodyEnc = Uint8List(0);
@@ -584,8 +602,8 @@ void main() {
       test('verification handles unicode characters correctly', () async {
         // ARRANGE
         final reminder = createMockReminder(
-          title: '你好世界',  // Chinese
-          body: 'مرحبا بالعالم',  // Arabic
+          title: '你好世界', // Chinese
+          body: 'مرحبا بالعالم', // Arabic
         );
 
         final titleEnc = Uint8List.fromList('你好世界'.codeUnits);

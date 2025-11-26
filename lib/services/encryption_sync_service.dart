@@ -735,19 +735,23 @@ class EncryptionSyncService {
               .select('encrypted_amk')
               .eq('user_id', userId)
               .maybeSingle();
-          report.remoteCrossDeviceKeyExistedBeforeDestruction = (remoteData != null);
+          report.remoteCrossDeviceKeyExistedBeforeDestruction =
+              (remoteData != null);
 
           _logger.debug(
             'Pre-destruction verification complete',
             data: {
               'userId': userId,
-              'localCrossDeviceKeyExists': report.crossDeviceAmkExistedBeforeDestruction,
-              'remoteCrossDeviceKeyExists': report.remoteCrossDeviceKeyExistedBeforeDestruction,
+              'localCrossDeviceKeyExists':
+                  report.crossDeviceAmkExistedBeforeDestruction,
+              'remoteCrossDeviceKeyExists':
+                  report.remoteCrossDeviceKeyExistedBeforeDestruction,
             },
           );
         } catch (error, stackTrace) {
           // Remote verification failed - log but continue with local destruction
-          final errorMsg = 'Failed to verify remote cross-device key existence: $error';
+          final errorMsg =
+              'Failed to verify remote cross-device key existence: $error';
           report.errors.add(errorMsg);
           _logger.warning(
             errorMsg,
@@ -807,15 +811,15 @@ class EncryptionSyncService {
       // ======================================================================
       //
       // Confirm key no longer exists in local secure storage.
-      final stillExistsLocal = await secureStorage.read(key: localCrossDeviceKey);
+      final stillExistsLocal = await secureStorage.read(
+        key: localCrossDeviceKey,
+      );
 
       if (stillExistsLocal != null) {
-        final error = 'Local cross-device AMK still exists after deletion attempt';
+        final error =
+            'Local cross-device AMK still exists after deletion attempt';
         report.errors.add(error);
-        _logger.error(
-          error,
-          data: {'userId': userId},
-        );
+        _logger.error(error, data: {'userId': userId});
         throw SecurityException(error);
       }
 
@@ -854,12 +858,10 @@ class EncryptionSyncService {
             .maybeSingle();
 
         if (stillExistsRemote != null) {
-          final error = 'Remote cross-device key still exists after deletion attempt';
+          final error =
+              'Remote cross-device key still exists after deletion attempt';
           report.errors.add(error);
-          _logger.error(
-            error,
-            data: {'userId': userId},
-          );
+          _logger.error(error, data: {'userId': userId});
           throw SecurityException(error);
         }
 
@@ -924,7 +926,8 @@ class EncryptionSyncService {
       //
       // Log error and add to report, but don't throw unless it's a security exception.
       // This allows destruction to continue even if one location fails.
-      final errorMessage = 'Failed to destroy cross-device encryption keys: $error';
+      final errorMessage =
+          'Failed to destroy cross-device encryption keys: $error';
       if (!report.errors.contains(errorMessage)) {
         report.errors.add(errorMessage);
       }

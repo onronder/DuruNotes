@@ -47,8 +47,10 @@ class EncryptionLockManager {
   final ReminderServiceConfig _config;
 
   EncryptionLockManager([ReminderServiceConfig? config])
-      : _config = config ?? ReminderServiceConfig.defaultConfig() {
-    _logger.debug('EncryptionLockManager initialized with lockTimeout=${_config.lockTimeout}');
+    : _config = config ?? ReminderServiceConfig.defaultConfig() {
+    _logger.debug(
+      'EncryptionLockManager initialized with lockTimeout=${_config.lockTimeout}',
+    );
   }
 
   static const _logger = ConsoleLogger();

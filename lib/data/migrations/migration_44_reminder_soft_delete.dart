@@ -114,26 +114,32 @@ class Migration44ReminderSoftDelete {
       final now = DateTime.now().millisecondsSinceEpoch;
 
       // Get total count
-      final totalResult = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders',
-      ).getSingle();
+      final totalResult = await db
+          .customSelect('SELECT COUNT(*) as count FROM note_reminders')
+          .getSingle();
 
       // Get active (not deleted) count
-      final activeResult = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders WHERE deleted_at IS NULL',
-      ).getSingle();
+      final activeResult = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders WHERE deleted_at IS NULL',
+          )
+          .getSingle();
 
       // Get deleted count
-      final deletedResult = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders WHERE deleted_at IS NOT NULL',
-      ).getSingle();
+      final deletedResult = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders WHERE deleted_at IS NOT NULL',
+          )
+          .getSingle();
 
       // Get pending purge count (deleted more than 30 days ago)
-      final purgeResult = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders '
-        'WHERE scheduled_purge_at IS NOT NULL AND scheduled_purge_at <= ?',
-        variables: [Variable.withInt(now)],
-      ).getSingle();
+      final purgeResult = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders '
+            'WHERE scheduled_purge_at IS NOT NULL AND scheduled_purge_at <= ?',
+            variables: [Variable.withInt(now)],
+          )
+          .getSingle();
 
       return {
         'total_reminders': totalResult.read<int>('count'),
@@ -165,11 +171,13 @@ class Migration44ReminderSoftDelete {
       debugPrint('[Migration 44] Starting purge of expired reminders...');
 
       // Get count before deletion
-      final beforeResult = await db.customSelect(
-        'SELECT COUNT(*) as count FROM note_reminders '
-        'WHERE scheduled_purge_at IS NOT NULL AND scheduled_purge_at <= ?',
-        variables: [Variable.withInt(now)],
-      ).getSingle();
+      final beforeResult = await db
+          .customSelect(
+            'SELECT COUNT(*) as count FROM note_reminders '
+            'WHERE scheduled_purge_at IS NOT NULL AND scheduled_purge_at <= ?',
+            variables: [Variable.withInt(now)],
+          )
+          .getSingle();
 
       final countBefore = beforeResult.read<int>('count');
 
@@ -185,9 +193,7 @@ class Migration44ReminderSoftDelete {
         [now],
       );
 
-      _logger.info(
-        '[Migration 44] ✅ Purged $countBefore expired reminders',
-      );
+      _logger.info('[Migration 44] ✅ Purged $countBefore expired reminders');
 
       debugPrint('[Migration 44] ✅ Purged $countBefore expired reminders');
 

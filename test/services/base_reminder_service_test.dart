@@ -33,7 +33,8 @@ class TestReminderService extends BaseReminderService {
   TestReminderService(super.ref, super.plugin, super.db);
 
   @override
-  Future<String?> createReminder(ReminderConfig config) async => 'test-reminder-id';
+  Future<String?> createReminder(ReminderConfig config) async =>
+      'test-reminder-id';
 }
 
 @GenerateNiceMocks([

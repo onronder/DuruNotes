@@ -626,32 +626,39 @@ class FolderCoreRepository implements IFolderRepository {
 
       await db.transaction(() async {
         // 1. Soft delete the folder itself with timestamps
-        await (db.update(db.localFolders)
-              ..where((f) => f.id.equals(folderId)))
-            .write(LocalFoldersCompanion(
-          deleted: Value(true),
-          deletedAt: Value(now),
-          scheduledPurgeAt: Value(scheduledPurgeAt),
-          updatedAt: Value(now),
-        ));
-
-        // 2. Cascade soft-delete to all notes in this folder
-        // Get all notes that belong to this folder
-        final notesInFolder = await (db.select(db.noteFolders)
-              ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
-            .get();
-        cascadedNotes += notesInFolder.length;
-
-        // Soft delete each note (cascade to trash) with timestamps
-        for (final noteFolder in notesInFolder) {
-          await (db.update(db.localNotes)
-                ..where((n) => n.id.equals(noteFolder.noteId)))
-              .write(LocalNotesCompanion(
+        await (db.update(
+          db.localFolders,
+        )..where((f) => f.id.equals(folderId))).write(
+          LocalFoldersCompanion(
             deleted: Value(true),
             deletedAt: Value(now),
             scheduledPurgeAt: Value(scheduledPurgeAt),
             updatedAt: Value(now),
-          ));
+          ),
+        );
+
+        // 2. Cascade soft-delete to all notes in this folder
+        // Get all notes that belong to this folder
+        final notesInFolder =
+            await (db.select(db.noteFolders)..where(
+                  (nf) =>
+                      nf.folderId.equals(folderId) & nf.userId.equals(userId),
+                ))
+                .get();
+        cascadedNotes += notesInFolder.length;
+
+        // Soft delete each note (cascade to trash) with timestamps
+        for (final noteFolder in notesInFolder) {
+          await (db.update(
+            db.localNotes,
+          )..where((n) => n.id.equals(noteFolder.noteId))).write(
+            LocalNotesCompanion(
+              deleted: Value(true),
+              deletedAt: Value(now),
+              scheduledPurgeAt: Value(scheduledPurgeAt),
+              updatedAt: Value(now),
+            ),
+          );
 
           // Enqueue note deletion for sync
           await _enqueuePendingOp(
@@ -667,14 +674,16 @@ class FolderCoreRepository implements IFolderRepository {
           );
           cascadedTasks += tasks.length;
           for (final task in tasks) {
-            await (db.update(db.noteTasks)
-                  ..where((t) => t.id.equals(task.id)))
-                .write(NoteTasksCompanion(
-              deleted: Value(true),
-              deletedAt: Value(now),
-              scheduledPurgeAt: Value(scheduledPurgeAt),
-              updatedAt: Value(now),
-            ));
+            await (db.update(
+              db.noteTasks,
+            )..where((t) => t.id.equals(task.id))).write(
+              NoteTasksCompanion(
+                deleted: Value(true),
+                deletedAt: Value(now),
+                scheduledPurgeAt: Value(scheduledPurgeAt),
+                updatedAt: Value(now),
+              ),
+            );
 
             await _enqueuePendingOp(
               entityId: task.id,
@@ -752,35 +761,38 @@ class FolderCoreRepository implements IFolderRepository {
     required DateTime scheduledPurgeAt,
   }) async {
     // 1. Soft delete the folder itself with timestamps
-    await (db.update(db.localFolders)
-          ..where((f) => f.id.equals(folderId)))
-        .write(LocalFoldersCompanion(
-      deleted: Value(true),
-      deletedAt: Value(now),
-      scheduledPurgeAt: Value(scheduledPurgeAt),
-      updatedAt: Value(now),
-    ));
-
-    // 2. Cascade soft-delete to all notes in this folder
-    final notesInFolder = await (db.select(db.noteFolders)
-          ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
-        .get();
-
-    for (final noteFolder in notesInFolder) {
-      await (db.update(db.localNotes)
-            ..where((n) => n.id.equals(noteFolder.noteId)))
-          .write(LocalNotesCompanion(
+    await (db.update(
+      db.localFolders,
+    )..where((f) => f.id.equals(folderId))).write(
+      LocalFoldersCompanion(
         deleted: Value(true),
         deletedAt: Value(now),
         scheduledPurgeAt: Value(scheduledPurgeAt),
         updatedAt: Value(now),
-      ));
+      ),
+    );
+
+    // 2. Cascade soft-delete to all notes in this folder
+    final notesInFolder =
+        await (db.select(db.noteFolders)..where(
+              (nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId),
+            ))
+            .get();
+
+    for (final noteFolder in notesInFolder) {
+      await (db.update(
+        db.localNotes,
+      )..where((n) => n.id.equals(noteFolder.noteId))).write(
+        LocalNotesCompanion(
+          deleted: Value(true),
+          deletedAt: Value(now),
+          scheduledPurgeAt: Value(scheduledPurgeAt),
+          updatedAt: Value(now),
+        ),
+      );
 
       // Enqueue note deletion for sync
-      await _enqueuePendingOp(
-        entityId: noteFolder.noteId,
-        kind: 'upsert_note',
-      );
+      await _enqueuePendingOp(entityId: noteFolder.noteId, kind: 'upsert_note');
 
       // Cascade soft-delete to all tasks in this note
       final tasks = await db.getTasksForNote(
@@ -789,14 +801,16 @@ class FolderCoreRepository implements IFolderRepository {
         includeDeleted: true,
       );
       for (final task in tasks) {
-        await (db.update(db.noteTasks)
-              ..where((t) => t.id.equals(task.id)))
-            .write(NoteTasksCompanion(
-          deleted: Value(true),
-          deletedAt: Value(now),
-          scheduledPurgeAt: Value(scheduledPurgeAt),
-          updatedAt: Value(now),
-        ));
+        await (db.update(
+          db.noteTasks,
+        )..where((t) => t.id.equals(task.id))).write(
+          NoteTasksCompanion(
+            deleted: Value(true),
+            deletedAt: Value(now),
+            scheduledPurgeAt: Value(scheduledPurgeAt),
+            updatedAt: Value(now),
+          ),
+        );
 
         await _enqueuePendingOp(
           entityId: task.id,
@@ -829,9 +843,11 @@ class FolderCoreRepository implements IFolderRepository {
     required String userId,
   }) async {
     // 1. Cascade hard-delete to all notes in this folder
-    final notesInFolder = await (db.select(db.noteFolders)
-          ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
-        .get();
+    final notesInFolder =
+        await (db.select(db.noteFolders)..where(
+              (nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId),
+            ))
+            .get();
 
     for (final noteFolder in notesInFolder) {
       // First, handle all tasks in this note
@@ -849,52 +865,49 @@ class FolderCoreRepository implements IFolderRepository {
         );
 
         // Hard delete the task
-        await (db.delete(db.noteTasks)
-              ..where((t) => t.id.equals(task.id)))
-            .go();
+        await (db.delete(
+          db.noteTasks,
+        )..where((t) => t.id.equals(task.id))).go();
       }
 
       // Enqueue note deletion BEFORE removing from database
-      await _enqueuePendingOp(
-        entityId: noteFolder.noteId,
-        kind: 'delete_note',
-      );
+      await _enqueuePendingOp(entityId: noteFolder.noteId, kind: 'delete_note');
 
       // Hard delete the note
-      await (db.delete(db.localNotes)
-            ..where((n) => n.id.equals(noteFolder.noteId)))
-          .go();
+      await (db.delete(
+        db.localNotes,
+      )..where((n) => n.id.equals(noteFolder.noteId))).go();
 
       // Delete the note-folder relationship
-      await (db.delete(db.noteFolders)
-            ..where((nf) => nf.noteId.equals(noteFolder.noteId)))
-          .go();
+      await (db.delete(
+        db.noteFolders,
+      )..where((nf) => nf.noteId.equals(noteFolder.noteId))).go();
     }
 
     // 2. Recursively handle child folders (stays within transaction)
     final childFolders = await db.getChildFoldersIncludingDeleted(folderId);
     for (final child in childFolders) {
       // Recursive call to private helper, NOT public API
-      await _hardDeleteFolderTree(
-        folderId: child.id,
-        userId: userId,
-      );
+      await _hardDeleteFolderTree(folderId: child.id, userId: userId);
     }
 
     // 3. Enqueue folder deletion BEFORE removing from database
     await _enqueuePendingOp(entityId: folderId, kind: 'delete_folder');
 
     // 4. Hard delete the folder itself
-    await (db.delete(db.localFolders)
-          ..where((f) => f.id.equals(folderId)))
-        .go();
+    await (db.delete(
+      db.localFolders,
+    )..where((f) => f.id.equals(folderId))).go();
   }
 
   /// Restore a soft-deleted folder from trash (Phase 1.1)
   /// Note: This does NOT automatically restore child notes or folders.
   /// Call restoreFolder recursively on child folders if needed.
   @override
-  Future<void> restoreFolder(String folderId, {bool restoreContents = false}) async {
+  Future<void> restoreFolder(
+    String folderId, {
+    bool restoreContents = false,
+  }) async {
     try {
       final userId = _requireUserId(
         method: 'restoreFolder',
@@ -904,17 +917,20 @@ class FolderCoreRepository implements IFolderRepository {
         throw StateError('Cannot restore folder without authenticated user');
       }
 
-      final folder = await (db.select(db.localFolders)
-            ..where((f) => f.id.equals(folderId))
-            ..where((f) => f.userId.equals(userId)))
-          .getSingleOrNull();
+      final folder =
+          await (db.select(db.localFolders)
+                ..where((f) => f.id.equals(folderId))
+                ..where((f) => f.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (folder == null) {
         throw StateError('Folder not found or does not belong to user');
       }
 
       if (!folder.deleted) {
-        _logger.warning('Attempted to restore folder that is not deleted: $folderId');
+        _logger.warning(
+          'Attempted to restore folder that is not deleted: $folderId',
+        );
         return; // Already restored, no-op
       }
 
@@ -922,31 +938,38 @@ class FolderCoreRepository implements IFolderRepository {
 
       await db.transaction(() async {
         // 1. Restore the folder itself and clear timestamps
-        await (db.update(db.localFolders)
-              ..where((f) => f.id.equals(folderId)))
-            .write(LocalFoldersCompanion(
-          deleted: Value(false),
-          deletedAt: Value(null),
-          scheduledPurgeAt: Value(null),
-          updatedAt: Value(now),
-        ));
+        await (db.update(
+          db.localFolders,
+        )..where((f) => f.id.equals(folderId))).write(
+          LocalFoldersCompanion(
+            deleted: Value(false),
+            deletedAt: Value(null),
+            scheduledPurgeAt: Value(null),
+            updatedAt: Value(now),
+          ),
+        );
 
         // 2. Optionally restore child notes and folders
         if (restoreContents) {
           // Restore all notes in this folder
-          final notesInFolder = await (db.select(db.noteFolders)
-                ..where((nf) => nf.folderId.equals(folderId) & nf.userId.equals(userId)))
-              .get();
+          final notesInFolder =
+              await (db.select(db.noteFolders)..where(
+                    (nf) =>
+                        nf.folderId.equals(folderId) & nf.userId.equals(userId),
+                  ))
+                  .get();
 
           for (final noteFolder in notesInFolder) {
-            await (db.update(db.localNotes)
-                  ..where((n) => n.id.equals(noteFolder.noteId)))
-                .write(LocalNotesCompanion(
-              deleted: Value(false),
-              deletedAt: Value(null),
-              scheduledPurgeAt: Value(null),
-              updatedAt: Value(now),
-            ));
+            await (db.update(
+              db.localNotes,
+            )..where((n) => n.id.equals(noteFolder.noteId))).write(
+              LocalNotesCompanion(
+                deleted: Value(false),
+                deletedAt: Value(null),
+                scheduledPurgeAt: Value(null),
+                updatedAt: Value(now),
+              ),
+            );
 
             await _enqueuePendingOp(
               entityId: noteFolder.noteId,
@@ -960,14 +983,16 @@ class FolderCoreRepository implements IFolderRepository {
               includeDeleted: true,
             );
             for (final task in tasks.where((t) => t.deleted)) {
-              await (db.update(db.noteTasks)
-                    ..where((t) => t.id.equals(task.id)))
-                  .write(NoteTasksCompanion(
-                deleted: Value(false),
-                deletedAt: Value(null),
-                scheduledPurgeAt: Value(null),
-                updatedAt: Value(now),
-              ));
+              await (db.update(
+                db.noteTasks,
+              )..where((t) => t.id.equals(task.id))).write(
+                NoteTasksCompanion(
+                  deleted: Value(false),
+                  deletedAt: Value(null),
+                  scheduledPurgeAt: Value(null),
+                  updatedAt: Value(now),
+                ),
+              );
 
               await _enqueuePendingOp(
                 entityId: task.id,
@@ -979,7 +1004,9 @@ class FolderCoreRepository implements IFolderRepository {
 
           // Restore child folders recursively
           // Phase 1.1: Use getChildFoldersIncludingDeleted to find ALL children (deleted and not)
-          final childFolders = await db.getChildFoldersIncludingDeleted(folderId);
+          final childFolders = await db.getChildFoldersIncludingDeleted(
+            folderId,
+          );
           for (final child in childFolders) {
             if (child.deleted) {
               await restoreFolder(child.id, restoreContents: true);
@@ -991,7 +1018,9 @@ class FolderCoreRepository implements IFolderRepository {
       // Enqueue folder restore for sync
       await _enqueuePendingOp(entityId: folderId, kind: 'upsert_folder');
 
-      _logger.info('Restored folder from trash: $folderId (restoreContents=$restoreContents)');
+      _logger.info(
+        'Restored folder from trash: $folderId (restoreContents=$restoreContents)',
+      );
       _auditAccess(
         'folders.restoreFolder',
         granted: true,
@@ -1041,13 +1070,16 @@ class FolderCoreRepository implements IFolderRepository {
         data: {'folderId': folderId},
       );
       if (userId == null) {
-        throw StateError('Cannot permanently delete folder without authenticated user');
+        throw StateError(
+          'Cannot permanently delete folder without authenticated user',
+        );
       }
 
-      final folder = await (db.select(db.localFolders)
-            ..where((f) => f.id.equals(folderId))
-            ..where((f) => f.userId.equals(userId)))
-          .getSingleOrNull();
+      final folder =
+          await (db.select(db.localFolders)
+                ..where((f) => f.id.equals(folderId))
+                ..where((f) => f.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (folder == null) {
         throw StateError('Folder not found or does not belong to user');
@@ -1070,9 +1102,7 @@ class FolderCoreRepository implements IFolderRepository {
           itemType: TrashAuditItemType.folder,
           itemId: folderId,
           itemTitle: folder.name,
-          metadata: const {
-            'source': 'folders.permanentlyDeleteFolder',
-          },
+          metadata: const {'source': 'folders.permanentlyDeleteFolder'},
         ),
       );
     } catch (e, stack) {
@@ -1105,10 +1135,16 @@ class FolderCoreRepository implements IFolderRepository {
         return const <domain.Folder>[];
       }
 
-      final localFolders = await (db.select(db.localFolders)
-            ..where((f) => f.deleted.equals(true) & f.userId.equals(userId))
-            ..orderBy([(f) => OrderingTerm(expression: f.updatedAt, mode: OrderingMode.desc)]))
-          .get();
+      final localFolders =
+          await (db.select(db.localFolders)
+                ..where((f) => f.deleted.equals(true) & f.userId.equals(userId))
+                ..orderBy([
+                  (f) => OrderingTerm(
+                    expression: f.updatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+                ]))
+              .get();
 
       final folders = FolderMapper.toDomainList(localFolders);
       _auditAccess(
@@ -1118,7 +1154,11 @@ class FolderCoreRepository implements IFolderRepository {
       );
       return folders;
     } catch (e, stack) {
-      _logger.error('Failed to get deleted folders', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to get deleted folders',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'getDeletedFolders',
         error: e,
@@ -2050,9 +2090,9 @@ class FolderCoreRepository implements IFolderRepository {
       );
 
       // Invalidate local cache - folders are now tombstoned
-      await (db.delete(db.localFolders)
-        ..where((tbl) => tbl.userId.equals(userId))
-      ).go();
+      await (db.delete(
+        db.localFolders,
+      )..where((tbl) => tbl.userId.equals(userId))).go();
 
       // Clear decryption cache
       _decryptionCache.clear();

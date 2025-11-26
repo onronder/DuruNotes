@@ -230,7 +230,9 @@ class CryptoBox {
           debugPrint('🔧 Detected and decoded Base64-wrapped SecretBox JSON');
         } catch (e) {
           // Not actually Base64, continue with original string
-          debugPrint('⚠️ Looked like Base64 but decode failed, using original: $e');
+          debugPrint(
+            '⚠️ Looked like Base64 but decode failed, using original: $e',
+          );
         }
       }
 

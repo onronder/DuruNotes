@@ -37,10 +37,7 @@ extension ComplianceCertificateL10n on AppLocalizations {
 
 /// Widget to display GDPR compliance certificate
 class GDPRComplianceCertificateViewer extends StatefulWidget {
-  const GDPRComplianceCertificateViewer({
-    super.key,
-    required this.report,
-  });
+  const GDPRComplianceCertificateViewer({super.key, required this.report});
 
   /// Anonymization report to display
   final GDPRAnonymizationReport report;
@@ -63,14 +60,9 @@ class _GDPRComplianceCertificateViewerState
     return Dialog(
       backgroundColor: colorScheme.surface,
       surfaceTintColor: colorScheme.surfaceTint,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 800,
-          maxHeight: 800,
-        ),
+        constraints: const BoxConstraints(maxWidth: 800, maxHeight: 800),
         child: Column(
           children: [
             _buildHeader(theme, l10n, colorScheme),
@@ -98,9 +90,7 @@ class _GDPRComplianceCertificateViewerState
         color: widget.report.success
             ? colorScheme.primaryContainer.withValues(alpha: 0.3)
             : colorScheme.errorContainer.withValues(alpha: 0.3),
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Row(
         children: [
@@ -114,9 +104,7 @@ class _GDPRComplianceCertificateViewerState
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              widget.report.success
-                  ? Icons.verified_user
-                  : Icons.error_outline,
+              widget.report.success ? Icons.verified_user : Icons.error_outline,
               color: widget.report.success
                   ? colorScheme.primary
                   : colorScheme.error,
@@ -188,9 +176,7 @@ class _GDPRComplianceCertificateViewerState
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: SingleChildScrollView(
         child: SelectableText(
@@ -260,9 +246,7 @@ class _GDPRComplianceCertificateViewerState
         ),
         const SizedBox(height: 12),
         _buildInfoRow(
-          icon: widget.report.success
-              ? Icons.check_circle
-              : Icons.error,
+          icon: widget.report.success ? Icons.check_circle : Icons.error,
           label: l10n.anonymizationStatus,
           value: widget.report.success ? 'SUCCESS' : 'FAILED',
           theme: theme,
@@ -301,11 +285,7 @@ class _GDPRComplianceCertificateViewerState
           ),
         ),
         const SizedBox(height: 16),
-        ...phases.map((phase) => _buildPhaseCard(
-              phase,
-              theme,
-              colorScheme,
-            )),
+        ...phases.map((phase) => _buildPhaseCard(phase, theme, colorScheme)),
       ],
     );
   }
@@ -328,17 +308,15 @@ class _GDPRComplianceCertificateViewerState
         color: phase.success
             ? colorScheme.primaryContainer.withValues(alpha: 0.2)
             : (phase.completed
-                ? colorScheme.errorContainer.withValues(alpha: 0.2)
-                : colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.3,
-                  )),
+                  ? colorScheme.errorContainer.withValues(alpha: 0.2)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isPointOfNoReturn
               ? colorScheme.error.withValues(alpha: 0.5)
               : (phase.success
-                  ? colorScheme.primary.withValues(alpha: 0.3)
-                  : colorScheme.outlineVariant),
+                    ? colorScheme.primary.withValues(alpha: 0.3)
+                    : colorScheme.outlineVariant),
           width: isPointOfNoReturn ? 2 : 1,
         ),
       ),
@@ -354,8 +332,8 @@ class _GDPRComplianceCertificateViewerState
                   color: phase.success
                       ? colorScheme.primary.withValues(alpha: 0.1)
                       : (phase.completed
-                          ? colorScheme.error.withValues(alpha: 0.1)
-                          : colorScheme.surfaceContainerHighest),
+                            ? colorScheme.error.withValues(alpha: 0.1)
+                            : colorScheme.surfaceContainerHighest),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
@@ -366,8 +344,8 @@ class _GDPRComplianceCertificateViewerState
                       color: phase.success
                           ? colorScheme.primary
                           : (phase.completed
-                              ? colorScheme.error
-                              : colorScheme.onSurfaceVariant),
+                                ? colorScheme.error
+                                : colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ),
@@ -390,8 +368,8 @@ class _GDPRComplianceCertificateViewerState
                         color: phase.success
                             ? colorScheme.primary
                             : (phase.completed
-                                ? colorScheme.error
-                                : colorScheme.onSurfaceVariant),
+                                  ? colorScheme.error
+                                  : colorScheme.onSurfaceVariant),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -487,9 +465,7 @@ class _GDPRComplianceCertificateViewerState
           ),
           child: SelectableText(
             keyReport.toSummary(),
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-            ),
+            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
           ),
         ),
       ],
@@ -568,11 +544,7 @@ class _GDPRComplianceCertificateViewerState
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 20,
-          color: colorScheme.onSurfaceVariant,
-        ),
+        Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 12),
         SizedBox(
           width: 150,
@@ -608,10 +580,7 @@ class _GDPRComplianceCertificateViewerState
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant,
-            width: 0.5,
-          ),
+          top: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
         ),
       ),
       child: Row(

@@ -19,7 +19,9 @@ class Migration39SoftDeleteIndexes {
 
   /// Apply soft delete indexes for Phase 1.1
   static Future<void> apply(DatabaseConnectionUser db) async {
-    _logger.info('[Migration 39] Applying soft delete indexes for Trash system');
+    _logger.info(
+      '[Migration 39] Applying soft delete indexes for Trash system',
+    );
 
     await _createLocalFoldersDeletedIndex(db);
 
@@ -69,10 +71,7 @@ class Migration39SoftDeleteIndexes {
       () => db.customStatement(sql),
     );
 
-    _logger.debug(
-      '[Migration 39] Created index $name',
-      data: {'table': table},
-    );
+    _logger.debug('[Migration 39] Created index $name', data: {'table': table});
   }
 
   /// Check which required columns are missing from table

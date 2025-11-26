@@ -18,7 +18,8 @@ class VoiceNotesService {
   final Ref _ref;
   AppLogger get _logger => _ref.read(loggerProvider);
   AnalyticsService get _analytics => _ref.read(analyticsProvider);
-  INotesRepository get _notesRepository => _ref.read(notesCoreRepositoryProvider);
+  INotesRepository get _notesRepository =>
+      _ref.read(notesCoreRepositoryProvider);
 
   /// Create a new voice note from a recording result
   ///
@@ -61,16 +62,13 @@ class VoiceNotesService {
         body: 'Voice note ($durationText) recorded on ${_formatDate(now)}',
         attachmentMeta: attachmentMeta,
         tags: ['voice-note'],
-        folderId: folderId,  // If null, defaults to Inbox
+        folderId: folderId, // If null, defaults to Inbox
       );
 
       if (note == null) {
         _analytics.endTiming(
           'voice_note_create',
-          properties: {
-            'success': false,
-            'reason': 'repository_returned_null',
-          },
+          properties: {'success': false, 'reason': 'repository_returned_null'},
         );
 
         _logger.warning(
@@ -89,10 +87,7 @@ class VoiceNotesService {
         _logger.error('Repository returned null when creating voice note');
         _analytics.endTiming(
           'voice_note_create',
-          properties: {
-            'success': false,
-            'reason': 'repository_returned_null',
-          },
+          properties: {'success': false, 'reason': 'repository_returned_null'},
         );
         return null;
       }
@@ -131,10 +126,7 @@ class VoiceNotesService {
 
       _analytics.endTiming(
         'voice_note_create',
-        properties: {
-          'success': false,
-          'error': e.toString(),
-        },
+        properties: {'success': false, 'error': e.toString()},
       );
 
       _analytics.trackError(
@@ -163,9 +155,13 @@ class VoiceNotesService {
       Map<String, dynamic> attachmentData = {};
       if (note.attachmentMeta != null && note.attachmentMeta!.isNotEmpty) {
         try {
-          attachmentData = jsonDecode(note.attachmentMeta!) as Map<String, dynamic>;
+          attachmentData =
+              jsonDecode(note.attachmentMeta!) as Map<String, dynamic>;
         } catch (e) {
-          _logger.warning('Failed to parse existing attachmentMeta', data: {'error': e.toString()});
+          _logger.warning(
+            'Failed to parse existing attachmentMeta',
+            data: {'error': e.toString()},
+          );
         }
       }
 
@@ -201,13 +197,12 @@ class VoiceNotesService {
 
       // Defensive null check - repository can return null if no authenticated user
       if (updatedNote == null) {
-        _logger.error('Repository returned null when updating note with voice recording');
+        _logger.error(
+          'Repository returned null when updating note with voice recording',
+        );
         _analytics.endTiming(
           'voice_recording_add_to_note',
-          properties: {
-            'success': false,
-            'reason': 'repository_returned_null',
-          },
+          properties: {'success': false, 'reason': 'repository_returned_null'},
         );
         return null;
       }
@@ -234,10 +229,7 @@ class VoiceNotesService {
 
       _analytics.endTiming(
         'voice_recording_add_to_note',
-        properties: {
-          'success': false,
-          'error': e.toString(),
-        },
+        properties: {'success': false, 'error': e.toString()},
       );
 
       return null;
@@ -254,8 +246,18 @@ class VoiceNotesService {
   /// Format date to readable format (e.g., "Nov 22, 2025 at 14:30")
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     final month = months[date.month - 1];

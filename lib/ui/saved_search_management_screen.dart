@@ -266,7 +266,9 @@ class _SavedSearchManagementScreenState
   Future<void> _saveReorder() async {
     try {
       final service = ref.read(savedSearchServiceProvider);
-      await service.reorderSavedSearches(_savedSearches.map((s) => s.id).toList());
+      await service.reorderSavedSearches(
+        _savedSearches.map((s) => s.id).toList(),
+      );
       setState(() => _isReordering = false);
       HapticFeedback.mediumImpact();
       if (mounted) {

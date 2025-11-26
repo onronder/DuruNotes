@@ -783,14 +783,16 @@ class TaskCoreRepository implements ITaskRepository {
       final now = DateTime.now().toUtc();
       final scheduledPurgeAt = now.add(const Duration(days: 30));
 
-      await (db.update(db.noteTasks)
-            ..where((t) => t.id.equals(id) & t.userId.equals(userId)))
-          .write(NoteTasksCompanion(
-        deleted: Value(true),
-        deletedAt: Value(now),
-        scheduledPurgeAt: Value(scheduledPurgeAt),
-        updatedAt: Value(now),
-      ));
+      await (db.update(
+        db.noteTasks,
+      )..where((t) => t.id.equals(id) & t.userId.equals(userId))).write(
+        NoteTasksCompanion(
+          deleted: Value(true),
+          deletedAt: Value(now),
+          scheduledPurgeAt: Value(scheduledPurgeAt),
+          updatedAt: Value(now),
+        ),
+      );
 
       // Enqueue for sync (as upsert with deleted=true)
       await _enqueuePendingOp(
@@ -814,10 +816,7 @@ class TaskCoreRepository implements ITaskRepository {
           itemId: id,
           itemTitle: auditTask?.title,
           scheduledPurgeAt: scheduledPurgeAt,
-          metadata: {
-            'source': 'tasks.deleteTask',
-            'noteId': existing.noteId,
-          },
+          metadata: {'source': 'tasks.deleteTask', 'noteId': existing.noteId},
         ),
       );
     } catch (e, stack) {
@@ -841,13 +840,17 @@ class TaskCoreRepository implements ITaskRepository {
   @override
   Future<void> restoreTask(String id) async {
     try {
-      final userId = _requireUserId(method: 'restoreTask', data: {'taskId': id});
+      final userId = _requireUserId(
+        method: 'restoreTask',
+        data: {'taskId': id},
+      );
 
       // Verify task exists and is deleted
-      final task = await (db.select(db.noteTasks)
-            ..where((t) => t.id.equals(id))
-            ..where((t) => t.userId.equals(userId)))
-          .getSingleOrNull();
+      final task =
+          await (db.select(db.noteTasks)
+                ..where((t) => t.id.equals(id))
+                ..where((t) => t.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (task == null) {
         throw StateError('Task not found or does not belong to user');
@@ -868,14 +871,16 @@ class TaskCoreRepository implements ITaskRepository {
       // Restore the task and clear timestamps
       final now = DateTime.now().toUtc();
 
-      await (db.update(db.noteTasks)
-            ..where((t) => t.id.equals(id) & t.userId.equals(userId)))
-          .write(NoteTasksCompanion(
-        deleted: Value(false),
-        deletedAt: Value(null),
-        scheduledPurgeAt: Value(null),
-        updatedAt: Value(now),
-      ));
+      await (db.update(
+        db.noteTasks,
+      )..where((t) => t.id.equals(id) & t.userId.equals(userId))).write(
+        NoteTasksCompanion(
+          deleted: Value(false),
+          deletedAt: Value(null),
+          scheduledPurgeAt: Value(null),
+          updatedAt: Value(now),
+        ),
+      );
 
       // Enqueue for sync
       await _enqueuePendingOp(
@@ -892,10 +897,7 @@ class TaskCoreRepository implements ITaskRepository {
           itemType: TrashAuditItemType.task,
           itemId: id,
           itemTitle: auditTask?.title,
-          metadata: {
-            'source': 'tasks.restoreTask',
-            'noteId': task.noteId,
-          },
+          metadata: {'source': 'tasks.restoreTask', 'noteId': task.noteId},
         ),
       );
     } catch (e, stack) {
@@ -925,10 +927,11 @@ class TaskCoreRepository implements ITaskRepository {
         data: {'taskId': id},
       );
 
-      final task = await (db.select(db.noteTasks)
-            ..where((t) => t.id.equals(id))
-            ..where((t) => t.userId.equals(userId)))
-          .getSingleOrNull();
+      final task =
+          await (db.select(db.noteTasks)
+                ..where((t) => t.id.equals(id))
+                ..where((t) => t.userId.equals(userId)))
+              .getSingleOrNull();
 
       if (task == null) {
         throw StateError('Task not found or does not belong to user');
@@ -954,7 +957,11 @@ class TaskCoreRepository implements ITaskRepository {
       });
 
       _logger.info('Permanently deleted task: $id');
-      _auditAccess('tasks.permanentlyDeleteTask', granted: true, reason: 'taskId=$id');
+      _auditAccess(
+        'tasks.permanentlyDeleteTask',
+        granted: true,
+        reason: 'taskId=$id',
+      );
 
       unawaited(
         _trashAuditLogger.logPermanentDelete(
@@ -968,7 +975,11 @@ class TaskCoreRepository implements ITaskRepository {
         ),
       );
     } catch (e, stack) {
-      _logger.error('Failed to permanently delete task: $id', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to permanently delete task: $id',
+        error: e,
+        stackTrace: stack,
+      );
       _captureRepositoryException(
         method: 'permanentlyDeleteTask',
         error: e,
@@ -990,10 +1001,16 @@ class TaskCoreRepository implements ITaskRepository {
     try {
       final userId = _requireUserId(method: 'getDeletedTasks');
 
-      final localTasks = await (db.select(db.noteTasks)
-            ..where((t) => t.deleted.equals(true) & t.userId.equals(userId))
-            ..orderBy([(t) => OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc)]))
-          .get();
+      final localTasks =
+          await (db.select(db.noteTasks)
+                ..where((t) => t.deleted.equals(true) & t.userId.equals(userId))
+                ..orderBy([
+                  (t) => OrderingTerm(
+                    expression: t.updatedAt,
+                    mode: OrderingMode.desc,
+                  ),
+                ]))
+              .get();
 
       final tasks = await _decryptTasks(localTasks);
       _auditAccess(
@@ -1413,14 +1430,16 @@ class TaskCoreRepository implements ITaskRepository {
       final now = DateTime.now().toUtc();
       final scheduledPurgeAt = now.add(const Duration(days: 30));
 
-      await (db.update(db.noteTasks)
-            ..where((t) => t.noteId.equals(noteId) & t.userId.equals(userId)))
-          .write(NoteTasksCompanion(
-        deleted: Value(true),
-        deletedAt: Value(now),
-        scheduledPurgeAt: Value(scheduledPurgeAt),
-        updatedAt: Value(now),
-      ));
+      await (db.update(
+        db.noteTasks,
+      )..where((t) => t.noteId.equals(noteId) & t.userId.equals(userId))).write(
+        NoteTasksCompanion(
+          deleted: Value(true),
+          deletedAt: Value(now),
+          scheduledPurgeAt: Value(scheduledPurgeAt),
+          updatedAt: Value(now),
+        ),
+      );
 
       // Enqueue sync operation for each deleted task
       for (final task in tasks) {
@@ -1431,7 +1450,9 @@ class TaskCoreRepository implements ITaskRepository {
         );
       }
 
-      _logger.info('Deleted all tasks for note: $noteId (count=${tasks.length})');
+      _logger.info(
+        'Deleted all tasks for note: $noteId (count=${tasks.length})',
+      );
       _auditAccess(
         'tasks.deleteTasksForNote',
         granted: true,
@@ -1909,9 +1930,9 @@ class TaskCoreRepository implements ITaskRepository {
       );
 
       // Invalidate local cache - tasks are now tombstoned
-      await (db.delete(db.noteTasks)
-        ..where((tbl) => tbl.userId.equals(userId))
-      ).go();
+      await (db.delete(
+        db.noteTasks,
+      )..where((tbl) => tbl.userId.equals(userId))).go();
 
       return count;
     } catch (error, stackTrace) {

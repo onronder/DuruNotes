@@ -91,11 +91,7 @@ void main() {
 
       // Act - navigate away to trigger dispose
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: Text('New Screen'),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: Text('New Screen'))),
       );
 
       // Assert - should dispose without errors

@@ -514,7 +514,9 @@ class UnifiedSyncService {
         final remoteId = remote['id'] as String?;
         if (remoteId == null) {
           // Skip tombstoned/anonymized folders with null ID
-          _logger.warning('Skipping remote folder with null ID (likely anonymized)');
+          _logger.warning(
+            'Skipping remote folder with null ID (likely anonymized)',
+          );
           continue;
         }
         final hasLocal = localFolders.any((l) => _getFolderId(l) == remoteId);
@@ -618,7 +620,9 @@ class UnifiedSyncService {
         final remoteId = remote['id'] as String?;
         if (remoteId == null) {
           // Skip tombstoned/anonymized notes with null ID
-          _logger.warning('Skipping remote note with null ID (likely anonymized)');
+          _logger.warning(
+            'Skipping remote note with null ID (likely anonymized)',
+          );
           continue;
         }
         final hasLocal = localNotes.any((l) => _getNoteId(l) == remoteId);
@@ -725,7 +729,9 @@ class UnifiedSyncService {
         final remoteId = remote['id'] as String?;
         if (remoteId == null) {
           // Skip tombstoned/anonymized tasks with null ID
-          _logger.warning('Skipping remote task with null ID (likely anonymized)');
+          _logger.warning(
+            'Skipping remote task with null ID (likely anonymized)',
+          );
           continue;
         }
         final hasLocal = localTasks.any((l) => _getTaskId(l) == remoteId);
@@ -937,7 +943,8 @@ class UnifiedSyncService {
             final localReminder = localById[remoteId];
             if (localReminder != null) {
               // Both local and remote exist - check for conflicts
-              final localUpdated = localReminder.updatedAt ?? localReminder.createdAt;
+              final localUpdated =
+                  localReminder.updatedAt ?? localReminder.createdAt;
               final remoteUpdatedStr = remote['updated_at'] as String?;
               final remoteUpdated = remoteUpdatedStr != null
                   ? DateTime.parse(remoteUpdatedStr)
@@ -962,7 +969,9 @@ class UnifiedSyncService {
                   remote,
                   userId,
                 );
-                await _db!.into(_db!.noteReminders).insertOnConflictUpdate(mergedReminder);
+                await _db!
+                    .into(_db!.noteReminders)
+                    .insertOnConflictUpdate(mergedReminder);
 
                 // METRICS: Track conflict resolution
                 conflictsResolved++;
@@ -1076,7 +1085,9 @@ class UnifiedSyncService {
   /// Returns the number of reminders still pending retry
   Future<int> processEncryptionRetries() async {
     if (_syncEncryptionHelper == null) {
-      _logger.warning('Cannot process retries - encryption helper not initialized');
+      _logger.warning(
+        'Cannot process retries - encryption helper not initialized',
+      );
       return 0;
     }
 
@@ -1254,7 +1265,9 @@ class UnifiedSyncService {
 
       if (remoteId == null || remoteUpdatedStr == null) {
         // Skip tombstoned/anonymized entities with null fields
-        _logger.warning('Skipping conflict detection for $entityType with null ID or updated_at (likely anonymized)');
+        _logger.warning(
+          'Skipping conflict detection for $entityType with null ID or updated_at (likely anonymized)',
+        );
         return null;
       }
 
@@ -1427,10 +1440,12 @@ class UnifiedSyncService {
     int? mergedEncryptionVersion;
 
     // Determine which version has valid encryption
-    final localHasEncryption = local.titleEncrypted != null &&
+    final localHasEncryption =
+        local.titleEncrypted != null &&
         local.bodyEncrypted != null &&
         local.encryptionVersion == 1;
-    final remoteHasEncryption = remoteTitleEnc != null &&
+    final remoteHasEncryption =
+        remoteTitleEnc != null &&
         remoteBodyEnc != null &&
         remoteEncryptionVersion == 1;
 
@@ -1525,9 +1540,7 @@ class UnifiedSyncService {
             : _parseReminderType(remote['type'] as String?),
       ),
       remindAt: _valueOrAbsentDate(
-        useLocalForDefaults
-            ? local.remindAt
-            : _parseDate(remote['remind_at']),
+        useLocalForDefaults ? local.remindAt : _parseDate(remote['remind_at']),
       ),
       isActive: Value(mergedIsActive), // Strategy 3: prefer false
       latitude: _valueOrAbsentDouble(
@@ -1592,7 +1605,6 @@ class UnifiedSyncService {
             : _parseDate(remote['last_triggered']),
       ),
       triggerCount: Value(mergedTriggerCount), // Strategy 2: sum both
-
       // CRITICAL #5: Preserve encrypted fields from newer version
       titleEncrypted: mergedTitleEnc != null
           ? Value(mergedTitleEnc)
@@ -1661,7 +1673,9 @@ class UnifiedSyncService {
             final noteId = note['id'] as String?;
             if (noteId == null) {
               // Skip tombstoned/anonymized notes with null ID
-              _logger.warning('Skipping note with null ID during decryption (likely anonymized)');
+              _logger.warning(
+                'Skipping note with null ID during decryption (likely anonymized)',
+              );
               continue;
             }
             final rawTitle = note['title_enc'];
@@ -2348,7 +2362,10 @@ class UnifiedSyncService {
             );
           } else {
             // UUID format is valid, now check if reminder exists
-            final reminderExists = await _db!.getReminderById(reminderId, userId);
+            final reminderExists = await _db!.getReminderById(
+              reminderId,
+              userId,
+            );
 
             if (reminderExists == null) {
               _logger.warning(
@@ -2636,7 +2653,9 @@ class UnifiedSyncService {
         titleEncrypted = Uint8List.fromList(titleEncBytes as List<int>);
         bodyEncrypted = Uint8List.fromList(bodyEncBytes as List<int>);
         if (locationEncBytes != null) {
-          locationNameEncrypted = Uint8List.fromList(locationEncBytes as List<int>);
+          locationNameEncrypted = Uint8List.fromList(
+            locationEncBytes as List<int>,
+          );
         }
 
         // Decrypt for plaintext storage (temporary backward compatibility)
@@ -2737,8 +2756,7 @@ class UnifiedSyncService {
       ),
       // MIGRATION v43: Add updatedAt for conflict resolution
       updatedAt: _valueOrAbsentDate(
-        _parseDate(remote['updated_at']) ??
-        _parseDate(remote['created_at']),
+        _parseDate(remote['updated_at']) ?? _parseDate(remote['created_at']),
       ),
       // MIGRATION v44: Ensure downloaded reminders are restored (not soft-deleted)
       // When syncing from remote, reminders should be active unless explicitly deleted on remote

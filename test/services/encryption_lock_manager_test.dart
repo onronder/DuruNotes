@@ -142,10 +142,7 @@ void main() {
         await Future.delayed(const Duration(milliseconds: 10));
 
         // Both should have started (different locks)
-        expect(
-          executionOrder,
-          equals(['reminder1-start', 'reminder2-start']),
-        );
+        expect(executionOrder, equals(['reminder1-start', 'reminder2-start']));
 
         // Release both
         completer1.complete();
@@ -290,7 +287,10 @@ void main() {
 
         final stats = lockManager.getStats();
         expect(stats['activeLocksCount'], equals(2));
-        expect(stats['activeLockIds'], containsAll(['reminder-1', 'reminder-2']));
+        expect(
+          stats['activeLockIds'],
+          containsAll(['reminder-1', 'reminder-2']),
+        );
 
         // Release locks
         completer1.complete();

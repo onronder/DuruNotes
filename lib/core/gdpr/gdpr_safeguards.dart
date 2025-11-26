@@ -22,11 +22,7 @@ class SafeguardException implements Exception {
   final String safeguardType;
   final Map<String, dynamic>? details;
 
-  SafeguardException(
-    this.message, {
-    required this.safeguardType,
-    this.details,
-  });
+  SafeguardException(this.message, {required this.safeguardType, this.details});
 
   @override
   String toString() =>
@@ -48,28 +44,26 @@ class SafeguardValidationResult {
   });
 
   SafeguardValidationResult.success({List<String>? warnings})
-      : passed = true,
-        errors = const [],
-        warnings = warnings ?? const [],
-        details = {};
+    : passed = true,
+      errors = const [],
+      warnings = warnings ?? const [],
+      details = {};
 
   SafeguardValidationResult.failure({
     required List<String> errors,
     List<String>? warnings,
     Map<String, dynamic>? details,
-  })  : passed = false,
-        errors = errors,
-        warnings = warnings ?? const [],
-        details = details ?? {};
+  }) : passed = false,
+       errors = errors,
+       warnings = warnings ?? const [],
+       details = details ?? {};
 }
 
 /// GDPR Anonymization Safeguards
 class GDPRSafeguards {
-  GDPRSafeguards({
-    required AppLogger logger,
-    SupabaseClient? client,
-  })  : _logger = logger,
-        _client = client ?? Supabase.instance.client;
+  GDPRSafeguards({required AppLogger logger, SupabaseClient? client})
+    : _logger = logger,
+      _client = client ?? Supabase.instance.client;
 
   final AppLogger _logger;
   final SupabaseClient _client;
@@ -187,7 +181,10 @@ class GDPRSafeguards {
     final warnings = <String>[];
 
     // Check if running in production mode
-    const isProduction = bool.fromEnvironment('dart.vm.product', defaultValue: false);
+    const isProduction = bool.fromEnvironment(
+      'dart.vm.product',
+      defaultValue: false,
+    );
 
     if (isProduction && !allowProductionOverride) {
       errors.add(
@@ -267,9 +264,11 @@ class GDPRSafeguards {
 
       // Check for failed attempts
       final failedAttempts = events
-          .where((e) =>
-              (e['event_type'] as String).contains('FAILED') ||
-              (e['details'] as Map<String, dynamic>?)?['success'] == false)
+          .where(
+            (e) =>
+                (e['event_type'] as String).contains('FAILED') ||
+                (e['details'] as Map<String, dynamic>?)?['success'] == false,
+          )
           .length;
 
       if (failedAttempts >= _maxFailedAttempts) {
@@ -294,7 +293,9 @@ class GDPRSafeguards {
         'Rate limit check failed - proceeding with caution',
         data: {'error': e.toString()},
       );
-      warnings.add('Could not verify rate limit status - proceeding with caution');
+      warnings.add(
+        'Could not verify rate limit status - proceeding with caution',
+      );
       return SafeguardValidationResult.success(warnings: warnings);
     }
   }
@@ -364,9 +365,7 @@ class GDPRSafeguards {
         );
       }
 
-      return SafeguardValidationResult.success(
-        warnings: warnings,
-      );
+      return SafeguardValidationResult.success(warnings: warnings);
     } catch (e) {
       _logger.warning(
         'Active session check failed',

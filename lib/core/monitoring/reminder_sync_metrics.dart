@@ -33,7 +33,8 @@ import 'package:duru_notes/core/monitoring/app_logger.dart';
 /// ```
 class ReminderSyncMetrics {
   static ReminderSyncMetrics? _instance;
-  static ReminderSyncMetrics get instance => _instance ??= ReminderSyncMetrics._();
+  static ReminderSyncMetrics get instance =>
+      _instance ??= ReminderSyncMetrics._();
 
   ReminderSyncMetrics._();
 
@@ -198,7 +199,8 @@ class ReminderSyncMetrics {
     Map<String, dynamic>? metadata,
   }) {
     _totalConflicts++;
-    _conflictResolutions[resolution] = (_conflictResolutions[resolution] ?? 0) + 1;
+    _conflictResolutions[resolution] =
+        (_conflictResolutions[resolution] ?? 0) + 1;
 
     _logger.info(
       '[ReminderSync] Conflict resolved',
@@ -308,7 +310,8 @@ class ReminderSyncMetrics {
     if (metric.conflictsResolved != null &&
         metric.remindersProcessed != null &&
         metric.remindersProcessed! > 0) {
-      final conflictRate = metric.conflictsResolved! / metric.remindersProcessed!;
+      final conflictRate =
+          metric.conflictsResolved! / metric.remindersProcessed!;
       if (conflictRate > 0.3) {
         // More than 30% conflicts
         _logger.warning(
@@ -337,7 +340,8 @@ class ReminderSyncMetrics {
     }
 
     // Check for excessive orphaned links
-    if (metric.orphanedLinksCleared != null && metric.orphanedLinksCleared! > 5) {
+    if (metric.orphanedLinksCleared != null &&
+        metric.orphanedLinksCleared! > 5) {
       _logger.warning(
         '[ReminderSync] High orphaned link count',
         data: {
@@ -348,7 +352,8 @@ class ReminderSyncMetrics {
     }
 
     // Check for excessive invalid UUIDs
-    if (metric.invalidUuidsRejected != null && metric.invalidUuidsRejected! > 3) {
+    if (metric.invalidUuidsRejected != null &&
+        metric.invalidUuidsRejected! > 3) {
       _logger.error(
         '[ReminderSync] High invalid UUID count',
         data: {
@@ -372,10 +377,7 @@ class ReminderSyncMetrics {
     if (recentErrors >= 3) {
       _logger.error(
         '[ReminderSync] Multiple sync failures detected',
-        data: {
-          'syncType': metric.syncType,
-          'recentErrors': recentErrors,
-        },
+        data: {'syncType': metric.syncType, 'recentErrors': recentErrors},
       );
     }
   }
@@ -433,15 +435,14 @@ class ReminderSyncMetrics {
   /// Get conflict resolution statistics
   Map<String, dynamic> getConflictStats() {
     if (_totalConflicts == 0) {
-      return {
-        'totalConflicts': 0,
-        'resolutionBreakdown': <String, int>{},
-      };
+      return {'totalConflicts': 0, 'resolutionBreakdown': <String, int>{}};
     }
 
     final breakdown = <String, dynamic>{};
     for (final entry in _conflictResolutions.entries) {
-      final percentage = (entry.value / _totalConflicts * 100).toStringAsFixed(1);
+      final percentage = (entry.value / _totalConflicts * 100).toStringAsFixed(
+        1,
+      );
       breakdown[entry.key.name] = {
         'count': entry.value,
         'percentage': percentage,
@@ -526,12 +527,15 @@ class ReminderSyncMetrics {
 
   /// Log current metrics summary
   void logMetricsSummary() {
-    _logger.info('[ReminderSync] Metrics Summary', data: {
-      'health': getHealthMetrics(),
-      'performance': getPerformanceStats(),
-      'conflicts': getConflictStats(),
-      'dataQuality': getDataQualityMetrics(),
-    });
+    _logger.info(
+      '[ReminderSync] Metrics Summary',
+      data: {
+        'health': getHealthMetrics(),
+        'performance': getPerformanceStats(),
+        'conflicts': getConflictStats(),
+        'dataQuality': getDataQualityMetrics(),
+      },
+    );
   }
 }
 

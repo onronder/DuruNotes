@@ -57,7 +57,9 @@ class _MinimalTestAppState extends State<MinimalTestApp> {
   @override
   Widget build(BuildContext context) {
     _buildCount++;
-    debugPrint('🧪 [MinimalTest] build() called #$_buildCount, message: $_message');
+    debugPrint(
+      '🧪 [MinimalTest] build() called #$_buildCount, message: $_message',
+    );
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -69,17 +71,19 @@ class _MinimalTestAppState extends State<MinimalTestApp> {
             children: [
               Text(
                 'Build Count: $_buildCount',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 20),
-              Text(
-                'Message: $_message',
-                style: const TextStyle(fontSize: 18),
-              ),
+              Text('Message: $_message', style: const TextStyle(fontSize: 18)),
               const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
-                  debugPrint('🧪 [MinimalTest] Button pressed, calling setState');
+                  debugPrint(
+                    '🧪 [MinimalTest] Button pressed, calling setState',
+                  );
                   setState(() {
                     _message = 'Button pressed';
                   });

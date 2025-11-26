@@ -152,9 +152,11 @@ Future<void> migration45AnonymizationSupport(Migrator m) async {
   // ========================================================================
 
   // Verify table creation
-  final tables = await m.database.customSelect(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('anonymization_events', 'key_revocation_events', 'anonymization_proofs')",
-  ).get();
+  final tables = await m.database
+      .customSelect(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('anonymization_events', 'key_revocation_events', 'anonymization_proofs')",
+      )
+      .get();
 
   if (tables.length != 3) {
     throw Exception(
@@ -174,7 +176,9 @@ Future<void> migration45AnonymizationSupport(Migrator m) async {
 /// Safe to rollback: No data dependencies, all tables are new.
 Future<void> rollbackMigration45(Migrator m) async {
   await m.database.customStatement('DROP TABLE IF EXISTS anonymization_proofs');
-  await m.database.customStatement('DROP TABLE IF EXISTS key_revocation_events');
+  await m.database.customStatement(
+    'DROP TABLE IF EXISTS key_revocation_events',
+  );
   await m.database.customStatement('DROP TABLE IF EXISTS anonymization_events');
 
   print('✅ Migration 45 rolled back: Anonymization tables dropped');

@@ -21,10 +21,7 @@ Future<void> main() async {
   final bootstrapResult = await bootstrap.initializeFast();
   debugPrint('[main] Fast bootstrap complete, launching app');
   runApp(
-    BootstrapApp(
-      initialResult: bootstrapResult,
-      bootstrapOverride: bootstrap,
-    ),
+    BootstrapApp(initialResult: bootstrapResult, bootstrapOverride: bootstrap),
   );
 }
 

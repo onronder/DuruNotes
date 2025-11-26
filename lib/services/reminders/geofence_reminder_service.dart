@@ -145,7 +145,9 @@ class GeofenceReminderService extends BaseReminderService {
       // Extract location data from metadata
       final latitude = config.metadata?['latitude'] as double?;
       final longitude = config.metadata?['longitude'] as double?;
-      final radius = config.metadata?['radius'] as double? ?? this.config.geofenceDefaultRadiusMeters;
+      final radius =
+          config.metadata?['radius'] as double? ??
+          this.config.geofenceDefaultRadiusMeters;
       final locationName = config.metadata?['locationName'] as String?;
 
       if (latitude == null || longitude == null) {

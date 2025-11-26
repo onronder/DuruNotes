@@ -36,21 +36,27 @@ void main() {
       mockVoiceNotesService = MockVoiceNotesService();
     });
 
-    testWidgets('Voice recording flow: Record → Save → Note created with player',
-        (tester) async {
+    testWidgets('Voice recording flow: Record → Save → Note created with player', (
+      tester,
+    ) async {
       // Arrange - Setup successful recording flow
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.stopRecording())
-          .thenAnswer((_) async => '/tmp/voice_note_test.m4a');
-      when(mockAudioRecordingService.finalizeAndUpload())
-          .thenAnswer((_) async => const RecordingResult(
-                url: 'https://example.supabase.co/storage/v1/object/public/attachments/test.m4a',
-                filename: 'voice_note_test.m4a',
-                durationSeconds: 45,
-              ));
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.stopRecording(),
+      ).thenAnswer((_) async => '/tmp/voice_note_test.m4a');
+      when(mockAudioRecordingService.finalizeAndUpload()).thenAnswer(
+        (_) async => const RecordingResult(
+          url:
+              'https://example.supabase.co/storage/v1/object/public/attachments/test.m4a',
+          filename: 'voice_note_test.m4a',
+          durationSeconds: 45,
+        ),
+      );
 
       final createdNote = Note(
         id: 'note-123',
@@ -63,15 +69,18 @@ void main() {
         noteType: NoteKind.note,
         version: 1,
         userId: 'user-123',
-        attachmentMeta: '{"voiceRecordings":[{"id":"rec-1","url":"https://example.supabase.co/storage/v1/object/public/attachments/test.m4a","filename":"test.m4a","durationSeconds":45,"createdAt":"2025-11-22T14:30:00.000Z"}]}',
+        attachmentMeta:
+            '{"voiceRecordings":[{"id":"rec-1","url":"https://example.supabase.co/storage/v1/object/public/attachments/test.m4a","filename":"test.m4a","durationSeconds":45,"createdAt":"2025-11-22T14:30:00.000Z"}]}',
         tags: const ['voice-note'],
       );
 
-      when(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: anyNamed('title'),
-        folderId: anyNamed('folderId'),
-      )).thenAnswer((_) async => createdNote);
+      when(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: anyNamed('title'),
+          folderId: anyNamed('folderId'),
+        ),
+      ).thenAnswer((_) async => createdNote);
 
       // Build the voice recording sheet in isolation
       await tester.pumpWidget(
@@ -79,7 +88,9 @@ void main() {
           overrides: [
             loggerProvider.overrideWithValue(mockLogger),
             analyticsProvider.overrideWithValue(mockAnalytics),
-            audioRecordingServiceProvider.overrideWithValue(mockAudioRecordingService),
+            audioRecordingServiceProvider.overrideWithValue(
+              mockAudioRecordingService,
+            ),
             voiceNotesServiceProvider.overrideWithValue(mockVoiceNotesService),
           ],
           child: MaterialApp(
@@ -137,18 +148,22 @@ void main() {
 
       // Step 5: Verify voice note creation
       verify(mockAudioRecordingService.finalizeAndUpload()).called(1);
-      verify(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: 'My Recording',
-        folderId: null,
-      )).called(1);
+      verify(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: 'My Recording',
+          folderId: null,
+        ),
+      ).called(1);
     });
 
     // SKIPPED: just_audio platform channel not available in widget tests
     // This test would verify VoiceRecordingPlayer rendering, but the audio player
     // requires platform channel support which isn't available in unit tests.
     // The widget structure and logic are tested in voice_recording_player_test.dart
-    testWidgets('VoiceRecordingPlayer renders for note with voice recording', (tester) async {
+    testWidgets('VoiceRecordingPlayer renders for note with voice recording', (
+      tester,
+    ) async {
       // This test verifies that the VoiceRecordingPlayer widget can render
       // when provided with voice recording data. Full integration with
       // ModernEditNoteScreen would require mocking repository layer.
@@ -176,22 +191,29 @@ void main() {
 
       // Verify VoiceRecordingPlayer is present and renders
       expect(find.byType(VoiceRecordingPlayer), findsOneWidget);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget); // Loading state
+      expect(
+        find.byType(CircularProgressIndicator),
+        findsOneWidget,
+      ); // Loading state
     }, skip: true);
 
     testWidgets('Permission denied flow shows dialog', (tester) async {
       // Arrange - Permission denied
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => false);
-      when(mockAudioRecordingService.requestPermission())
-          .thenAnswer((_) async => false);
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => false);
+      when(
+        mockAudioRecordingService.requestPermission(),
+      ).thenAnswer((_) async => false);
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             loggerProvider.overrideWithValue(mockLogger),
             analyticsProvider.overrideWithValue(mockAnalytics),
-            audioRecordingServiceProvider.overrideWithValue(mockAudioRecordingService),
+            audioRecordingServiceProvider.overrideWithValue(
+              mockAudioRecordingService,
+            ),
             voiceNotesServiceProvider.overrideWithValue(mockVoiceNotesService),
           ],
           child: MaterialApp(
@@ -235,21 +257,27 @@ void main() {
 
     testWidgets('Upload failure shows error message', (tester) async {
       // Arrange - Upload fails
-      when(mockAudioRecordingService.hasPermission())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.startRecording())
-          .thenAnswer((_) async => true);
-      when(mockAudioRecordingService.stopRecording())
-          .thenAnswer((_) async => '/tmp/test.m4a');
-      when(mockAudioRecordingService.finalizeAndUpload())
-          .thenAnswer((_) async => null);
+      when(
+        mockAudioRecordingService.hasPermission(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.startRecording(),
+      ).thenAnswer((_) async => true);
+      when(
+        mockAudioRecordingService.stopRecording(),
+      ).thenAnswer((_) async => '/tmp/test.m4a');
+      when(
+        mockAudioRecordingService.finalizeAndUpload(),
+      ).thenAnswer((_) async => null);
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             loggerProvider.overrideWithValue(mockLogger),
             analyticsProvider.overrideWithValue(mockAnalytics),
-            audioRecordingServiceProvider.overrideWithValue(mockAudioRecordingService),
+            audioRecordingServiceProvider.overrideWithValue(
+              mockAudioRecordingService,
+            ),
             voiceNotesServiceProvider.overrideWithValue(mockVoiceNotesService),
           ],
           child: MaterialApp(
@@ -289,12 +317,17 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify error message
-      expect(find.text('Failed to upload recording. Please check your connection.'), findsOneWidget);
-      verifyNever(mockVoiceNotesService.createVoiceNote(
-        recording: anyNamed('recording'),
-        title: anyNamed('title'),
-        folderId: anyNamed('folderId'),
-      ));
+      expect(
+        find.text('Failed to upload recording. Please check your connection.'),
+        findsOneWidget,
+      );
+      verifyNever(
+        mockVoiceNotesService.createVoiceNote(
+          recording: anyNamed('recording'),
+          title: anyNamed('title'),
+          folderId: anyNamed('folderId'),
+        ),
+      );
     });
   });
 }

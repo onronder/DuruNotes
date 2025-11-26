@@ -667,7 +667,10 @@ class AdvancedReminderService {
 
   /// Snooze a reminder
   // MIGRATION v41: Changed from int to String (UUID)
-  Future<void> snoozeReminder(String reminderId, SnoozeDuration duration) async {
+  Future<void> snoozeReminder(
+    String reminderId,
+    SnoozeDuration duration,
+  ) async {
     try {
       // P0.5 SECURITY: Get current userId
       final userId = _currentUserId;

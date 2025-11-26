@@ -276,16 +276,16 @@ void main() {
 
     test('executes saved search and returns matching notes', () async {
       // Create test notes
-      notesRepo.addNote(_createNote(
-        id: '1',
-        title: 'Work Meeting',
-        folderId: 'work-folder',
-      ));
-      notesRepo.addNote(_createNote(
-        id: '2',
-        title: 'Personal Note',
-        folderId: 'personal-folder',
-      ));
+      notesRepo.addNote(
+        _createNote(id: '1', title: 'Work Meeting', folderId: 'work-folder'),
+      );
+      notesRepo.addNote(
+        _createNote(
+          id: '2',
+          title: 'Personal Note',
+          folderId: 'personal-folder',
+        ),
+      );
 
       // Create saved search
       final search = await service.createSavedSearch(
@@ -302,16 +302,12 @@ void main() {
     });
 
     test('executes search with text query', () async {
-      notesRepo.addNote(_createNote(
-        id: '1',
-        title: 'Meeting Notes',
-        body: 'Important meeting',
-      ));
-      notesRepo.addNote(_createNote(
-        id: '2',
-        title: 'Random Note',
-        body: 'Nothing important',
-      ));
+      notesRepo.addNote(
+        _createNote(id: '1', title: 'Meeting Notes', body: 'Important meeting'),
+      );
+      notesRepo.addNote(
+        _createNote(id: '2', title: 'Random Note', body: 'Nothing important'),
+      );
 
       final search = await service.createSavedSearch(
         name: 'Meeting Search',
@@ -325,16 +321,12 @@ void main() {
     });
 
     test('executes search with tag filter', () async {
-      notesRepo.addNote(_createNote(
-        id: '1',
-        title: 'Urgent Task',
-        tags: ['urgent', 'work'],
-      ));
-      notesRepo.addNote(_createNote(
-        id: '2',
-        title: 'Normal Task',
-        tags: ['work'],
-      ));
+      notesRepo.addNote(
+        _createNote(id: '1', title: 'Urgent Task', tags: ['urgent', 'work']),
+      );
+      notesRepo.addNote(
+        _createNote(id: '2', title: 'Normal Task', tags: ['work']),
+      );
 
       final search = await service.createSavedSearch(
         name: 'Urgent',
@@ -348,21 +340,13 @@ void main() {
     });
 
     test('executes search with multiple tags (AND logic)', () async {
-      notesRepo.addNote(_createNote(
-        id: '1',
-        title: 'Note 1',
-        tags: ['urgent', 'work'],
-      ));
-      notesRepo.addNote(_createNote(
-        id: '2',
-        title: 'Note 2',
-        tags: ['urgent'],
-      ));
-      notesRepo.addNote(_createNote(
-        id: '3',
-        title: 'Note 3',
-        tags: ['work'],
-      ));
+      notesRepo.addNote(
+        _createNote(id: '1', title: 'Note 1', tags: ['urgent', 'work']),
+      );
+      notesRepo.addNote(
+        _createNote(id: '2', title: 'Note 2', tags: ['urgent']),
+      );
+      notesRepo.addNote(_createNote(id: '3', title: 'Note 3', tags: ['work']));
 
       final search = await service.createSavedSearch(
         name: 'Urgent Work',
@@ -376,15 +360,14 @@ void main() {
     });
 
     test('executes search with attachment filter', () async {
-      notesRepo.addNote(_createNote(
-        id: '1',
-        title: 'With Attachment',
-        attachmentMeta: '{"file1": "data"}',
-      ));
-      notesRepo.addNote(_createNote(
-        id: '2',
-        title: 'No Attachment',
-      ));
+      notesRepo.addNote(
+        _createNote(
+          id: '1',
+          title: 'With Attachment',
+          attachmentMeta: '{"file1": "data"}',
+        ),
+      );
+      notesRepo.addNote(_createNote(id: '2', title: 'No Attachment'));
 
       final search = await service.createSavedSearch(
         name: 'Has Attachments',
@@ -401,16 +384,12 @@ void main() {
       final oldDate = DateTime(2024, 1, 1);
       final recentDate = DateTime(2025, 6, 1);
 
-      notesRepo.addNote(_createNote(
-        id: '1',
-        title: 'Old Note',
-        createdAt: oldDate,
-      ));
-      notesRepo.addNote(_createNote(
-        id: '2',
-        title: 'Recent Note',
-        createdAt: recentDate,
-      ));
+      notesRepo.addNote(
+        _createNote(id: '1', title: 'Old Note', createdAt: oldDate),
+      );
+      notesRepo.addNote(
+        _createNote(id: '2', title: 'Recent Note', createdAt: recentDate),
+      );
 
       final search = await service.createSavedSearch(
         name: 'Recent Notes',
@@ -424,25 +403,27 @@ void main() {
     });
 
     test('executes complex search with multiple filters', () async {
-      notesRepo.addNote(_createNote(
-        id: '1',
-        title: 'Perfect Match',
-        body: 'meeting notes',
-        folderId: 'work',
-        tags: ['urgent'],
-        attachmentMeta: '{"file": "data"}',
-      ));
-      notesRepo.addNote(_createNote(
-        id: '2',
-        title: 'Partial Match',
-        body: 'meeting notes',
-        folderId: 'work',
-      ));
-      notesRepo.addNote(_createNote(
-        id: '3',
-        title: 'No Match',
-        body: 'random',
-      ));
+      notesRepo.addNote(
+        _createNote(
+          id: '1',
+          title: 'Perfect Match',
+          body: 'meeting notes',
+          folderId: 'work',
+          tags: ['urgent'],
+          attachmentMeta: '{"file": "data"}',
+        ),
+      );
+      notesRepo.addNote(
+        _createNote(
+          id: '2',
+          title: 'Partial Match',
+          body: 'meeting notes',
+          folderId: 'work',
+        ),
+      );
+      notesRepo.addNote(
+        _createNote(id: '3', title: 'No Match', body: 'random'),
+      );
 
       final search = await service.createSavedSearch(
         name: 'Complex',
@@ -504,10 +485,7 @@ void main() {
       );
 
       final updated = await service.updateSavedSearch(
-        original.copyWith(
-          name: 'Updated',
-          query: 'folder:Personal',
-        ),
+        original.copyWith(name: 'Updated', query: 'folder:Personal'),
       );
 
       expect(updated.name, equals('Updated'));
@@ -561,11 +539,7 @@ void main() {
         query: 'folder:C',
       );
 
-      await service.reorderSavedSearches([
-        search3.id,
-        search1.id,
-        search2.id,
-      ]);
+      await service.reorderSavedSearches([search3.id, search1.id, search2.id]);
 
       final updated1 = await repository.getSavedSearchById(search1.id);
       final updated2 = await repository.getSavedSearchById(search2.id);
@@ -646,7 +620,10 @@ void main() {
       final results = await repository.searchByName('work');
 
       expect(results, hasLength(2));
-      expect(results.every((s) => s.name.toLowerCase().contains('work')), isTrue);
+      expect(
+        results.every((s) => s.name.toLowerCase().contains('work')),
+        isTrue,
+      );
     });
 
     test('watches saved searches stream', () async {

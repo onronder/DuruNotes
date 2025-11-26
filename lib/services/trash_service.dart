@@ -27,12 +27,15 @@ class TrashService {
     bool notesRepositoryProvided = false,
     bool folderRepositoryProvided = false,
     bool taskRepositoryProvided = false,
-  })  : _notesRepository = notesRepository,
-        _folderRepository = folderRepository,
-        _taskRepository = taskRepository,
-        _notesRepositoryProvided = notesRepositoryProvided || notesRepository != null,
-        _folderRepositoryProvided = folderRepositoryProvided || folderRepository != null,
-        _taskRepositoryProvided = taskRepositoryProvided || taskRepository != null;
+  }) : _notesRepository = notesRepository,
+       _folderRepository = folderRepository,
+       _taskRepository = taskRepository,
+       _notesRepositoryProvided =
+           notesRepositoryProvided || notesRepository != null,
+       _folderRepositoryProvided =
+           folderRepositoryProvided || folderRepository != null,
+       _taskRepositoryProvided =
+           taskRepositoryProvided || taskRepository != null;
 
   final Ref _ref;
   final INotesRepository? _notesRepository;
@@ -43,7 +46,8 @@ class TrashService {
   final bool _taskRepositoryProvided;
 
   AppLogger get _logger => _ref.read(loggerProvider);
-  AttachmentService get _attachmentService => _ref.read(attachmentServiceProvider);
+  AttachmentService get _attachmentService =>
+      _ref.read(attachmentServiceProvider);
   AnalyticsService get _analytics => _ref.read(analyticsProvider);
 
   /// Lazily get notes repository from provider
@@ -146,7 +150,11 @@ class TrashService {
       // Use dedicated getDeletedNotes() method from interface
       return await _notesRepo.getDeletedNotes();
     } catch (e, stack) {
-      _logger.error('Failed to fetch deleted notes', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to fetch deleted notes',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -155,7 +163,11 @@ class TrashService {
     try {
       return await _folderRepo.getDeletedFolders();
     } catch (e, stack) {
-      _logger.error('Failed to fetch deleted folders', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to fetch deleted folders',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -166,7 +178,11 @@ class TrashService {
     try {
       return await repo.getDeletedTasks();
     } catch (e, stack) {
-      _logger.error('Failed to fetch deleted tasks', error: e, stackTrace: stack);
+      _logger.error(
+        'Failed to fetch deleted tasks',
+        error: e,
+        stackTrace: stack,
+      );
       return [];
     }
   }
@@ -181,7 +197,9 @@ class TrashService {
 
       // Get note first to check for voice recordings
       final note = await _notesRepo.getNoteById(noteId);
-      if (note != null && note.attachmentMeta != null && note.attachmentMeta!.isNotEmpty) {
+      if (note != null &&
+          note.attachmentMeta != null &&
+          note.attachmentMeta!.isNotEmpty) {
         await _deleteVoiceRecordingsForNote(note);
       }
 
@@ -316,10 +334,18 @@ class TrashService {
   }
 
   /// Restore a folder (optionally with its contents)
-  Future<void> restoreFolder(String folderId, {bool restoreContents = false}) async {
+  Future<void> restoreFolder(
+    String folderId, {
+    bool restoreContents = false,
+  }) async {
     try {
-      _logger.info('Restoring folder: $folderId (restoreContents=$restoreContents)');
-      await _folderRepo.restoreFolder(folderId, restoreContents: restoreContents);
+      _logger.info(
+        'Restoring folder: $folderId (restoreContents=$restoreContents)',
+      );
+      await _folderRepo.restoreFolder(
+        folderId,
+        restoreContents: restoreContents,
+      );
       _logger.info('Successfully restored folder: $folderId');
     } catch (e, stack) {
       _logger.error(
@@ -435,11 +461,7 @@ class TrashService {
         completedAt: DateTime.now(),
       );
     } catch (e, stack) {
-      _logger.error(
-        'Failed to empty trash',
-        error: e,
-        stackTrace: stack,
-      );
+      _logger.error('Failed to empty trash', error: e, stackTrace: stack);
       rethrow;
     }
   }

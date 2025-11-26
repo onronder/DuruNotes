@@ -45,7 +45,9 @@ class SyncEncryptionHelper {
   final EncryptionRetryQueue _retryQueue;
 
   SyncEncryptionHelper(this._cryptoBox, [ReminderServiceConfig? config])
-      : _retryQueue = EncryptionRetryQueue(config ?? ReminderServiceConfig.defaultConfig());
+    : _retryQueue = EncryptionRetryQueue(
+        config ?? ReminderServiceConfig.defaultConfig(),
+      );
 
   /// Encrypt a reminder for sync upload with explicit error handling
   ///
@@ -163,14 +165,15 @@ class SyncEncryptionHelper {
 
       // Verify location name if present
       if (locationNameEnc != null && reminder.locationName != null) {
-        final locationVerification = await EncryptionVerificationHelper.verifyField(
-          cryptoBox: _cryptoBox!,
-          userId: userId,
-          noteId: reminder.noteId,
-          originalValue: reminder.locationName!,
-          encryptedValue: locationNameEnc,
-          fieldName: 'locationName',
-        );
+        final locationVerification =
+            await EncryptionVerificationHelper.verifyField(
+              cryptoBox: _cryptoBox!,
+              userId: userId,
+              noteId: reminder.noteId,
+              originalValue: reminder.locationName!,
+              encryptedValue: locationNameEnc,
+              fieldName: 'locationName',
+            );
 
         if (!locationVerification.success) {
           return _handleVerificationFailure(
@@ -300,10 +303,7 @@ class SyncEncryptionHelper {
     } catch (error) {
       _logger.warning(
         '[SyncEncryption] Validation failed - decryption error',
-        data: {
-          'reminderId': reminder.id,
-          'error': error.toString(),
-        },
+        data: {'reminderId': reminder.id, 'error': error.toString()},
       );
       return false;
     }

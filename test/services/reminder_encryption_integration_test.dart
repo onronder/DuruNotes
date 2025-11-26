@@ -103,7 +103,9 @@ void main() {
 
   Future<void> seedNote({required String noteId}) async {
     final now = DateTime.utc(2025, 11, 18);
-    await db.into(db.localNotes).insert(
+    await db
+        .into(db.localNotes)
+        .insert(
           LocalNotesCompanion.insert(
             id: noteId,
             titleEncrypted: const Value('encrypted-title'),
@@ -173,7 +175,9 @@ void main() {
       // Simulate encrypted reminder from remote
       final encryptedTitle = Uint8List.fromList('eltiT detpyrcnE'.codeUnits);
       final encryptedBody = Uint8List.fromList('ydoB detpyrcnE'.codeUnits);
-      final encryptedLocation = Uint8List.fromList('noitacoL detpyrcnE'.codeUnits);
+      final encryptedLocation = Uint8List.fromList(
+        'noitacoL detpyrcnE'.codeUnits,
+      );
 
       final remoteReminder = {
         'id': UuidTestHelper.testReminder1,
@@ -206,9 +210,9 @@ void main() {
         'updated_at': DateTime.utc(2025, 11, 18).toIso8601String(),
       };
 
-      when(mockNoteApi.getReminders()).thenAnswer(
-        (_) async => [remoteReminder],
-      );
+      when(
+        mockNoteApi.getReminders(),
+      ).thenAnswer((_) async => [remoteReminder]);
 
       // Act
       final result = await service.syncRemindersForTest();
@@ -218,8 +222,10 @@ void main() {
       expect(result.syncedReminders, 1);
 
       // Verify reminder was decrypted and stored locally
-      final stored =
-          await db.getReminderById(UuidTestHelper.testReminder1, 'user-123');
+      final stored = await db.getReminderById(
+        UuidTestHelper.testReminder1,
+        'user-123',
+      );
       expect(stored, isNotNull);
 
       // MIGRATION v42: Verify decrypted plaintext values
@@ -270,9 +276,9 @@ void main() {
         'updated_at': DateTime.utc(2025, 11, 18).toIso8601String(),
       };
 
-      when(mockNoteApi.getReminders()).thenAnswer(
-        (_) async => [remoteReminder],
-      );
+      when(
+        mockNoteApi.getReminders(),
+      ).thenAnswer((_) async => [remoteReminder]);
 
       // Act
       final result = await service.syncRemindersForTest();
@@ -282,8 +288,10 @@ void main() {
       expect(result.syncedReminders, 1);
 
       // Verify plaintext reminder was stored correctly
-      final stored =
-          await db.getReminderById(UuidTestHelper.testReminder2, 'user-123');
+      final stored = await db.getReminderById(
+        UuidTestHelper.testReminder2,
+        'user-123',
+      );
       expect(stored, isNotNull);
       expect(stored!.title, 'Legacy plaintext reminder');
       expect(stored.body, 'Created before v42');
@@ -314,7 +322,8 @@ void main() {
       // Capture what gets uploaded
       Map<String, dynamic>? uploadedData;
       when(mockNoteApi.upsertReminder(any)).thenAnswer((invocation) async {
-        uploadedData = invocation.positionalArguments[0] as Map<String, dynamic>;
+        uploadedData =
+            invocation.positionalArguments[0] as Map<String, dynamic>;
       });
 
       // Act - Upload
@@ -323,9 +332,7 @@ void main() {
       expect(uploadedData, isNotNull);
 
       // Simulate remote returning the same data on download
-      when(mockNoteApi.getReminders()).thenAnswer(
-        (_) async => [uploadedData!],
-      );
+      when(mockNoteApi.getReminders()).thenAnswer((_) async => [uploadedData!]);
 
       // Delete local reminder to force download
       await db.deleteReminderById(reminderId, 'user-123');
@@ -400,8 +407,8 @@ void main() {
       expect(progress['plaintext'], 2);
 
       // Calculate adoption percentage
-      final adoptionRate =
-          (progress['encrypted']! / progress['total']! * 100).round();
+      final adoptionRate = (progress['encrypted']! / progress['total']! * 100)
+          .round();
       expect(adoptionRate, 33); // 33% encrypted
     });
   });

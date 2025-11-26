@@ -93,9 +93,7 @@ class ReminderConfig {
 
     // Add location_name if provided
     if (locationName != null && locationName.isNotEmpty) {
-      companion = companion.copyWith(
-        locationName: Value(locationName),
-      );
+      companion = companion.copyWith(locationName: Value(locationName));
     }
 
     // Encrypt fields if CryptoBox is available
@@ -194,11 +192,12 @@ abstract class BaseReminderService {
     this.db, {
     CryptoBox? cryptoBox,
     ReminderServiceConfig? reminderConfig,
-  })  : _cryptoBox = cryptoBox,
-        _reminderConfig = reminderConfig ?? ReminderServiceConfig.defaultConfig(),
-        _encryptionLockManager = EncryptionLockManager(
-          reminderConfig ?? ReminderServiceConfig.defaultConfig(),
-        );
+  }) : _cryptoBox = cryptoBox,
+       _reminderConfig =
+           reminderConfig ?? ReminderServiceConfig.defaultConfig(),
+       _encryptionLockManager = EncryptionLockManager(
+         reminderConfig ?? ReminderServiceConfig.defaultConfig(),
+       );
 
   // Shared dependencies
   final Ref _ref;
@@ -336,10 +335,7 @@ abstract class BaseReminderService {
         );
         analytics.event(
           'reminder_decryption_failed',
-          properties: {
-            'reminder_id': reminder.id,
-            'error': e.toString(),
-          },
+          properties: {'reminder_id': reminder.id, 'error': e.toString()},
         );
         // Fall through to plaintext fallback
       }
@@ -389,7 +385,9 @@ abstract class BaseReminderService {
     // Skip if no current user
     final userId = currentUserId;
     if (userId == null || userId != reminder.userId) {
-      logger.warning('Cannot encrypt reminder - user mismatch or not authenticated');
+      logger.warning(
+        'Cannot encrypt reminder - user mismatch or not authenticated',
+      );
       analytics.event(
         'reminder_encryption_skipped',
         properties: {
@@ -410,7 +408,9 @@ abstract class BaseReminderService {
 
       // If reminder was deleted while we waited for lock, skip
       if (currentReminder == null) {
-        logger.debug('Reminder ${reminder.id} was deleted while waiting for lock');
+        logger.debug(
+          'Reminder ${reminder.id} was deleted while waiting for lock',
+        );
         analytics.event(
           'reminder_encryption_skipped',
           properties: {
@@ -423,7 +423,9 @@ abstract class BaseReminderService {
 
       // If another thread already encrypted it while we waited, skip
       if (_isReminderEncrypted(currentReminder)) {
-        logger.debug('Reminder ${reminder.id} was already encrypted by another thread');
+        logger.debug(
+          'Reminder ${reminder.id} was already encrypted by another thread',
+        );
         analytics.event(
           'reminder_encryption_skipped',
           properties: {
@@ -462,44 +464,50 @@ abstract class BaseReminderService {
 
         // CRITICAL #7: Verify encryption roundtrip before saving to database
         // This ensures encrypted data can be decrypted back to original
-        logger.debug('Verifying encryption roundtrip for reminder ${reminder.id}');
-
-        final titleVerification = await encryption_helper.EncryptionVerificationHelper.verifyField(
-          cryptoBox: _cryptoBox!,
-          userId: currentReminder.userId,
-          noteId: currentReminder.noteId,
-          originalValue: currentReminder.title,
-          encryptedValue: titleEncrypted,
-          fieldName: 'title',
+        logger.debug(
+          'Verifying encryption roundtrip for reminder ${reminder.id}',
         );
+
+        final titleVerification =
+            await encryption_helper.EncryptionVerificationHelper.verifyField(
+              cryptoBox: _cryptoBox!,
+              userId: currentReminder.userId,
+              noteId: currentReminder.noteId,
+              originalValue: currentReminder.title,
+              encryptedValue: titleEncrypted,
+              fieldName: 'title',
+            );
 
         if (!titleVerification.success) {
           _handleVerificationFailure(titleVerification, reminder.id, 'Title');
         }
 
-        final bodyVerification = await encryption_helper.EncryptionVerificationHelper.verifyField(
-          cryptoBox: _cryptoBox!,
-          userId: currentReminder.userId,
-          noteId: currentReminder.noteId,
-          originalValue: currentReminder.body,
-          encryptedValue: bodyEncrypted,
-          fieldName: 'body',
-        );
+        final bodyVerification =
+            await encryption_helper.EncryptionVerificationHelper.verifyField(
+              cryptoBox: _cryptoBox!,
+              userId: currentReminder.userId,
+              noteId: currentReminder.noteId,
+              originalValue: currentReminder.body,
+              encryptedValue: bodyEncrypted,
+              fieldName: 'body',
+            );
 
         if (!bodyVerification.success) {
           _handleVerificationFailure(bodyVerification, reminder.id, 'Body');
         }
 
         // Verify location name if encrypted
-        if (locationNameEncrypted != null && currentReminder.locationName != null) {
-          final locationVerification = await encryption_helper.EncryptionVerificationHelper.verifyField(
-            cryptoBox: _cryptoBox!,
-            userId: currentReminder.userId,
-            noteId: currentReminder.noteId,
-            originalValue: currentReminder.locationName!,
-            encryptedValue: locationNameEncrypted,
-            fieldName: 'locationName',
-          );
+        if (locationNameEncrypted != null &&
+            currentReminder.locationName != null) {
+          final locationVerification =
+              await encryption_helper.EncryptionVerificationHelper.verifyField(
+                cryptoBox: _cryptoBox!,
+                userId: currentReminder.userId,
+                noteId: currentReminder.noteId,
+                originalValue: currentReminder.locationName!,
+                encryptedValue: locationNameEncrypted,
+                fieldName: 'locationName',
+              );
 
           if (!locationVerification.success) {
             _handleVerificationFailure(
@@ -510,7 +518,9 @@ abstract class BaseReminderService {
           }
         }
 
-        logger.debug('Encryption verification passed for reminder ${reminder.id}');
+        logger.debug(
+          'Encryption verification passed for reminder ${reminder.id}',
+        );
 
         // Update database with encrypted fields
         await db.updateReminder(
@@ -526,7 +536,9 @@ abstract class BaseReminderService {
           ),
         );
 
-        logger.info('Successfully encrypted and verified reminder ${reminder.id}');
+        logger.info(
+          'Successfully encrypted and verified reminder ${reminder.id}',
+        );
         analytics.event(
           'reminder_lazy_encrypted',
           properties: {'reminder_id': reminder.id},
@@ -541,10 +553,7 @@ abstract class BaseReminderService {
         );
         analytics.event(
           'reminder_lazy_encryption_failed',
-          properties: {
-            'reminder_id': reminder.id,
-            'error': e.toString(),
-          },
+          properties: {'reminder_id': reminder.id, 'error': e.toString()},
         );
         return false;
       }

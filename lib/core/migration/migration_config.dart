@@ -88,7 +88,8 @@ class ReminderServiceConfig {
           geofenceAccuracyMeters == other.geofenceAccuracyMeters &&
           geofenceLoiteringDelayMs == other.geofenceLoiteringDelayMs &&
           geofenceStatusChangeDelayMs == other.geofenceStatusChangeDelayMs &&
-          geofenceUseActivityRecognition == other.geofenceUseActivityRecognition &&
+          geofenceUseActivityRecognition ==
+              other.geofenceUseActivityRecognition &&
           geofenceAllowMockLocations == other.geofenceAllowMockLocations &&
           geofenceDefaultRadiusMeters == other.geofenceDefaultRadiusMeters;
 
@@ -149,17 +150,20 @@ class ReminderServiceConfig {
       queueMaxAge: Duration(
         milliseconds: json['queueMaxAge'] as int? ?? 3600000,
       ),
-      lockTimeout: Duration(
-        milliseconds: json['lockTimeout'] as int? ?? 30000,
-      ),
+      lockTimeout: Duration(milliseconds: json['lockTimeout'] as int? ?? 30000),
       syncBatchSize: json['syncBatchSize'] as int? ?? 10,
       geofenceIntervalMs: json['geofenceIntervalMs'] as int? ?? 5000,
       geofenceAccuracyMeters: json['geofenceAccuracyMeters'] as int? ?? 100,
-      geofenceLoiteringDelayMs: json['geofenceLoiteringDelayMs'] as int? ?? 60000,
-      geofenceStatusChangeDelayMs: json['geofenceStatusChangeDelayMs'] as int? ?? 10000,
-      geofenceUseActivityRecognition: json['geofenceUseActivityRecognition'] as bool? ?? true,
-      geofenceAllowMockLocations: json['geofenceAllowMockLocations'] as bool? ?? false,
-      geofenceDefaultRadiusMeters: (json['geofenceDefaultRadiusMeters'] as num?)?.toDouble() ?? 100.0,
+      geofenceLoiteringDelayMs:
+          json['geofenceLoiteringDelayMs'] as int? ?? 60000,
+      geofenceStatusChangeDelayMs:
+          json['geofenceStatusChangeDelayMs'] as int? ?? 10000,
+      geofenceUseActivityRecognition:
+          json['geofenceUseActivityRecognition'] as bool? ?? true,
+      geofenceAllowMockLocations:
+          json['geofenceAllowMockLocations'] as bool? ?? false,
+      geofenceDefaultRadiusMeters:
+          (json['geofenceDefaultRadiusMeters'] as num?)?.toDouble() ?? 100.0,
     );
   }
 }
@@ -179,8 +183,8 @@ class MigrationConfig {
     this.version = 1,
     DateTime? configurationDate,
     ReminderServiceConfig? reminderConfig,
-  })  : configurationDate = configurationDate ?? DateTime.now(),
-        reminderConfig = reminderConfig ?? ReminderServiceConfig.defaultConfig();
+  }) : configurationDate = configurationDate ?? DateTime.now(),
+       reminderConfig = reminderConfig ?? ReminderServiceConfig.defaultConfig();
 
   /// Creates a default configuration with all features disabled
   factory MigrationConfig.defaultConfig() {
@@ -373,7 +377,9 @@ class MigrationConfig {
           DateTime.tryParse(json['configurationDate'] as String? ?? '') ??
           DateTime.now(),
       reminderConfig: json['reminderConfig'] != null
-          ? ReminderServiceConfig.fromJson(json['reminderConfig'] as Map<String, dynamic>)
+          ? ReminderServiceConfig.fromJson(
+              json['reminderConfig'] as Map<String, dynamic>,
+            )
           : ReminderServiceConfig.defaultConfig(),
     );
   }

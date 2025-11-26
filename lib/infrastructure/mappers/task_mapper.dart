@@ -28,6 +28,7 @@ class TaskMapper {
     );
     return uuidPattern.hasMatch(value);
   }
+
   /// Convert infrastructure NoteTask to domain Task
   /// Note: content, notes, and labels are expected to be already decrypted by the repository
   static domain.Task toDomain(

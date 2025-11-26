@@ -200,7 +200,10 @@ void main() {
       );
 
       final withReminder = await repository.getTaskById(created.id);
-      expect(withReminder?.metadata['reminderId'], 'reminder-99'); // MIGRATION v41: UUID String
+      expect(
+        withReminder?.metadata['reminderId'],
+        'reminder-99',
+      ); // MIGRATION v41: UUID String
 
       final updated = withReminder!.copyWith(
         title: 'Moved task to new section',

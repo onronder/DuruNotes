@@ -24,10 +24,10 @@ class SavedSearchService {
     required INotesRepository notesRepository,
     required SavedSearchQueryParser queryParser,
     required AppLogger logger,
-  })  : _savedSearchRepo = savedSearchRepository,
-        _notesRepo = notesRepository,
-        _parser = queryParser,
-        _logger = logger;
+  }) : _savedSearchRepo = savedSearchRepository,
+       _notesRepo = notesRepository,
+       _parser = queryParser,
+       _logger = logger;
 
   final ISavedSearchRepository _savedSearchRepo;
   final INotesRepository _notesRepo;
@@ -186,16 +186,12 @@ class SavedSearchService {
     // Get all notes from repository (using localNotes for in-memory filtering)
     var notes = await _notesRepo.localNotes();
 
-    _logger.debug(
-      '[SavedSearchService] Initial notes count: ${notes.length}',
-    );
+    _logger.debug('[SavedSearchService] Initial notes count: ${notes.length}');
 
     // Apply filters sequentially
     notes = _applyFilters(notes, filters);
 
-    _logger.debug(
-      '[SavedSearchService] After filters: ${notes.length} notes',
-    );
+    _logger.debug('[SavedSearchService] After filters: ${notes.length} notes');
 
     // Apply text search if present
     if (textQuery.isNotEmpty) {
@@ -236,17 +232,21 @@ class SavedSearchService {
     // Filter by date range
     if (filters.startDate != null) {
       filtered = filtered
-          .where((note) =>
-              note.createdAt.isAfter(filters.startDate!) ||
-              note.createdAt.isAtSameMomentAs(filters.startDate!))
+          .where(
+            (note) =>
+                note.createdAt.isAfter(filters.startDate!) ||
+                note.createdAt.isAtSameMomentAs(filters.startDate!),
+          )
           .toList();
     }
 
     if (filters.endDate != null) {
       filtered = filtered
-          .where((note) =>
-              note.createdAt.isBefore(filters.endDate!) ||
-              note.createdAt.isAtSameMomentAs(filters.endDate!))
+          .where(
+            (note) =>
+                note.createdAt.isBefore(filters.endDate!) ||
+                note.createdAt.isAtSameMomentAs(filters.endDate!),
+          )
           .toList();
     }
 
@@ -263,7 +263,9 @@ class SavedSearchService {
 
     // Filter by pinned status (if using for reminders)
     if (filters.isPinned != null) {
-      filtered = filtered.where((note) => note.isPinned == filters.isPinned).toList();
+      filtered = filtered
+          .where((note) => note.isPinned == filters.isPinned)
+          .toList();
     }
 
     return filtered;
@@ -347,7 +349,9 @@ class SavedSearchService {
   /// Get saved searches by type
   Future<List<SavedSearch>> getSavedSearchesByType(String searchType) async {
     try {
-      final searches = await _savedSearchRepo.getSavedSearchesByType(searchType);
+      final searches = await _savedSearchRepo.getSavedSearchesByType(
+        searchType,
+      );
 
       _logger.info(
         '[SavedSearchService] Retrieved ${searches.length} searches of type: $searchType',
