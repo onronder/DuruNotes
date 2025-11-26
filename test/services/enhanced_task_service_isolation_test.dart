@@ -66,14 +66,17 @@ class MockTaskReminderBridge extends Mock implements TaskReminderBridge {
     required db.NoteTask task,
     Duration? beforeDueDate,
   }) {
-    return super.noSuchMethod(
-          Invocation.method(#createTaskReminder, [], {
-            #task: task,
-            #beforeDueDate: beforeDueDate,
-          }),
-          returnValue: Future<String?>.value(null),
-        )
-        as Future<String?>;
+    final result = super.noSuchMethod(
+      Invocation.method(#createTaskReminder, [], {
+        #task: task,
+        #beforeDueDate: beforeDueDate,
+      }),
+      returnValue: Future<String?>.value('mock-reminder-id'),
+    );
+    if (result is Future<String?>) {
+      return result;
+    }
+    return Future<String?>.value('mock-reminder-id');
   }
 
   @override

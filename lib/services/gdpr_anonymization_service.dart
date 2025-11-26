@@ -89,16 +89,19 @@ class GDPRAnonymizationService {
     required AccountKeyService accountKeyService,
     required EncryptionSyncService encryptionSyncService,
     SupabaseClient? client,
+    bool enableAuditStorage = true,
   }) : _keyManager = keyManager,
        _accountKeyService = accountKeyService,
        _encryptionSyncService = encryptionSyncService,
-       _client = client ?? Supabase.instance.client;
+       _client = client ?? Supabase.instance.client,
+       _enableAuditStorage = enableAuditStorage;
 
   final Ref _ref;
   final KeyManager _keyManager;
   final AccountKeyService _accountKeyService;
   final EncryptionSyncService _encryptionSyncService;
   final SupabaseClient _client;
+  final bool _enableAuditStorage;
 
   late final GDPRSafeguards _safeguards = GDPRSafeguards(
     logger: _logger,
@@ -1200,23 +1203,25 @@ class GDPRAnonymizationService {
         pointOfNoReturn: true,
       );
 
-      // Store proof in anonymization_proofs table
-      final userIdHash = sha256.convert(utf8.encode(userId)).toString();
-      await _client.from('anonymization_proofs').insert({
-        'anonymization_id': anonymizationId,
-        'user_id_hash': userIdHash,
-        'proof_hash': proofHash,
-        'proof_data': proofData,
-      });
+      if (_enableAuditStorage) {
+        // Store proof in anonymization_proofs table
+        final userIdHash = sha256.convert(utf8.encode(userId)).toString();
+        await _client.from('anonymization_proofs').insert({
+          'anonymization_id': anonymizationId,
+          'user_id_hash': userIdHash,
+          'proof_hash': proofHash,
+          'proof_data': proofData,
+        });
 
-      // Record final event
-      await _recordAnonymizationEvent(
-        anonymizationId: anonymizationId,
-        userId: userId,
-        eventType: 'COMPLETED',
-        phaseNumber: 7,
-        details: {'proofHash': proofHash, 'complianceProofStored': true},
-      );
+        // Record final event
+        await _recordAnonymizationEvent(
+          anonymizationId: anonymizationId,
+          userId: userId,
+          eventType: 'COMPLETED',
+          phaseNumber: 7,
+          details: {'proofHash': proofHash, 'complianceProofStored': true},
+        );
+      }
 
       _emitProgress(
         onProgress,
@@ -1259,6 +1264,9 @@ class GDPRAnonymizationService {
     int? phaseNumber,
     Map<String, dynamic>? details,
   }) async {
+    if (!_enableAuditStorage) {
+      return;
+    }
     try {
       await _client.from('anonymization_events').insert({
         'anonymization_id': anonymizationId,

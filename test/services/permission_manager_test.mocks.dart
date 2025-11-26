@@ -80,6 +80,14 @@ class MockFeatureFlags extends _i1.Mock implements _i2.FeatureFlags {
           as bool);
 
   @override
+  bool get voiceDictationEnabled =>
+      (super.noSuchMethod(
+            Invocation.getter(#voiceDictationEnabled),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
   bool isEnabled(String? flagName) =>
       (super.noSuchMethod(
             Invocation.method(#isEnabled, [flagName]),

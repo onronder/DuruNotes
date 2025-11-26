@@ -181,6 +181,7 @@ void main() {
     test('reminder metadata is preserved across updates', () async {
       await seedNote();
       final timestamp = DateTime.utc(2025, 2, 10);
+      const reminderId = '123e4567-e89b-12d3-a456-426614174000';
       final created = await repository.createTask(
         buildTask(
           id: '',
@@ -194,7 +195,7 @@ void main() {
         created.id,
         userId,
         db.NoteTasksCompanion(
-          reminderId: const Value('reminder-99'), // MIGRATION v41: UUID String
+          reminderId: const Value(reminderId), // MIGRATION v41: UUID String
           updatedAt: Value(timestamp),
         ),
       );
@@ -202,7 +203,7 @@ void main() {
       final withReminder = await repository.getTaskById(created.id);
       expect(
         withReminder?.metadata['reminderId'],
-        'reminder-99',
+        reminderId,
       ); // MIGRATION v41: UUID String
 
       final updated = withReminder!.copyWith(
@@ -212,7 +213,7 @@ void main() {
 
       expect(
         result.metadata['reminderId'],
-        'reminder-99',
+        reminderId,
         reason: 'Reminder linkage must not be cleared by content updates',
       );
       expect(result.metadata['estimatedMinutes'], 30);

@@ -9,6 +9,7 @@ import 'package:duru_notes/services/attachment_service.dart';
 import 'package:duru_notes/services/audio_recording_service.dart';
 import 'package:duru_notes/services/providers/services_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -22,8 +23,20 @@ void main() {
   late MockAttachmentService mockAttachmentService;
   late ProviderContainer container;
 
-  setUp(() {
+  setUpAll(() {
     TestWidgetsFlutterBinding.ensureInitialized();
+
+    const channel = MethodChannel('com.llfbandit.record/messages');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
+      if (call.method == 'create') {
+        return null;
+      }
+      return null;
+    });
+  });
+
+  setUp(() {
 
     mockLogger = MockAppLogger();
     mockAnalytics = MockAnalyticsService();
