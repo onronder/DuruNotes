@@ -80,8 +80,9 @@ void main() {
       // Setup all required provider stubs
       when(mockRef.read(loggerProvider)).thenReturn(const ConsoleLogger());
       when(mockRef.read(analyticsProvider)).thenReturn(AnalyticsService());
-      when(mockRef.read(supabaseClientProvider))
-          .thenReturn(sharedMockSupabaseClient);
+      when(
+        mockRef.read(supabaseClientProvider),
+      ).thenReturn(sharedMockSupabaseClient);
 
       // Setup crypto box to simulate encryption with delay
       when(
@@ -145,199 +146,222 @@ void main() {
     }
 
     // TODO: Fix mock setup - ensureReminderEncrypted returns false due to missing provider stubs
-    test('prevents duplicate encryption when accessed concurrently', skip: 'Mock setup needs currentUserId provider fix', () async {
-      // ARRANGE: Create plaintext reminder
-      final reminder = await createUnencryptedReminder('Concurrent Test');
+    test(
+      'prevents duplicate encryption when accessed concurrently',
+      skip: 'Mock setup needs currentUserId provider fix',
+      () async {
+        // ARRANGE: Create plaintext reminder
+        final reminder = await createUnencryptedReminder('Concurrent Test');
 
-      // Track encryption calls
-      var encryptionCallCount = 0;
-      when(
-        mockCryptoBox.encryptStringForNote(
-          userId: anyNamed('userId'),
-          noteId: anyNamed('noteId'),
-          text: anyNamed('text'),
-        ),
-      ).thenAnswer((invocation) async {
-        encryptionCallCount++;
-        await Future.delayed(const Duration(milliseconds: 50));
-        final text = invocation.namedArguments[const Symbol('text')] as String;
-        return Uint8List.fromList(text.codeUnits);
-      });
-
-      // ACT: Trigger 5 concurrent encryption attempts
-      final futures = List.generate(
-        5,
-        (_) => reminderService.ensureReminderEncrypted(reminder),
-      );
-
-      final results = await Future.wait(futures);
-
-      // ASSERT: Only ONE thread should have performed encryption
-      final encryptedCount = results.where((r) => r == true).length;
-      expect(
-        encryptedCount,
-        equals(1),
-        reason: 'Only one thread should successfully encrypt',
-      );
-
-      // Verify reminder is encrypted in database
-      final updated = await db.getReminderByIdIncludingDeleted(
-        reminder.id,
-        testUserId,
-      );
-      expect(updated!.titleEncrypted, isNotNull);
-      expect(updated.bodyEncrypted, isNotNull);
-      expect(updated.encryptionVersion, equals(1));
-
-      // CRITICAL: Encryption should be called exactly 2 times per field
-      // (title + body = 2 calls total, not 10 calls for 5 threads)
-      // Note: May be 3 calls if location is encrypted
-      expect(
-        encryptionCallCount,
-        lessThanOrEqualTo(3),
-        reason: 'Should not encrypt multiple times due to lock',
-      );
-    });
-
-    test('handles lock contention correctly with staggered access', skip: 'Mock setup needs currentUserId provider fix', () async {
-      // ARRANGE: Create plaintext reminder
-      final reminder = await createUnencryptedReminder('Staggered Test');
-
-      final results = <bool>[];
-
-      // ACT: Launch threads with staggered delays
-      for (var i = 0; i < 3; i++) {
-        // Stagger by 20ms each
-        Future.delayed(Duration(milliseconds: i * 20), () async {
-          final result = await reminderService.ensureReminderEncrypted(
-            reminder,
-          );
-          results.add(result);
+        // Track encryption calls
+        var encryptionCallCount = 0;
+        when(
+          mockCryptoBox.encryptStringForNote(
+            userId: anyNamed('userId'),
+            noteId: anyNamed('noteId'),
+            text: anyNamed('text'),
+          ),
+        ).thenAnswer((invocation) async {
+          encryptionCallCount++;
+          await Future.delayed(const Duration(milliseconds: 50));
+          final text =
+              invocation.namedArguments[const Symbol('text')] as String;
+          return Uint8List.fromList(text.codeUnits);
         });
-      }
 
-      // Wait for all to complete
-      await Future.delayed(const Duration(milliseconds: 500));
+        // ACT: Trigger 5 concurrent encryption attempts
+        final futures = List.generate(
+          5,
+          (_) => reminderService.ensureReminderEncrypted(reminder),
+        );
 
-      // ASSERT: Only first thread should encrypt
-      expect(
-        results.where((r) => r == true).length,
-        equals(1),
-        reason: 'Only first thread should encrypt, others skip',
-      );
-    });
+        final results = await Future.wait(futures);
 
-    test('double-check pattern prevents stale data encryption', skip: 'Mock setup needs currentUserId provider fix', () async {
-      // ARRANGE: Create plaintext reminder
-      final reminder = await createUnencryptedReminder('Double Check Test');
+        // ASSERT: Only ONE thread should have performed encryption
+        final encryptedCount = results.where((r) => r == true).length;
+        expect(
+          encryptedCount,
+          equals(1),
+          reason: 'Only one thread should successfully encrypt',
+        );
 
-      // Track what text was encrypted
-      final encryptedTexts = <String>[];
-      when(
-        mockCryptoBox.encryptStringForNote(
-          userId: anyNamed('userId'),
-          noteId: anyNamed('noteId'),
-          text: anyNamed('text'),
-        ),
-      ).thenAnswer((invocation) async {
-        final text = invocation.namedArguments[const Symbol('text')] as String;
-        encryptedTexts.add(text);
-        await Future.delayed(const Duration(milliseconds: 50));
-        return Uint8List.fromList(text.codeUnits);
-      });
+        // Verify reminder is encrypted in database
+        final updated = await db.getReminderByIdIncludingDeleted(
+          reminder.id,
+          testUserId,
+        );
+        expect(updated!.titleEncrypted, isNotNull);
+        expect(updated.bodyEncrypted, isNotNull);
+        expect(updated.encryptionVersion, equals(1));
 
-      // ACT: Start encryption in background
-      final future1 = reminderService.ensureReminderEncrypted(reminder);
+        // CRITICAL: Encryption should be called exactly 2 times per field
+        // (title + body = 2 calls total, not 10 calls for 5 threads)
+        // Note: May be 3 calls if location is encrypted
+        expect(
+          encryptionCallCount,
+          lessThanOrEqualTo(3),
+          reason: 'Should not encrypt multiple times due to lock',
+        );
+      },
+    );
 
-      // While encrypting, update the reminder title in database
-      await Future.delayed(const Duration(milliseconds: 10));
-      await db.updateReminder(
-        reminder.id,
-        testUserId,
-        const NoteRemindersCompanion(title: Value('UPDATED TITLE')),
-      );
+    test(
+      'handles lock contention correctly with staggered access',
+      skip: 'Mock setup needs currentUserId provider fix',
+      () async {
+        // ARRANGE: Create plaintext reminder
+        final reminder = await createUnencryptedReminder('Staggered Test');
 
-      // Wait for encryption to complete
-      await future1;
+        final results = <bool>[];
 
-      // ASSERT: Should encrypt current data from database, not stale data
-      // The double-check fetches latest data before encrypting
-      expect(
-        encryptedTexts.contains('UPDATED TITLE'),
-        isTrue,
-        reason: 'Should encrypt current data, not stale reminder parameter',
-      );
-    });
+        // ACT: Launch threads with staggered delays
+        for (var i = 0; i < 3; i++) {
+          // Stagger by 20ms each
+          Future.delayed(Duration(milliseconds: i * 20), () async {
+            final result = await reminderService.ensureReminderEncrypted(
+              reminder,
+            );
+            results.add(result);
+          });
+        }
 
-    test('releases lock even if encryption fails', skip: 'Mock setup needs currentUserId provider fix', () async {
-      // ARRANGE: Create plaintext reminder
-      final reminder = await createUnencryptedReminder('Error Test');
+        // Wait for all to complete
+        await Future.delayed(const Duration(milliseconds: 500));
 
-      // Make encryption fail
-      when(
-        mockCryptoBox.encryptStringForNote(
-          userId: anyNamed('userId'),
-          noteId: anyNamed('noteId'),
-          text: anyNamed('text'),
-        ),
-      ).thenThrow(Exception('Encryption failed'));
+        // ASSERT: Only first thread should encrypt
+        expect(
+          results.where((r) => r == true).length,
+          equals(1),
+          reason: 'Only first thread should encrypt, others skip',
+        );
+      },
+    );
 
-      // ACT: Try to encrypt (should fail)
-      final result1 = await reminderService.ensureReminderEncrypted(reminder);
-      expect(result1, isFalse);
+    test(
+      'double-check pattern prevents stale data encryption',
+      skip: 'Mock setup needs currentUserId provider fix',
+      () async {
+        // ARRANGE: Create plaintext reminder
+        final reminder = await createUnencryptedReminder('Double Check Test');
 
-      // ASSERT: Lock should be released, allow retry
-      // Fix the encryption mock
-      when(
-        mockCryptoBox.encryptStringForNote(
-          userId: anyNamed('userId'),
-          noteId: anyNamed('noteId'),
-          text: anyNamed('text'),
-        ),
-      ).thenAnswer((invocation) async {
-        final text = invocation.namedArguments[const Symbol('text')] as String;
-        return Uint8List.fromList(text.codeUnits);
-      });
+        // Track what text was encrypted
+        final encryptedTexts = <String>[];
+        when(
+          mockCryptoBox.encryptStringForNote(
+            userId: anyNamed('userId'),
+            noteId: anyNamed('noteId'),
+            text: anyNamed('text'),
+          ),
+        ).thenAnswer((invocation) async {
+          final text =
+              invocation.namedArguments[const Symbol('text')] as String;
+          encryptedTexts.add(text);
+          await Future.delayed(const Duration(milliseconds: 50));
+          return Uint8List.fromList(text.codeUnits);
+        });
 
-      // Retry should work (lock was released)
-      final result2 = await reminderService.ensureReminderEncrypted(reminder);
-      expect(result2, isTrue);
-    });
+        // ACT: Start encryption in background
+        final future1 = reminderService.ensureReminderEncrypted(reminder);
 
-    test('handles concurrent encryption of different reminders', skip: 'Mock setup needs currentUserId provider fix', () async {
-      // ARRANGE: Create multiple reminders
-      final reminder1 = await createUnencryptedReminder('Reminder 1');
-      final reminder2 = await createUnencryptedReminder('Reminder 2');
-      final reminder3 = await createUnencryptedReminder('Reminder 3');
+        // While encrypting, update the reminder title in database
+        await Future.delayed(const Duration(milliseconds: 10));
+        await db.updateReminder(
+          reminder.id,
+          testUserId,
+          const NoteRemindersCompanion(title: Value('UPDATED TITLE')),
+        );
 
-      // ACT: Encrypt all concurrently (different IDs, should run in parallel)
-      final results = await Future.wait([
-        reminderService.ensureReminderEncrypted(reminder1),
-        reminderService.ensureReminderEncrypted(reminder2),
-        reminderService.ensureReminderEncrypted(reminder3),
-      ]);
+        // Wait for encryption to complete
+        await future1;
 
-      // ASSERT: All should succeed
-      expect(results, equals([true, true, true]));
+        // ASSERT: Should encrypt current data from database, not stale data
+        // The double-check fetches latest data before encrypting
+        expect(
+          encryptedTexts.contains('UPDATED TITLE'),
+          isTrue,
+          reason: 'Should encrypt current data, not stale reminder parameter',
+        );
+      },
+    );
 
-      // Verify all are encrypted
-      final updated1 = await db.getReminderByIdIncludingDeleted(
-        reminder1.id,
-        testUserId,
-      );
-      final updated2 = await db.getReminderByIdIncludingDeleted(
-        reminder2.id,
-        testUserId,
-      );
-      final updated3 = await db.getReminderByIdIncludingDeleted(
-        reminder3.id,
-        testUserId,
-      );
+    test(
+      'releases lock even if encryption fails',
+      skip: 'Mock setup needs currentUserId provider fix',
+      () async {
+        // ARRANGE: Create plaintext reminder
+        final reminder = await createUnencryptedReminder('Error Test');
 
-      expect(updated1!.titleEncrypted, isNotNull);
-      expect(updated2!.titleEncrypted, isNotNull);
-      expect(updated3!.titleEncrypted, isNotNull);
-    });
+        // Make encryption fail
+        when(
+          mockCryptoBox.encryptStringForNote(
+            userId: anyNamed('userId'),
+            noteId: anyNamed('noteId'),
+            text: anyNamed('text'),
+          ),
+        ).thenThrow(Exception('Encryption failed'));
+
+        // ACT: Try to encrypt (should fail)
+        final result1 = await reminderService.ensureReminderEncrypted(reminder);
+        expect(result1, isFalse);
+
+        // ASSERT: Lock should be released, allow retry
+        // Fix the encryption mock
+        when(
+          mockCryptoBox.encryptStringForNote(
+            userId: anyNamed('userId'),
+            noteId: anyNamed('noteId'),
+            text: anyNamed('text'),
+          ),
+        ).thenAnswer((invocation) async {
+          final text =
+              invocation.namedArguments[const Symbol('text')] as String;
+          return Uint8List.fromList(text.codeUnits);
+        });
+
+        // Retry should work (lock was released)
+        final result2 = await reminderService.ensureReminderEncrypted(reminder);
+        expect(result2, isTrue);
+      },
+    );
+
+    test(
+      'handles concurrent encryption of different reminders',
+      skip: 'Mock setup needs currentUserId provider fix',
+      () async {
+        // ARRANGE: Create multiple reminders
+        final reminder1 = await createUnencryptedReminder('Reminder 1');
+        final reminder2 = await createUnencryptedReminder('Reminder 2');
+        final reminder3 = await createUnencryptedReminder('Reminder 3');
+
+        // ACT: Encrypt all concurrently (different IDs, should run in parallel)
+        final results = await Future.wait([
+          reminderService.ensureReminderEncrypted(reminder1),
+          reminderService.ensureReminderEncrypted(reminder2),
+          reminderService.ensureReminderEncrypted(reminder3),
+        ]);
+
+        // ASSERT: All should succeed
+        expect(results, equals([true, true, true]));
+
+        // Verify all are encrypted
+        final updated1 = await db.getReminderByIdIncludingDeleted(
+          reminder1.id,
+          testUserId,
+        );
+        final updated2 = await db.getReminderByIdIncludingDeleted(
+          reminder2.id,
+          testUserId,
+        );
+        final updated3 = await db.getReminderByIdIncludingDeleted(
+          reminder3.id,
+          testUserId,
+        );
+
+        expect(updated1!.titleEncrypted, isNotNull);
+        expect(updated2!.titleEncrypted, isNotNull);
+        expect(updated3!.titleEncrypted, isNotNull);
+      },
+    );
 
     test('lock stats track contention correctly', () async {
       // ARRANGE: Create plaintext reminder

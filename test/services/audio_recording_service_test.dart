@@ -29,15 +29,14 @@ void main() {
     const channel = MethodChannel('com.llfbandit.record/messages');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall call) async {
-      if (call.method == 'create') {
-        return null;
-      }
-      return null;
-    });
+          if (call.method == 'create') {
+            return null;
+          }
+          return null;
+        });
   });
 
   setUp(() {
-
     mockLogger = MockAppLogger();
     mockAnalytics = MockAnalyticsService();
     mockAttachmentService = MockAttachmentService();

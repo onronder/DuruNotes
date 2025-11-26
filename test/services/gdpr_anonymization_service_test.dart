@@ -50,16 +50,21 @@ class MockFunctionsClient extends Mock implements FunctionsClient {
     String? region,
   }) {
     return super.noSuchMethod(
-      Invocation.method(#invoke, [functionName], {
-        #headers: headers,
-        #body: body,
-        #files: files,
-        #queryParameters: queryParameters,
-        #method: method,
-        #region: region,
-      }),
-      returnValue: Future.value(FunctionResponse(data: {}, status: 200)),
-    ) as Future<FunctionResponse>;
+          Invocation.method(
+            #invoke,
+            [functionName],
+            {
+              #headers: headers,
+              #body: body,
+              #files: files,
+              #queryParameters: queryParameters,
+              #method: method,
+              #region: region,
+            },
+          ),
+          returnValue: Future.value(FunctionResponse(data: {}, status: 200)),
+        )
+        as Future<FunctionResponse>;
   }
 }
 
@@ -173,10 +178,7 @@ void main() {
 
     // Default functions mock - returns success response for GDPR delete function
     when(
-      mockFunctions.invoke(
-        'gdpr-delete-auth-user',
-        body: anyNamed('body'),
-      ),
+      mockFunctions.invoke('gdpr-delete-auth-user', body: anyNamed('body')),
     ).thenAnswer(
       (_) async => FunctionResponse(
         data: {'success': true, 'phases': {}, 'details': {}},
@@ -554,191 +556,196 @@ void main() {
   });
 
   group('Complete Anonymization Flow', () {
-    test('successfully completes all 7 phases', skip: 'Timeout in CI - complex RPC mock setup causes slow execution', () async {
-      final confirmations = createValidConfirmations(testUserId);
+    test(
+      'successfully completes all 7 phases',
+      skip: 'Timeout in CI - complex RPC mock setup causes slow execution',
+      () async {
+        final confirmations = createValidConfirmations(testUserId);
 
-      // Valid session for Phase 1
-      when(mockAuth.currentSession).thenReturn(mockSession);
+        // Valid session for Phase 1
+        when(mockAuth.currentSession).thenReturn(mockSession);
 
-      // Mock Phase 2: Account Metadata Anonymization (RPCs)
-      final mockProfileFilter = MockRpcListFilterBuilder();
-      when(mockProfileFilter.then(any)).thenAnswer(
-        (_) async => [
-          {'anonymize_user_profile': 1} as Map<String, dynamic>,
-        ],
-      );
-      when(
-        mockClient.rpc<List<Map<String, dynamic>>>(
-          'anonymize_user_profile',
-          params: {'target_user_id': testUserId},
-        ),
-      ).thenAnswer((_) => mockProfileFilter);
+        // Mock Phase 2: Account Metadata Anonymization (RPCs)
+        final mockProfileFilter = MockRpcListFilterBuilder();
+        when(mockProfileFilter.then(any)).thenAnswer(
+          (_) async => [
+            {'anonymize_user_profile': 1} as Map<String, dynamic>,
+          ],
+        );
+        when(
+          mockClient.rpc<List<Map<String, dynamic>>>(
+            'anonymize_user_profile',
+            params: {'target_user_id': testUserId},
+          ),
+        ).thenAnswer((_) => mockProfileFilter);
 
-      final mockStatusFilter = MockRpcListFilterBuilder();
-      when(mockStatusFilter.then(any)).thenAnswer(
-        (_) async => [
-          {
-                'fully_anonymized': true,
-                'current_email': 'user_${testUserId}_deleted@privacy.local',
-                'expected_anonymous_email':
-                    'user_${testUserId}_deleted@privacy.local',
-              }
-              as Map<String, dynamic>,
-        ],
-      );
-      when(
-        mockClient.rpc<List<Map<String, dynamic>>>(
-          'get_profile_anonymization_status',
-          params: {'target_user_id': testUserId},
-        ),
-      ).thenAnswer((_) => mockStatusFilter);
+        final mockStatusFilter = MockRpcListFilterBuilder();
+        when(mockStatusFilter.then(any)).thenAnswer(
+          (_) async => [
+            {
+                  'fully_anonymized': true,
+                  'current_email': 'user_${testUserId}_deleted@privacy.local',
+                  'expected_anonymous_email':
+                      'user_${testUserId}_deleted@privacy.local',
+                }
+                as Map<String, dynamic>,
+          ],
+        );
+        when(
+          mockClient.rpc<List<Map<String, dynamic>>>(
+            'get_profile_anonymization_status',
+            params: {'target_user_id': testUserId},
+          ),
+        ).thenAnswer((_) => mockStatusFilter);
 
-      // Successful key destruction for Phase 3
-      final keyReport = createSuccessfulKeyDestructionReport(testUserId);
-      when(
-        mockKeyManager.securelyDestroyAllKeys(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+        // Successful key destruction for Phase 3
+        final keyReport = createSuccessfulKeyDestructionReport(testUserId);
+        when(
+          mockKeyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
 
-      when(
-        mockAccountKeyService.securelyDestroyAccountMasterKey(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_AMK_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+        when(
+          mockAccountKeyService.securelyDestroyAccountMasterKey(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_AMK_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
 
-      when(
-        mockEncryptionSyncService.securelyDestroyCrossDeviceKeys(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_CROSS_DEVICE_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+        when(
+          mockEncryptionSyncService.securelyDestroyCrossDeviceKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_CROSS_DEVICE_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
 
-      // Mock Edge Function for Phases 4-6
-      final mockFunctions = MockFunctionsClient();
-      when(mockClient.functions).thenReturn(mockFunctions);
-      when(
-        mockFunctions.invoke(
-          'gdpr-delete-auth-user',
-          body: anyNamed('body'),
-        ),
-      ).thenAnswer(
-        (_) async => FunctionResponse(
-          data: {
-            'success': true,
-            'phases': {
-              'appDataCleanup': true,
-              'sessionRevocation': true,
-              'authUserDeletion': true,
-              'auditRecording': true,
-            },
-            'details': {
-              'appCleanup': {
-                'content_tombstoned': {
-                  'notes': 5,
-                  'tasks': 3,
-                  'folders': 2,
-                  'reminders': 1,
-                  'total': 11,
+        // Mock Edge Function for Phases 4-6
+        final mockFunctions = MockFunctionsClient();
+        when(mockClient.functions).thenReturn(mockFunctions);
+        when(
+          mockFunctions.invoke('gdpr-delete-auth-user', body: anyNamed('body')),
+        ).thenAnswer(
+          (_) async => FunctionResponse(
+            data: {
+              'success': true,
+              'phases': {
+                'appDataCleanup': true,
+                'sessionRevocation': true,
+                'authUserDeletion': true,
+                'auditRecording': true,
+              },
+              'details': {
+                'appCleanup': {
+                  'content_tombstoned': {
+                    'notes': 5,
+                    'tasks': 3,
+                    'folders': 2,
+                    'reminders': 1,
+                    'total': 11,
+                  },
                 },
               },
             },
-          },
-          status: 200,
-        ),
-      );
+            status: 200,
+          ),
+        );
 
-      // Mock Phase 7 proof insert + events
-      final mockCreateRecordFilter = MockRpcVoidFilterBuilder();
-      when(mockCreateRecordFilter.then(any)).thenAnswer((_) async {});
-      when(
-        mockClient.rpc<void>(
-          'create_anonymization_record',
-          params: anyNamed('params'),
-        ),
-      ).thenAnswer((_) => mockCreateRecordFilter);
+        // Mock Phase 7 proof insert + events
+        final mockCreateRecordFilter = MockRpcVoidFilterBuilder();
+        when(mockCreateRecordFilter.then(any)).thenAnswer((_) async {});
+        when(
+          mockClient.rpc<void>(
+            'create_anonymization_record',
+            params: anyNamed('params'),
+          ),
+        ).thenAnswer((_) => mockCreateRecordFilter);
 
-      final mockEventFilter = MockRpcVoidFilterBuilder();
-      when(mockEventFilter.then(any)).thenAnswer((_) async {});
-      when(
-        mockClient.rpc<void>(
-          'record_anonymization_event',
-          params: anyNamed('params'),
-        ),
-      ).thenAnswer((_) => mockEventFilter);
+        final mockEventFilter = MockRpcVoidFilterBuilder();
+        when(mockEventFilter.then(any)).thenAnswer((_) async {});
+        when(
+          mockClient.rpc<void>(
+            'record_anonymization_event',
+            params: anyNamed('params'),
+          ),
+        ).thenAnswer((_) => mockEventFilter);
 
-      final report = await service.anonymizeUserAccount(
-        userId: testUserId,
-        confirmations: confirmations,
-      );
-
-      // Verify critical phases completed successfully
-      // Note: Phases 4-7 may fail in unit tests due to missing database mocking
-      // The important part is that the orchestration logic works correctly
-      expect(report.phase1Validation.success, isTrue);
-      expect(report.phase2Metadata.success, isTrue);
-      expect(report.phase3KeyDestruction.success, isTrue);
-
-      // Verify Point of No Return reached (Phase 3 completed)
-      expect(report.pointOfNoReturnReached, isTrue);
-
-      // Verify timestamps
-      expect(report.startedAt, isNotNull);
-      expect(report.completedAt, isNotNull);
-      expect(report.duration, isNotNull);
-
-      // Note: proof hash is generated in Phase 7 which requires database mocking
-      // In integration tests, we would verify the full flow including proof hash
-    });
-
-    test('generates valid anonymization ID (UUID format)', skip: 'Timeout in CI - RPC calls take too long', () async {
-      final confirmations = createValidConfirmations(testUserId);
-
-      // Valid session
-      when(mockAuth.currentSession).thenReturn(mockSession);
-
-      // Successful key destruction
-      final keyReport = createSuccessfulKeyDestructionReport(testUserId);
-      when(
-        mockKeyManager.securelyDestroyAllKeys(
+        final report = await service.anonymizeUserAccount(
           userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+          confirmations: confirmations,
+        );
 
-      when(
-        mockAccountKeyService.securelyDestroyAccountMasterKey(
+        // Verify critical phases completed successfully
+        // Note: Phases 4-7 may fail in unit tests due to missing database mocking
+        // The important part is that the orchestration logic works correctly
+        expect(report.phase1Validation.success, isTrue);
+        expect(report.phase2Metadata.success, isTrue);
+        expect(report.phase3KeyDestruction.success, isTrue);
+
+        // Verify Point of No Return reached (Phase 3 completed)
+        expect(report.pointOfNoReturnReached, isTrue);
+
+        // Verify timestamps
+        expect(report.startedAt, isNotNull);
+        expect(report.completedAt, isNotNull);
+        expect(report.duration, isNotNull);
+
+        // Note: proof hash is generated in Phase 7 which requires database mocking
+        // In integration tests, we would verify the full flow including proof hash
+      },
+    );
+
+    test(
+      'generates valid anonymization ID (UUID format)',
+      skip: 'Timeout in CI - RPC calls take too long',
+      () async {
+        final confirmations = createValidConfirmations(testUserId);
+
+        // Valid session
+        when(mockAuth.currentSession).thenReturn(mockSession);
+
+        // Successful key destruction
+        final keyReport = createSuccessfulKeyDestructionReport(testUserId);
+        when(
+          mockKeyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
+
+        when(
+          mockAccountKeyService.securelyDestroyAccountMasterKey(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_AMK_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
+
+        when(
+          mockEncryptionSyncService.securelyDestroyCrossDeviceKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_CROSS_DEVICE_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
+
+        final report = await service.anonymizeUserAccount(
           userId: testUserId,
-          confirmationToken: 'DESTROY_AMK_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+          confirmations: confirmations,
+        );
 
-      when(
-        mockEncryptionSyncService.securelyDestroyCrossDeviceKeys(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_CROSS_DEVICE_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
-
-      final report = await service.anonymizeUserAccount(
-        userId: testUserId,
-        confirmations: confirmations,
-      );
-
-      // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-      final uuidPattern = RegExp(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-      );
-      expect(report.anonymizationId, matches(uuidPattern));
-    });
+        // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+        final uuidPattern = RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        );
+        expect(report.anonymizationId, matches(uuidPattern));
+      },
+    );
 
     test(
       'generates compliance certificate with all required sections',
@@ -858,175 +865,181 @@ void main() {
   });
 
   group('Phase 5: Unencrypted Metadata Clearing', () {
-    test('successfully clears all unencrypted metadata', skip: 'Mock state contamination from previous test groups', () async {
-      final confirmations = createValidConfirmations(testUserId);
+    test(
+      'successfully clears all unencrypted metadata',
+      skip: 'Mock state contamination from previous test groups',
+      () async {
+        final confirmations = createValidConfirmations(testUserId);
 
-      // Valid session
-      when(mockAuth.currentSession).thenReturn(mockSession);
+        // Valid session
+        when(mockAuth.currentSession).thenReturn(mockSession);
 
-      // Mock successful key destruction (Phase 3)
-      final keyReport = createSuccessfulKeyDestructionReport(testUserId);
-      when(
-        mockKeyManager.securelyDestroyAllKeys(
-          userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+        // Mock successful key destruction (Phase 3)
+        final keyReport = createSuccessfulKeyDestructionReport(testUserId);
+        when(
+          mockKeyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
 
-      // Mock Phase 4: Atomic Edge Function handling cleanup (Phases 4-6)
-      when(
-        mockClient.functions.invoke(
-          'gdpr-delete-auth-user',
-          body: anyNamed('body'),
-        ),
-      ).thenAnswer(
-        (_) async => FunctionResponse(
-          data: {
-            'success': true,
-            'phases': {
-              'appDataCleanup': true,
-              'sessionRevocation': true,
-              'authUserDeletion': true,
-              'auditRecording': true,
-            },
-            'details': {
-              'appCleanup': {
-                'content_tombstoned': {
-                  'notes': 10,
-                  'tasks': 5,
-                  'folders': 3,
-                  'reminders': 8,
-                  'total': 26,
+        // Mock Phase 4: Atomic Edge Function handling cleanup (Phases 4-6)
+        when(
+          mockClient.functions.invoke(
+            'gdpr-delete-auth-user',
+            body: anyNamed('body'),
+          ),
+        ).thenAnswer(
+          (_) async => FunctionResponse(
+            data: {
+              'success': true,
+              'phases': {
+                'appDataCleanup': true,
+                'sessionRevocation': true,
+                'authUserDeletion': true,
+                'auditRecording': true,
+              },
+              'details': {
+                'appCleanup': {
+                  'content_tombstoned': {
+                    'notes': 10,
+                    'tasks': 5,
+                    'folders': 3,
+                    'reminders': 8,
+                    'total': 26,
+                  },
                 },
               },
             },
-          },
-          status: 200,
-        ),
-      );
+            status: 200,
+          ),
+        );
 
-      // Execute anonymization
-      final report = await service.anonymizeUserAccount(
-        userId: testUserId,
-        confirmations: confirmations,
-      );
-
-      // Verify Phase 5 success in report (auto-completed by Phase 4)
-      expect(report.phase5MetadataClearing.success, isTrue);
-      expect(report.phase5MetadataClearing.phaseNumber, equals(5));
-      expect(
-        report.phase5MetadataClearing.phaseName,
-        equals('Unencrypted Metadata Clearing'),
-      );
-      expect(report.phase5MetadataClearing.details, isNotEmpty);
-      expect(report.phase5MetadataClearing.errors, isEmpty);
-    });
-
-    test('handles Phase 5 partial failure gracefully', skip: 'Mock state contamination from previous test groups', () async {
-      final confirmations = createValidConfirmations(testUserId);
-
-      // Valid session
-      when(mockAuth.currentSession).thenReturn(mockSession);
-
-      // Mock successful key destruction (Phase 3)
-      final keyReport = createSuccessfulKeyDestructionReport(testUserId);
-      when(
-        mockKeyManager.securelyDestroyAllKeys(
+        // Execute anonymization
+        final report = await service.anonymizeUserAccount(
           userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+          confirmations: confirmations,
+        );
 
-      // Phase 5 failures are no longer surfaced directly (handled by Phase 4 Edge Function).
-      // We just need a successful Edge Function response, so this test now validates
-      // that the flow completes without throwing and Phase 5 is marked complete.
-      // Uses mockFunctions from setUp - stub the specific invoke call
-      when(
-        mockFunctions.invoke(
-          'gdpr-delete-auth-user',
-          body: anyNamed('body'),
-        ),
-      ).thenAnswer(
-        (_) async => FunctionResponse(
-          data: {
-            'success': true,
-            'phases': const <String, dynamic>{},
-            'details': const <String, dynamic>{},
-          },
-          status: 200,
-        ),
-      );
+        // Verify Phase 5 success in report (auto-completed by Phase 4)
+        expect(report.phase5MetadataClearing.success, isTrue);
+        expect(report.phase5MetadataClearing.phaseNumber, equals(5));
+        expect(
+          report.phase5MetadataClearing.phaseName,
+          equals('Unencrypted Metadata Clearing'),
+        );
+        expect(report.phase5MetadataClearing.details, isNotEmpty);
+        expect(report.phase5MetadataClearing.errors, isEmpty);
+      },
+    );
 
-      // Execute anonymization
-      final report = await service.anonymizeUserAccount(
-        userId: testUserId,
-        confirmations: confirmations,
-      );
+    test(
+      'handles Phase 5 partial failure gracefully',
+      skip: 'Mock state contamination from previous test groups',
+      () async {
+        final confirmations = createValidConfirmations(testUserId);
 
-      // In the new architecture Phase 5 is auto-completed; ensure it doesn't fail
-      expect(report.phase5MetadataClearing.success, isTrue);
-    });
+        // Valid session
+        when(mockAuth.currentSession).thenReturn(mockSession);
 
-    test('tracks Phase 5 progress callbacks correctly', skip: 'Mock state contamination from previous test groups', () async {
-      final confirmations = createValidConfirmations(testUserId);
-      final progressUpdates = <AnonymizationProgress>[];
+        // Mock successful key destruction (Phase 3)
+        final keyReport = createSuccessfulKeyDestructionReport(testUserId);
+        when(
+          mockKeyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
 
-      // Valid session
-      when(mockAuth.currentSession).thenReturn(mockSession);
+        // Phase 5 failures are no longer surfaced directly (handled by Phase 4 Edge Function).
+        // We just need a successful Edge Function response, so this test now validates
+        // that the flow completes without throwing and Phase 5 is marked complete.
+        // Uses mockFunctions from setUp - stub the specific invoke call
+        when(
+          mockFunctions.invoke('gdpr-delete-auth-user', body: anyNamed('body')),
+        ).thenAnswer(
+          (_) async => FunctionResponse(
+            data: {
+              'success': true,
+              'phases': const <String, dynamic>{},
+              'details': const <String, dynamic>{},
+            },
+            status: 200,
+          ),
+        );
 
-      // Mock successful key destruction (Phase 3)
-      final keyReport = createSuccessfulKeyDestructionReport(testUserId);
-      when(
-        mockKeyManager.securelyDestroyAllKeys(
+        // Execute anonymization
+        final report = await service.anonymizeUserAccount(
           userId: testUserId,
-          confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
-          verifyBeforeDestroy: true,
-        ),
-      ).thenAnswer((_) async => keyReport);
+          confirmations: confirmations,
+        );
 
-      // Mock Edge Function handling Phases 4-6
-      // Uses mockFunctions from setUp - stub the specific invoke call
-      when(
-        mockFunctions.invoke(
-          'gdpr-delete-auth-user',
-          body: anyNamed('body'),
-        ),
-      ).thenAnswer(
-        (_) async => FunctionResponse(
-          data: {
-            'success': true,
-            'phases': const <String, dynamic>{},
-            'details': const <String, dynamic>{},
-          },
-          status: 200,
-        ),
-      );
+        // In the new architecture Phase 5 is auto-completed; ensure it doesn't fail
+        expect(report.phase5MetadataClearing.success, isTrue);
+      },
+    );
 
-      // Execute with progress tracking
-      await service.anonymizeUserAccount(
-        userId: testUserId,
-        confirmations: confirmations,
-        onProgress: progressUpdates.add,
-      );
+    test(
+      'tracks Phase 5 progress callbacks correctly',
+      skip: 'Mock state contamination from previous test groups',
+      () async {
+        final confirmations = createValidConfirmations(testUserId);
+        final progressUpdates = <AnonymizationProgress>[];
 
-      // Find Phase 5 progress updates
-      final phase5Updates = progressUpdates
-          .where((p) => p.currentPhase == 5)
-          .toList();
+        // Valid session
+        when(mockAuth.currentSession).thenReturn(mockSession);
 
-      // Verify Phase 5 progress updates were emitted
-      expect(phase5Updates, isNotEmpty);
-      expect(
-        phase5Updates.first.phaseName,
-        equals('Unencrypted Metadata Clearing'),
-      );
-      expect(phase5Updates.first.pointOfNoReturnReached, isTrue);
-      expect(
-        phase5Updates.first.statusMessage,
-        contains('Metadata clearing'),
-      );
-    });
+        // Mock successful key destruction (Phase 3)
+        final keyReport = createSuccessfulKeyDestructionReport(testUserId);
+        when(
+          mockKeyManager.securelyDestroyAllKeys(
+            userId: testUserId,
+            confirmationToken: 'DESTROY_ALL_KEYS_$testUserId',
+            verifyBeforeDestroy: true,
+          ),
+        ).thenAnswer((_) async => keyReport);
+
+        // Mock Edge Function handling Phases 4-6
+        // Uses mockFunctions from setUp - stub the specific invoke call
+        when(
+          mockFunctions.invoke('gdpr-delete-auth-user', body: anyNamed('body')),
+        ).thenAnswer(
+          (_) async => FunctionResponse(
+            data: {
+              'success': true,
+              'phases': const <String, dynamic>{},
+              'details': const <String, dynamic>{},
+            },
+            status: 200,
+          ),
+        );
+
+        // Execute with progress tracking
+        await service.anonymizeUserAccount(
+          userId: testUserId,
+          confirmations: confirmations,
+          onProgress: progressUpdates.add,
+        );
+
+        // Find Phase 5 progress updates
+        final phase5Updates = progressUpdates
+            .where((p) => p.currentPhase == 5)
+            .toList();
+
+        // Verify Phase 5 progress updates were emitted
+        expect(phase5Updates, isNotEmpty);
+        expect(
+          phase5Updates.first.phaseName,
+          equals('Unencrypted Metadata Clearing'),
+        );
+        expect(phase5Updates.first.pointOfNoReturnReached, isTrue);
+        expect(
+          phase5Updates.first.statusMessage,
+          contains('Metadata clearing'),
+        );
+      },
+    );
   });
 }
