@@ -20,7 +20,9 @@ class WindowDiagnostics {
       debugPrint('[WindowDiagnostics] ========== iOS WINDOW STATE ==========');
 
       final state =
-          await _channel.invokeMethod<Map<dynamic, dynamic>>('getWindowState') ??
+          await _channel.invokeMethod<Map<dynamic, dynamic>>(
+            'getWindowState',
+          ) ??
           <dynamic, dynamic>{};
 
       // Window existence
