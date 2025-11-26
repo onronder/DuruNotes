@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:duru_notes/providers/infrastructure_providers.dart';
-import 'package:duru_notes/services/audio_recording_service.dart';
 import 'package:duru_notes/services/providers/services_providers.dart';
-import 'package:duru_notes/services/voice_notes_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -204,7 +202,7 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
   }
 
   void _showPermissionDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Microphone Permission Required'),
@@ -320,13 +318,13 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
         Icon(
           Icons.mic,
           size: 80,
-          color: theme.colorScheme.primary.withOpacity(0.5),
+          color: theme.colorScheme.primary.withValues(alpha: 0.5),
         ),
         const SizedBox(height: 24),
         Text(
           'Tap to start recording',
           style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
         const SizedBox(height: 32),
@@ -363,7 +361,7 @@ class _VoiceRecordingSheetState extends ConsumerState<VoiceRecordingSheet> {
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: theme.colorScheme.error.withOpacity(0.1),
+                color: theme.colorScheme.error.withValues(alpha: 0.1),
               ),
             ),
             Icon(Icons.mic, size: 60, color: theme.colorScheme.error),

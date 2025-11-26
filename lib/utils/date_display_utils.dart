@@ -1,20 +1,20 @@
-/// Utilities for determining which date to display for notes and tasks
-///
-/// **Problem Solved:**
-/// When displaying notes/tasks on the home page, we need to show:
-/// - Creation date for items that have never been edited
-/// - Last update date for items that have been edited
-///
-/// This ensures consistent behavior across:
-/// - App reinstalls
-/// - Device transfers
-/// - Cross-device sync
-/// - Bulk operations
-///
-/// **Technical Approach:**
-/// Compare `createdAt` and `updatedAt` timestamps. If they're the same
-/// (within a small tolerance for rounding), the item was never edited,
-/// so we show the creation date. Otherwise, show the update date.
+// Utilities for determining which date to display for notes and tasks
+//
+// **Problem Solved:**
+// When displaying notes/tasks on the home page, we need to show:
+// - Creation date for items that have never been edited
+// - Last update date for items that have been edited
+//
+// This ensures consistent behavior across:
+// - App reinstalls
+// - Device transfers
+// - Cross-device sync
+// - Bulk operations
+//
+// **Technical Approach:**
+// Compare `createdAt` and `updatedAt` timestamps. If they're the same
+// (within a small tolerance for rounding), the item was never edited,
+// so we show the creation date. Otherwise, show the update date.
 
 /// Returns the appropriate date to display for a note or task
 ///

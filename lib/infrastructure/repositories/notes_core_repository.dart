@@ -15,6 +15,7 @@ import 'package:duru_notes/domain/entities/note_link.dart';
 import 'package:duru_notes/infrastructure/mappers/note_mapper.dart';
 import 'package:duru_notes/models/note_kind.dart';
 import 'package:duru_notes/services/performance/performance_monitor.dart';
+import 'package:duru_notes/infrastructure/repositories/task_core_repository.dart';
 import 'package:duru_notes/services/security/security_audit_trail.dart';
 import 'package:duru_notes/services/trash_audit_logger.dart';
 import 'package:drift/drift.dart' hide Column;
@@ -1188,19 +1189,6 @@ class NotesCoreRepository implements INotesRepository {
       return success;
     }
 
-    if (reminderId == null) {
-      _logger.warning(
-        'Pending reminder operation has non-integer id',
-        data: {'entityId': reminderIdRaw, 'opId': op.id, 'kind': op.kind},
-      );
-      await _securityAuditTrail.logAccess(
-        resource: 'reminders.push.upsert',
-        granted: false,
-        reason: 'invalid_id',
-      );
-      return true;
-    }
-
     try {
       final userId = op.userId.isNotEmpty
           ? op.userId
@@ -1582,9 +1570,14 @@ class NotesCoreRepository implements INotesRepository {
 
     final deleted = remoteTask['deleted'] as bool? ?? false;
     if (deleted) {
-      // Repository layer is authorized to call hard-delete for purge operations
-      // ignore: deprecated_member_use
-      await db.hardDeleteTaskById(taskId, userId);
+      // Remote task is marked deleted - perform repository-level permanent delete
+      final tasksRepository = TaskCoreRepository(
+        db: db,
+        client: _supabase,
+        crypto: crypto,
+        trashAuditLogger: _trashAuditLogger,
+      );
+      await tasksRepository.permanentlyDeleteTask(taskId);
       return;
     }
 

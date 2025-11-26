@@ -192,7 +192,7 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
   Future<domain.SavedSearch> upsertSavedSearch(
     domain.SavedSearch search,
   ) async {
-    final userId = _requireUserId(
+    _requireUserId(
       method: 'upsertSavedSearch',
       data: {'searchId': search.id, 'searchName': search.name},
     );
@@ -233,10 +233,7 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
 
   @override
   Future<void> deleteSavedSearch(String id) async {
-    final userId = _requireUserId(
-      method: 'deleteSavedSearch',
-      data: {'id': id},
-    );
+    _requireUserId(method: 'deleteSavedSearch', data: {'id': id});
 
     try {
       // Verify ownership before deletion
@@ -269,10 +266,7 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
 
   @override
   Future<void> updateUsageStatistics(String id) async {
-    final userId = _requireUserId(
-      method: 'updateUsageStatistics',
-      data: {'id': id},
-    );
+    _requireUserId(method: 'updateUsageStatistics', data: {'id': id});
 
     try {
       // Verify ownership
@@ -307,7 +301,7 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
 
   @override
   Future<void> togglePin(String id) async {
-    final userId = _requireUserId(method: 'togglePin', data: {'id': id});
+    _requireUserId(method: 'togglePin', data: {'id': id});
 
     try {
       // Verify ownership
@@ -340,7 +334,7 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
 
   @override
   Future<void> reorderSavedSearches(List<String> orderedIds) async {
-    final userId = _requireUserId(
+    _requireUserId(
       method: 'reorderSavedSearches',
       data: {'count': orderedIds.length},
     );
@@ -406,10 +400,7 @@ class SavedSearchCoreRepository implements ISavedSearchRepository {
 
   @override
   Future<List<domain.SavedSearch>> searchByName(String query) async {
-    final userId = _requireUserId(
-      method: 'searchByName',
-      data: {'query': query},
-    );
+    _requireUserId(method: 'searchByName', data: {'query': query});
 
     try {
       final allSearches = await getAllSavedSearches();

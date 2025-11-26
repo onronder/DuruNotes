@@ -440,13 +440,13 @@ abstract class BaseReminderService {
         logger.info('Lazily encrypting reminder ${reminder.id}');
 
         // Encrypt plaintext fields (use current data, not stale data)
-        final titleEncrypted = await _cryptoBox!.encryptStringForNote(
+        final titleEncrypted = await _cryptoBox.encryptStringForNote(
           userId: currentReminder.userId,
           noteId: currentReminder.noteId,
           text: currentReminder.title,
         );
 
-        final bodyEncrypted = await _cryptoBox!.encryptStringForNote(
+        final bodyEncrypted = await _cryptoBox.encryptStringForNote(
           userId: currentReminder.userId,
           noteId: currentReminder.noteId,
           text: currentReminder.body,
@@ -455,7 +455,7 @@ abstract class BaseReminderService {
         Uint8List? locationNameEncrypted;
         if (currentReminder.locationName != null &&
             currentReminder.locationName!.isNotEmpty) {
-          locationNameEncrypted = await _cryptoBox!.encryptStringForNote(
+          locationNameEncrypted = await _cryptoBox.encryptStringForNote(
             userId: currentReminder.userId,
             noteId: currentReminder.noteId,
             text: currentReminder.locationName!,
@@ -470,7 +470,7 @@ abstract class BaseReminderService {
 
         final titleVerification =
             await encryption_helper.EncryptionVerificationHelper.verifyField(
-              cryptoBox: _cryptoBox!,
+              cryptoBox: _cryptoBox,
               userId: currentReminder.userId,
               noteId: currentReminder.noteId,
               originalValue: currentReminder.title,
@@ -484,7 +484,7 @@ abstract class BaseReminderService {
 
         final bodyVerification =
             await encryption_helper.EncryptionVerificationHelper.verifyField(
-              cryptoBox: _cryptoBox!,
+              cryptoBox: _cryptoBox,
               userId: currentReminder.userId,
               noteId: currentReminder.noteId,
               originalValue: currentReminder.body,
@@ -501,7 +501,7 @@ abstract class BaseReminderService {
             currentReminder.locationName != null) {
           final locationVerification =
               await encryption_helper.EncryptionVerificationHelper.verifyField(
-                cryptoBox: _cryptoBox!,
+                cryptoBox: _cryptoBox,
                 userId: currentReminder.userId,
                 noteId: currentReminder.noteId,
                 originalValue: currentReminder.locationName!,

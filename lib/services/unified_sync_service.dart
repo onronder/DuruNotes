@@ -349,7 +349,7 @@ class UnifiedSyncService {
         message:
             'Sync blocked by other active operations: ${error.activeSyncs}',
       );
-    } on SyncRateLimitedException catch (error, stack) {
+    } on SyncRateLimitedException catch (error) {
       // Rate limiting is expected behavior, not an error condition
       // Log at debug level to avoid polluting logs with warnings
       _logger.debug(
@@ -886,8 +886,6 @@ class UnifiedSyncService {
         }
       }
 
-      final existingIds = localById.keys.toSet();
-
       // MEMORY OPTIMIZATION (Issue #6): Process remote reminders in batches
       _logger.debug(
         'Processing ${remoteReminders.length} remote reminders in batches of $_reminderBatchSize',
@@ -1389,7 +1387,7 @@ class UnifiedSyncService {
     }
 
     // STRATEGY 2: Merge trigger_count (sum from both)
-    final localTriggerCount = local.triggerCount ?? 0;
+    final localTriggerCount = local.triggerCount;
     final remoteTriggerCount = _asInt(remote['trigger_count']) ?? 0;
     final mergedTriggerCount = localTriggerCount + remoteTriggerCount;
 

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:duru_notes/providers/infrastructure_providers.dart';
-import 'package:duru_notes/services/analytics/analytics_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -130,7 +129,9 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -224,8 +225,9 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
                               Text(
                                 _formatDuration(position),
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.6),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
                                   fontFeatures: [
                                     const FontFeature.tabularFigures(),
                                   ],
@@ -234,8 +236,9 @@ class _VoiceRecordingPlayerState extends ConsumerState<VoiceRecordingPlayer> {
                               Text(
                                 _formatDuration(duration),
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.6),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
                                   fontFeatures: [
                                     const FontFeature.tabularFigures(),
                                   ],

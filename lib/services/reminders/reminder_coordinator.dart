@@ -10,7 +10,6 @@ import 'package:duru_notes/core/crypto/crypto_box.dart';
 import 'package:duru_notes/providers/infrastructure_providers.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show supabaseClientProvider;
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:duru_notes/data/local/app_db.dart';
 // NoteReminder is imported from app_db.dart

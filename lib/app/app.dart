@@ -1371,11 +1371,6 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
         params: {'check_user_id': userId},
       );
 
-      if (response == null) {
-        debugPrint('[GDPR] No anonymization status found');
-        return false;
-      }
-
       final isAnonymized = response['is_anonymized'] as bool? ?? false;
       final anonymizationCompletedAt =
           response['anonymization_completed_at'] as String?;

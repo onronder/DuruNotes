@@ -251,7 +251,7 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
       // Validate reminder is before due date
       if (_reminderTime!.isAfter(_dueDate!)) {
         if (!mounted) return;
-        await showDialog(
+        await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Row(
@@ -278,7 +278,7 @@ class _TaskMetadataDialogState extends ConsumerState<TaskMetadataDialog> {
       // Warn if reminder is in the past
       if (_reminderTime!.isBefore(DateTime.now())) {
         if (!mounted) return;
-        await showDialog(
+        await showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Row(

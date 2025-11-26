@@ -136,7 +136,7 @@ class TaskReminderBridge {
   }
 
   /// Create a reminder for a task with due date
-  /// MIGRATION v41: Changed return type from Future<int?> to Future<String?> (UUID)
+  /// MIGRATION v41: Changed return type from `Future<int?>` to `Future<String?>` (UUID)
   Future<String?> createTaskReminder({
     required NoteTask task,
     Duration? beforeDueDate,

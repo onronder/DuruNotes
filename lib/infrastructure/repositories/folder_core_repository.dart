@@ -2080,8 +2080,8 @@ class FolderCoreRepository implements IFolderRepository {
       );
 
       // Extract count from response
-      final count = (response as List).isNotEmpty
-          ? ((response.first as Map<String, dynamic>)['count'] as int? ?? 0)
+      final count = response.isNotEmpty
+          ? (response.first['count'] as int? ?? 0)
           : 0;
 
       _logger.info(

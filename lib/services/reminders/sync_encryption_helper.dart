@@ -62,7 +62,8 @@ class SyncEncryptionHelper {
     required String userId,
   }) async {
     // Check if CryptoBox available
-    if (_cryptoBox == null) {
+    final cryptoBox = _cryptoBox;
+    if (cryptoBox == null) {
       _logger.warning(
         '[SyncEncryption] CryptoBox not available',
         data: {'reminderId': reminder.id},
@@ -99,13 +100,13 @@ class SyncEncryptionHelper {
 
     // Perform encryption
     try {
-      final titleEnc = await _cryptoBox!.encryptStringForNote(
+      final titleEnc = await cryptoBox.encryptStringForNote(
         userId: userId,
         noteId: reminder.noteId,
         text: reminder.title,
       );
 
-      final bodyEnc = await _cryptoBox!.encryptStringForNote(
+      final bodyEnc = await cryptoBox.encryptStringForNote(
         userId: userId,
         noteId: reminder.noteId,
         text: reminder.body,
@@ -113,7 +114,7 @@ class SyncEncryptionHelper {
 
       Uint8List? locationNameEnc;
       if (reminder.locationName != null && reminder.locationName!.isNotEmpty) {
-        locationNameEnc = await _cryptoBox!.encryptStringForNote(
+        locationNameEnc = await cryptoBox.encryptStringForNote(
           userId: userId,
           noteId: reminder.noteId,
           text: reminder.locationName!,
@@ -128,7 +129,7 @@ class SyncEncryptionHelper {
       );
 
       final titleVerification = await EncryptionVerificationHelper.verifyField(
-        cryptoBox: _cryptoBox!,
+        cryptoBox: cryptoBox,
         userId: userId,
         noteId: reminder.noteId,
         originalValue: reminder.title,
@@ -146,7 +147,7 @@ class SyncEncryptionHelper {
       }
 
       final bodyVerification = await EncryptionVerificationHelper.verifyField(
-        cryptoBox: _cryptoBox!,
+        cryptoBox: cryptoBox,
         userId: userId,
         noteId: reminder.noteId,
         originalValue: reminder.body,
@@ -163,11 +164,10 @@ class SyncEncryptionHelper {
         );
       }
 
-      // Verify location name if present
       if (locationNameEnc != null && reminder.locationName != null) {
         final locationVerification =
             await EncryptionVerificationHelper.verifyField(
-              cryptoBox: _cryptoBox!,
+              cryptoBox: cryptoBox,
               userId: userId,
               noteId: reminder.noteId,
               originalValue: reminder.locationName!,
@@ -252,14 +252,19 @@ class SyncEncryptionHelper {
     }
 
     // Validate by decrypting and comparing
+    final cryptoBox = _cryptoBox;
+    if (cryptoBox == null) {
+      return false;
+    }
+
     try {
-      final decryptedTitle = await _cryptoBox!.decryptStringForNote(
+      final decryptedTitle = await cryptoBox.decryptStringForNote(
         userId: userId,
         noteId: reminder.noteId,
         data: reminder.titleEncrypted!,
       );
 
-      final decryptedBody = await _cryptoBox!.decryptStringForNote(
+      final decryptedBody = await cryptoBox.decryptStringForNote(
         userId: userId,
         noteId: reminder.noteId,
         data: reminder.bodyEncrypted!,
@@ -284,7 +289,7 @@ class SyncEncryptionHelper {
 
       // Validate location if present
       if (reminder.locationNameEncrypted != null) {
-        final decryptedLocation = await _cryptoBox!.decryptStringForNote(
+        final decryptedLocation = await cryptoBox.decryptStringForNote(
           userId: userId,
           noteId: reminder.noteId,
           data: reminder.locationNameEncrypted!,

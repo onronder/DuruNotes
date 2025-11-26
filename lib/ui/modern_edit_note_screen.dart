@@ -1096,7 +1096,6 @@ class _ModernEditNoteScreenState extends ConsumerState<ModernEditNoteScreen>
             final url = recording['url'] as String?;
             final filename = recording['filename'] as String?;
             final durationSeconds = recording['durationSeconds'] as int?;
-            final createdAt = recording['createdAt'] as String?;
 
             if (url == null || durationSeconds == null) {
               return const SizedBox.shrink();

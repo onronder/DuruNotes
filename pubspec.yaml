@@ -75,6 +75,7 @@ dependencies:
   firebase_messaging: ^16.0.4  # Firebase Cloud Messaging for push notifications (FixPlan 3.3)
   provider: ^6.1.5+1
   jwt_decoder: ^2.0.1  # JWT token validation for auth guard
+  meta: ^1.16.0
 
   # Pinned for reproducible builds and supply chain security
   rxdart: ^0.28.0

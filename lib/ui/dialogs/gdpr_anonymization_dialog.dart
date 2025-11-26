@@ -20,7 +20,6 @@ import 'package:duru_notes/core/gdpr/anonymization_types.dart';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/services/providers/services_providers.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -280,7 +279,7 @@ class _GDPRAnonymizationDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
 
     // Wrap dialog in Material to ensure proper localization context
     return Material(

@@ -2966,7 +2966,7 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen>
   void _createVoiceNote() {
     final currentFolder = ref.read(currentFolderProvider);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,

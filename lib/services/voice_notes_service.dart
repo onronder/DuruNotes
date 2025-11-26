@@ -82,16 +82,6 @@ class VoiceNotesService {
         return null;
       }
 
-      // Defensive null check - repository can return null if no authenticated user
-      if (note == null) {
-        _logger.error('Repository returned null when creating voice note');
-        _analytics.endTiming(
-          'voice_note_create',
-          properties: {'success': false, 'reason': 'repository_returned_null'},
-        );
-        return null;
-      }
-
       _analytics.endTiming(
         'voice_note_create',
         properties: {
