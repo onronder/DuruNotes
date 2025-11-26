@@ -19,12 +19,12 @@ class WindowDiagnostics {
     try {
       debugPrint('[WindowDiagnostics] ========== iOS WINDOW STATE ==========');
 
-      final Map<dynamic, dynamic> state = await _channel.invokeMethod(
-        'getWindowState',
-      );
+      final state =
+          await _channel.invokeMethod<Map<dynamic, dynamic>>('getWindowState') ??
+          <dynamic, dynamic>{};
 
       // Window existence
-      final windowExists = state['window_exists'] ?? false;
+      final windowExists = state['window_exists'] == true;
       debugPrint('[WindowDiagnostics] Window exists: $windowExists');
 
       if (!windowExists) {
@@ -49,7 +49,7 @@ class WindowDiagnostics {
       );
 
       // Root view controller
-      final rootVcExists = state['root_vc_exists'] ?? true;
+      final rootVcExists = state['root_vc_exists'] != false;
       if (!rootVcExists) {
         debugPrint(
           '[WindowDiagnostics] ❌ CRITICAL: Root view controller does not exist!',
@@ -72,7 +72,7 @@ class WindowDiagnostics {
       );
 
       // Flutter view controller
-      final isFlutterVC = state['is_flutter_vc'] ?? false;
+      final isFlutterVC = state['is_flutter_vc'] == true;
       debugPrint('[WindowDiagnostics] Is FlutterViewController: $isFlutterVC');
 
       if (!isFlutterVC) {

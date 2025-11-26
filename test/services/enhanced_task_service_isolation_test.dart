@@ -65,14 +65,14 @@ class MockTaskReminderBridge extends Mock implements TaskReminderBridge {
   Future<String?> createTaskReminder({
     required db.NoteTask task,
     Duration? beforeDueDate,
-  }) async {
+  }) {
     return super.noSuchMethod(
       Invocation.method(#createTaskReminder, [], {
         #task: task,
         #beforeDueDate: beforeDueDate,
       }),
       returnValue: Future<String?>.value(null),
-    );
+    ) as Future<String?>;
   }
 
   @override

@@ -76,12 +76,14 @@ class MockVoiceTranscriptionService extends _i1.Mock
     void Function(String)? onPartial,
     void Function(String)? onFinal,
     void Function(String)? onError,
+    String? localeId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#start, [], {
               #onPartial: onPartial,
               #onFinal: onFinal,
               #onError: onError,
+              #localeId: localeId,
             }),
             returnValue: _i4.Future<bool>.value(false),
             returnValueForMissingStub: _i4.Future<bool>.value(false),
