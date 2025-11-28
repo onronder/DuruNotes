@@ -1,17 +1,15 @@
 import Flutter
 import UIKit
-// Note: Firebase and WidgetKit imports commented out - re-enable when needed
-// import FirebaseCore
-// import FirebaseMessaging
-// import WidgetKit
+import FirebaseCore
+import FirebaseMessaging
+// import WidgetKit // Enable when WidgetKit is needed
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   // Phase 2.2: Quick Capture & Share Extension method channels
   private let quickCaptureChannelName = "com.fittechs.durunotes/quick_capture_widget"
   private let shareExtensionChannelName = "com.fittechs.durunotes/share_extension"
-  // Note: Firebase bootstrapper commented out - re-enable when needed
-  // private let firebaseBootstrapper = FirebaseBootstrapper()
+  private let firebaseBootstrapper = FirebaseBootstrapper()
   private lazy var quickCaptureStore = QuickCaptureSharedStore()
   private lazy var shareExtensionStore = ShareExtensionSharedStore()
 
@@ -19,16 +17,23 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    #if DEBUG
     NSLog("🔵 [AppDelegate] iOS 18.6 MANUAL WINDOW FIX - didFinishLaunchingWithOptions STARTED")
+    NSLog("🔵 [AppDelegate] Calling super.application()")
+    #endif
 
     // Call super first - this sets up the Flutter engine and registers plugins internally
-    NSLog("🔵 [AppDelegate] Calling super.application()")
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+
+    #if DEBUG
     NSLog("🔵 [AppDelegate] super.application() returned \(result)")
+    #endif
 
     // iOS 18.6 FIX: Check if window was created, if not create it manually
     if window == nil {
+      #if DEBUG
       NSLog("🔵 [AppDelegate] Window is nil after super.application(), creating manually for iOS 18.6...")
+      #endif
 
       // Create window and FlutterViewController
       // FlutterViewController() without engine param uses the shared engine from FlutterAppDelegate
@@ -37,27 +42,38 @@ import UIKit
       window?.rootViewController = flutterViewController
       window?.makeKeyAndVisible()
 
+      #if DEBUG
       NSLog("✅ [AppDelegate] Window manually created: exists=\(window != nil), isKey=\(window?.isKeyWindow ?? false)")
       NSLog("✅ [AppDelegate] FlutterViewController set as rootViewController")
+      #endif
     } else {
+      #if DEBUG
       NSLog("✅ [AppDelegate] Window already exists from super.application()")
+      #endif
     }
 
     // Register plugins AFTER window is created
+    #if DEBUG
     NSLog("🔵 [AppDelegate] Registering plugins...")
+    #endif
     GeneratedPluginRegistrant.register(with: self)
+    #if DEBUG
     NSLog("✅ [AppDelegate] Plugins registered")
+    #endif
 
     // Setup diagnostics channel (iOS 18.6 debugging support)
     setupWindowDiagnosticsChannel()
 
     // Phase 2.2: Attach Quick Capture and Share Extension method channels
+    #if DEBUG
     NSLog("🔵 [AppDelegate] Attaching Phase 2.2 method channels...")
+    #endif
     attachMethodChannels()
+    #if DEBUG
     NSLog("✅ [AppDelegate] Phase 2.2 method channels attached")
-
     NSLog("🔵 [AppDelegate] didFinishLaunchingWithOptions COMPLETED")
     NSLog("🔵 [AppDelegate] Final window state: exists=\(window != nil), isKey=\(window?.isKeyWindow ?? false)")
+    #endif
 
     return result
   }
@@ -65,36 +81,50 @@ import UIKit
   // MARK: - Phase 2.2 Method Channels
 
   private func attachMethodChannels() {
+    #if DEBUG
     NSLog("🔵 [AppDelegate] attachMethodChannels STARTED")
     NSLog("🔵 [AppDelegate] About to resolve FlutterViewController...")
+    #endif
     guard let controller = resolveFlutterViewController() else {
+      #if DEBUG
       NSLog("❌ [AppDelegate] Unable to locate FlutterViewController for method channel registration")
+      #endif
       return
     }
+    #if DEBUG
     NSLog("✅ [AppDelegate] FlutterViewController resolved successfully")
-
     NSLog("🔵 [AppDelegate] Configuring QuickCaptureChannel...")
+    #endif
     configureQuickCaptureChannel(controller)
+    #if DEBUG
     NSLog("✅ [AppDelegate] QuickCaptureChannel configured")
-
     NSLog("🔵 [AppDelegate] Configuring ShareExtensionChannel...")
+    #endif
     configureShareExtensionChannel(controller)
+    #if DEBUG
     NSLog("✅ [AppDelegate] ShareExtensionChannel configured")
     NSLog("🔵 [AppDelegate] attachMethodChannels COMPLETED")
+    #endif
   }
 
   private func resolveFlutterViewController() -> FlutterViewController? {
+    #if DEBUG
     NSLog("🔵 [AppDelegate] resolveFlutterViewController STARTED")
+    NSLog("🔵 [AppDelegate] Trying window?.rootViewController...")
+    #endif
 
     // First try: direct window.rootViewController
-    NSLog("🔵 [AppDelegate] Trying window?.rootViewController...")
     if let flutterViewController = locateFlutterViewController(from: window?.rootViewController) {
+      #if DEBUG
       NSLog("✅ [AppDelegate] Found FlutterViewController from window.rootViewController")
+      #endif
       return flutterViewController
     }
 
     // Second try: keyWindow from connected scenes
+    #if DEBUG
     NSLog("🔵 [AppDelegate] window.rootViewController didn't work, trying keyWindow...")
+    #endif
     let keyWindowRootController = UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
       .flatMap { $0.windows }
@@ -102,11 +132,13 @@ import UIKit
       .rootViewController
 
     let result = locateFlutterViewController(from: keyWindowRootController)
+    #if DEBUG
     if result != nil {
       NSLog("✅ [AppDelegate] Found FlutterViewController from keyWindow")
     } else {
       NSLog("❌ [AppDelegate] FlutterViewController NOT FOUND anywhere!")
     }
+    #endif
     return result
   }
 
@@ -182,10 +214,14 @@ import UIKit
         // DispatchQueue.main.async {
         //   WidgetCenter.shared.reloadTimelines(ofKind: QuickCaptureSharedStore.widgetKind)
         // }
+        #if DEBUG
         NSLog("✅ [QuickCapture] Widget cache synced for user \(userId)")
+        #endif
         result(nil)
       } catch {
+        #if DEBUG
         NSLog("❌ [QuickCapture] Failed to write payload: \(error.localizedDescription)")
+        #endif
         result(
           FlutterError(
             code: "quick_capture_write_failed",
@@ -201,7 +237,9 @@ import UIKit
       // DispatchQueue.main.async {
       //   WidgetCenter.shared.reloadTimelines(ofKind: QuickCaptureSharedStore.widgetKind)
       // }
+      #if DEBUG
       NSLog("✅ [QuickCapture] Widget cache cleared")
+      #endif
       result(nil)
 
     default:
@@ -229,16 +267,22 @@ import UIKit
     switch call.method {
     case "getSharedItems":
       if let items = shareExtensionStore.readSharedItems() {
+        #if DEBUG
         NSLog("✅ [ShareExtension] Retrieved \(items.count) shared items from App Group")
+        #endif
         result(items)
       } else {
+        #if DEBUG
         NSLog("ℹ️ [ShareExtension] No shared items found in App Group")
+        #endif
         result([])
       }
 
     case "clearSharedItems":
       shareExtensionStore.clearSharedItems()
+      #if DEBUG
       NSLog("✅ [ShareExtension] Cleared shared items from App Group")
+      #endif
       result(nil)
 
     default:
@@ -249,15 +293,21 @@ import UIKit
   // MARK: - Deep Link Handling
 
   override func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+    #if DEBUG
     NSLog("📱 [DeepLink] Received URL: \(url.absoluteString)")
+    #endif
 
     guard url.scheme == "durunotes" else {
+      #if DEBUG
       NSLog("❌ [DeepLink] Invalid scheme: \(url.scheme ?? "nil")")
+      #endif
       return false
     }
 
     guard let controller = resolveFlutterViewController() else {
+      #if DEBUG
       NSLog("❌ [DeepLink] FlutterViewController not available")
+      #endif
       return false
     }
 
@@ -267,7 +317,9 @@ import UIKit
     )
 
     deepLinkChannel.invokeMethod("handleDeepLink", arguments: url.absoluteString)
+    #if DEBUG
     NSLog("✅ [DeepLink] Forwarded to Flutter: \(url.absoluteString)")
+    #endif
 
     return true
   }
@@ -276,7 +328,9 @@ import UIKit
 
   private func setupWindowDiagnosticsChannel() {
     guard let controller = window?.rootViewController as? FlutterViewController else {
+      #if DEBUG
       NSLog("❌ [Diagnostics] Cannot setup channel - no FlutterViewController")
+      #endif
       return
     }
 
@@ -301,10 +355,13 @@ import UIKit
       }
     }
 
+    #if DEBUG
     NSLog("✅ [Diagnostics] Window diagnostics channel registered")
+    #endif
   }
 
   private func logPlatformStateToConsole(context: String) {
+    #if DEBUG
     NSLog("📊 [PlatformState] ========== \(context) ==========")
     NSLog("📊 [MainThread] Is main thread: \(Thread.isMainThread)")
 
@@ -346,6 +403,7 @@ import UIKit
     NSLog("📊 [AllWindows] count=\(allWindows.count)")
 
     NSLog("📊 [PlatformState] ========================================")
+    #endif
   }
 
   private func getWindowStateDictionary() -> [String: Any] {
@@ -397,6 +455,7 @@ import UIKit
   }
 
   private func logWindowState() {
+    #if DEBUG
     NSLog("🪟 [Window Diagnostics] ========== START ==========")
 
     // Check window
@@ -446,14 +505,19 @@ import UIKit
     }
 
     NSLog("🪟 [Window Diagnostics] ========== END ==========")
+    #endif
   }
 
   override func applicationDidBecomeActive(_ application: UIApplication) {
+    #if DEBUG
     NSLog("🔵 [AppDelegate] applicationDidBecomeActive - app became active")
     logWindowState()
+    #endif
   }
 
   override func applicationWillResignActive(_ application: UIApplication) {
+    #if DEBUG
     NSLog("🔵 [AppDelegate] applicationWillResignActive - app will resign active")
+    #endif
   }
 }
