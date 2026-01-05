@@ -889,6 +889,9 @@ class HierarchyLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (!size.width.isFinite || !size.height.isFinite) {
+      return;
+    }
     final paint = Paint()
       ..color = color
       ..strokeWidth = 1.0

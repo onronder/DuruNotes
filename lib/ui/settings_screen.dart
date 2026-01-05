@@ -24,6 +24,7 @@ import 'package:duru_notes/features/notes/providers/notes_pagination_providers.d
     show currentNotesProvider, notesPageProvider;
 import 'package:duru_notes/features/folders/providers/folders_state_providers.dart'
     show folderHierarchyProvider;
+import 'package:duru_notes/features/encryption/encryption_feature_flag.dart';
 import 'package:duru_notes/services/providers/services_providers.dart'
     show
         exportServiceProvider,
@@ -1801,7 +1802,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
         // IMPORTANT: Also clear the AMK from AccountKeyService
         await ref.read(accountKeyServiceProvider).clearLocalAmk();
-        await ref.read(encryptionSyncServiceProvider).clearLocalKeys();
+        if (EncryptionFeatureFlags.enableCrossDeviceEncryption) {
+          await ref.read(encryptionSyncServiceProvider).clearLocalKeys();
+        }
 
         // Reset security initialization state to allow re-initialization
         SecurityInitialization.reset();

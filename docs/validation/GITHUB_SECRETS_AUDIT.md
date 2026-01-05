@@ -12,7 +12,7 @@
 
 | Secret Name | Used In | Description | How to Verify |
 |-------------|---------|-------------|---------------|
-| `ENV_PROD` | deploy-production.yml:156 | Production environment variables (.env.prod content) | Should contain Supabase URLs, API keys, etc. |
+| `ENV_PROD` | deploy-production.yml:156 | Production environment variables (assets/env/prod.env content) | Should contain Supabase URLs, API keys, etc. |
 | `GOOGLE_SERVICE_INFO_PLIST` | deploy-production.yml:157 | Firebase iOS configuration (GoogleService-Info.plist content) | Should be valid XML plist format |
 | `IOS_CERTIFICATES_P12` | deploy-production.yml:167 | Base64-encoded P12 certificate for code signing | Base64 string, ~8000+ characters |
 | `IOS_CERTIFICATES_PASSWORD` | deploy-production.yml:168 | Password for the P12 certificate | String password you set when exporting cert |
@@ -155,9 +155,9 @@ cat android/app/google-services.json | pbcopy
 # Then paste into GitHub secret
 ```
 
-**ENV_PROD (.env.prod):**
+**ENV_PROD (prod.env):**
 ```bash
-cat assets/env/.env.prod | pbcopy
+cat assets/env/prod.env | pbcopy
 # Then paste into GitHub secret
 ```
 

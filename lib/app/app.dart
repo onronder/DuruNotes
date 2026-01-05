@@ -68,6 +68,7 @@ import 'package:duru_notes/ui/modern_edit_note_screen.dart';
 import 'package:duru_notes/services/providers/services_providers.dart'
     show encryptionSyncServiceProvider, purgeSchedulerServiceProvider;
 import 'package:duru_notes/core/security/security_initialization.dart';
+import 'package:duru_notes/core/migration/run_encryption_migration.dart';
 import 'package:duru_notes/theme/material3_theme.dart';
 import 'package:duru_notes/ui/auth_screen.dart';
 import 'package:duru_notes/ui/dialogs/encryption_setup_dialog.dart';
@@ -434,10 +435,14 @@ class _NewUserEncryptionSetupGateState
       '[EncryptionSetupGate] Launching initial encryption setup dialog',
     );
 
+    final backend = EncryptionFeatureFlags.enableCrossDeviceEncryption
+        ? EncryptionSetupBackend.crossDevice
+        : EncryptionSetupBackend.device;
     final result = await showEncryptionSetupDialog(
       context,
       mode: EncryptionSetupMode.setup,
       allowCancel: false,
+      backend: backend,
     );
 
     if (!mounted) return;
@@ -1344,11 +1349,32 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       return EncryptionGateState.needsSetup;
     }
 
-    // Legacy device-specific encryption fallback
+    final legacyExists = await _remoteLegacyAmkExists();
+    if (legacyExists == true) {
+      totalStopwatch.stop();
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthWrapper] ⏱️  Returning needsUnlock (legacy key detected, total time: ${totalStopwatch.elapsedMilliseconds}ms)',
+        );
+      }
+      return EncryptionGateState.needsUnlock;
+    }
+
+    if (legacyExists == false) {
+      totalStopwatch.stop();
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthWrapper] ✅ No legacy AMK detected - provisioning required (total time: ${totalStopwatch.elapsedMilliseconds}ms)',
+        );
+      }
+      return EncryptionGateState.needsSetup;
+    }
+
+    // Unknown legacy state; default to unlock to avoid accidental re-provisioning
     totalStopwatch.stop();
     if (kDebugMode) {
       debugPrint(
-        '[AuthWrapper] ⏱️  Returning needsUnlock (legacy fallback, total time: ${totalStopwatch.elapsedMilliseconds}ms)',
+        '[AuthWrapper] ⏱️  Returning needsUnlock (legacy state unknown, total time: ${totalStopwatch.elapsedMilliseconds}ms)',
       );
     }
     return EncryptionGateState.needsUnlock;
@@ -1595,6 +1621,66 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
     return exists;
   }
 
+  Future<bool?> _remoteLegacyAmkExists() async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
+    // Auto-clear cache if user changed (handles signOut, new login, token refresh)
+    if (_cachedUserId != currentUserId) {
+      if (kDebugMode && _cachedRemoteAmkExists != null) {
+        debugPrint(
+          '[AuthWrapper] 🔄 User changed ($_cachedUserId → $currentUserId), clearing legacy cache',
+        );
+      }
+      _cachedRemoteAmkExists = null;
+      _cachedUserId = currentUserId;
+    }
+
+    // Check user-scoped cache (positive results only)
+    if (_cachedRemoteAmkExists == true) {
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthWrapper] ⏱️  _remoteLegacyAmkExists() → true (cached for user $currentUserId, 0ms)',
+        );
+      }
+      return true;
+    }
+
+    if (currentUserId == null) return null;
+
+    final totalStopwatch = Stopwatch()..start();
+
+    try {
+      final result = await Supabase.instance.client
+          .from('user_keys')
+          .select('user_id')
+          .eq('user_id', currentUserId)
+          .maybeSingle();
+
+      totalStopwatch.stop();
+
+      final exists = result != null;
+      if (exists) {
+        _cachedRemoteAmkExists = true;
+      }
+
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthWrapper] ⏱️  _remoteLegacyAmkExists() → $exists (total ${totalStopwatch.elapsedMilliseconds}ms)',
+        );
+      }
+
+      return exists;
+    } catch (e) {
+      totalStopwatch.stop();
+      if (kDebugMode) {
+        debugPrint(
+          '[AuthWrapper] Error checking legacy AMK existence: $e (${totalStopwatch.elapsedMilliseconds}ms)',
+        );
+      }
+      return null;
+    }
+  }
+
   /// Clear the remote AMK cache.
   /// Called on logout, successful provisioning, successful unlock, or widget disposal.
   void _clearRemoteAmkCache() {
@@ -1639,6 +1725,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
       ref.invalidate(templateCoreRepositoryProvider);
       ref.invalidate(taskCoreRepositoryProvider);
       unawaited(_runAutomaticTrashPurge());
+      unawaited(EncryptionMigrationRunner.runMigrationIfNeeded(ref));
     } catch (error, stackTrace) {
       try {
         final logger = ref.read(loggerProvider);
@@ -1659,6 +1746,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper>
   }
 
   Future<void> _mirrorCrossDeviceAmk() async {
+    if (!EncryptionFeatureFlags.enableCrossDeviceEncryption) {
+      return;
+    }
     try {
       final encryptionSync = ref.read(encryptionSyncServiceProvider);
       final Uint8List? amk = await encryptionSync.getLocalAmk();

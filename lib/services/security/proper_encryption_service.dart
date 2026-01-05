@@ -11,6 +11,9 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Production-grade Encryption Service with actual AES-256-GCM encryption
 /// This implementation properly encrypts data at rest using industry-standard algorithms
+@Deprecated(
+  'Unused. CryptoBox + AccountKeyService is the canonical path for note/task encryption.',
+)
 class ProperEncryptionService {
   static final ProperEncryptionService _instance =
       ProperEncryptionService._internal();

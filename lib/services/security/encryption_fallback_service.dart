@@ -9,6 +9,9 @@ import 'package:duru_notes/services/security/fallback_note.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Service to handle encryption fallbacks when decryption fails
+@Deprecated(
+  'Unused. CryptoBox + AccountKeyService is the canonical path for note/task encryption.',
+)
 class EncryptionFallbackService {
   static final EncryptionFallbackService _instance =
       EncryptionFallbackService._internal();

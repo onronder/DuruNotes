@@ -15,8 +15,18 @@ import FirebaseMessaging
 
   override func application(
     _ application: UIApplication,
+    willFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+  ) -> Bool {
+    _ = firebaseBootstrapper.configureIfNeeded()
+    return super.application(application, willFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    let firebaseState = firebaseBootstrapper.configureIfNeeded()
+
     #if DEBUG
     NSLog("🔵 [AppDelegate] iOS 18.6 MANUAL WINDOW FIX - didFinishLaunchingWithOptions STARTED")
     NSLog("🔵 [AppDelegate] Calling super.application()")
@@ -51,6 +61,17 @@ import FirebaseMessaging
       NSLog("✅ [AppDelegate] Window already exists from super.application()")
       #endif
     }
+
+    #if DEBUG
+    switch firebaseState {
+    case .configured:
+      NSLog("✅ [AppDelegate] Firebase configured from GoogleService-Info.plist")
+    case .alreadyConfigured:
+      NSLog("ℹ️ [AppDelegate] Firebase already configured")
+    case .missingPlist:
+      NSLog("⚠️ [AppDelegate] GoogleService-Info.plist missing; Firebase will be initialized in Dart")
+    }
+    #endif
 
     // Register plugins AFTER window is created
     #if DEBUG

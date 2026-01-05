@@ -56,16 +56,15 @@ app.*.map.json
 # Environment files - NEVER COMMIT
 *.env
 .env*
-assets/env/
-**/env/prod.env
-**/env/dev.env
-**/env/staging.env
+assets/env/*.env
+!assets/env/example.env
 
 # Secrets and keys
 *.key
 *.pem
 *.p12
 *.pfx
+sentry.properties
 service-account.json
 google-services.json
 GoogleService-Info.plist

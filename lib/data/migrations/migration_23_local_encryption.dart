@@ -2,8 +2,8 @@ import 'package:drift/drift.dart';
 
 /// Migration 23: Add local encryption columns for CryptoBox at-rest encryption
 ///
-/// Adds encrypted versions of note and task data to enable zero-knowledge architecture
-/// where local database is encrypted with the same CryptoBox system used for Supabase.
+/// Adds encrypted versions of note and task data to enable zero-knowledge
+/// field-level encryption using the same CryptoBox system used for Supabase.
 ///
 /// Strategy:
 /// - Add titleEncrypted, bodyEncrypted, metadataEncrypted columns to notes

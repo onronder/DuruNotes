@@ -5,10 +5,31 @@ import Foundation
 final class ShareExtensionSharedStore {
   static let appGroupIdentifier = "group.com.fittechs.durunotes"
   private static let sharedItemsKey = "share_extension_shared_items"
+  private static var hasLoggedMissingSuite = false
 
   // Internal access needed for explicit synchronization in ShareViewController
   // This allows ShareViewController to call defaults.synchronize() before termination
-  let defaults = UserDefaults(suiteName: appGroupIdentifier)
+  var defaults: UserDefaults? {
+    Self.resolveDefaults()
+  }
+
+  private static func resolveDefaults() -> UserDefaults? {
+    guard
+      let containerURL = FileManager.default.containerURL(
+        forSecurityApplicationGroupIdentifier: appGroupIdentifier
+      ),
+      FileManager.default.fileExists(atPath: containerURL.path)
+    else {
+      #if DEBUG
+      if !hasLoggedMissingSuite {
+        NSLog("[ShareExtensionSharedStore] App Group container missing: \(appGroupIdentifier)")
+        hasLoggedMissingSuite = true
+      }
+      #endif
+      return nil
+    }
+    return UserDefaults(suiteName: appGroupIdentifier)
+  }
 
   enum StoreError: Error {
     case missingSuite

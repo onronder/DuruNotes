@@ -50,8 +50,7 @@ const ALLOWED_MIME_TYPES = [
   'application/x-zip-compressed'
 ];
 
-// Rate limiting: Store in-memory (for production, use Redis or database)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+// Rate limiting: Use database to persist limits across cold starts
 const RATE_LIMIT_MAX = 100; // 100 emails per hour per user
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
 
@@ -74,24 +73,34 @@ function isAllowedMimeType(mimeType: string): boolean {
 }
 
 /**
- * Check rate limit for user
+ * Check rate limit for user (database-backed)
  */
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const userLimit = rateLimitStore.get(userId);
+async function checkRateLimit(
+  supabase: any,
+  userId: string
+): Promise<{ allowed: boolean; remaining: number }> {
+  const oneHourAgo = new Date(Date.now() - RATE_LIMIT_WINDOW).toISOString();
 
-  if (!userLimit || now > userLimit.resetTime) {
-    // Reset or create new limit
-    rateLimitStore.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-    return true;
+  try {
+    const { count, error } = await supabase
+      .from('clipper_inbox')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('source_type', 'email_in')
+      .gte('created_at', oneHourAgo);
+
+    if (error) {
+      console.error('Rate limit check error:', error);
+      return { allowed: true, remaining: RATE_LIMIT_MAX }; // Fail open
+    }
+
+    const total = count ?? 0;
+    const remaining = Math.max(0, RATE_LIMIT_MAX - total);
+    return { allowed: total < RATE_LIMIT_MAX, remaining };
+  } catch (e) {
+    console.error('Rate limit exception:', e);
+    return { allowed: true, remaining: RATE_LIMIT_MAX }; // Fail open
   }
-
-  if (userLimit.count >= RATE_LIMIT_MAX) {
-    return false; // Rate limit exceeded
-  }
-
-  userLimit.count++;
-  return true;
 }
 
 /**
@@ -138,6 +147,17 @@ function sanitizeHtml(html: string): string {
 /**
  * Verify HMAC signature
  */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  const maxLength = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < maxLength; i++) {
+    const aCode = i < a.length ? a.charCodeAt(i) : 0;
+    const bCode = i < b.length ? b.charCodeAt(i) : 0;
+    diff |= aCode ^ bCode;
+  }
+  return diff === 0;
+}
+
 async function verifyHMAC(payload: string, signature: string, secret: string): Promise<boolean> {
   try {
     const encoder = new TextEncoder();
@@ -160,7 +180,7 @@ async function verifyHMAC(payload: string, signature: string, secret: string): P
       .join('');
 
     // Timing-safe comparison
-    return computedSignature === signature.toLowerCase();
+    return timingSafeEqualHex(computedSignature, signature.toLowerCase());
   } catch (e) {
     console.error('HMAC verification failed:', e);
     return false;
@@ -374,10 +394,14 @@ serve(async (req) => {
     console.log("Found user for alias:", { alias: recipientAlias, userId });
 
     // SECURITY: Rate limiting check (BEFORE processing email)
-    if (!checkRateLimit(userId)) {
+    const rateLimit = await checkRateLimit(supabase, userId);
+    if (!rateLimit.allowed) {
       console.error(`Rate limit exceeded for user ${userId}`);
       return new Response(
-        JSON.stringify({ error: "Rate limit exceeded. Maximum 100 emails per hour." }),
+        JSON.stringify({
+          error: "Rate limit exceeded. Maximum 100 emails per hour.",
+          remaining: rateLimit.remaining
+        }),
         { status: 429, headers: { ...responseCorsHeaders, "Content-Type": "application/json" } }
       );
     }

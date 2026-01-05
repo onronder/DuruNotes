@@ -146,6 +146,7 @@ Organized Riverpod providers by feature:
 - `tasks` - Hierarchical to-do items linked to notes
 - `templates` - Reusable note templates
 - `sync_queue` - Pending synchronization operations
+Note: The on-device SQLite file is not SQLCipher-encrypted. Encrypted fields are stored for content, but search indexes and some metadata may be stored in plaintext to support local search.
 
 ### Remote (Supabase)
 - `notes` - Encrypted note blobs with metadata

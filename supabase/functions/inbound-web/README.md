@@ -12,25 +12,28 @@ The function accepts HTTP POST requests containing web clip data (title, text, U
 
 ## Authentication Methods
 
-### Method 1: HMAC Signature (Recommended)
+### Method 1: JWT (Browser Extension)
+
+Use a user JWT from Supabase auth.
+
+**Headers:**
+- `Authorization: Bearer <user-jwt>`
+
+### Method 2: HMAC Signature (Recommended for Services/Webhooks)
 
 Use HMAC-SHA256 signing for enhanced security and replay attack protection.
 
 **Headers:**
-- `X-Clipper-Timestamp`: ISO 8601 timestamp (must be within 5 minutes of server time)
+- `X-Clipper-Timestamp`: ISO 8601 timestamp (included in signature; no server-side window enforcement yet)
 - `X-Clipper-Signature`: Hex-encoded HMAC-SHA256 signature
 
 **Signature Computation:**
 ```
-message = timestamp + '\n' + request_body
+message = request_body + timestamp
 signature = HMAC-SHA256(secret, message)
 ```
 
-### Method 2: Query Parameter (Deprecated, for backward compatibility)
-
-- `POST /functions/v1/inbound-web?secret=<SECRET>`
-
-⚠️ **Note:** Query parameter authentication is deprecated and will be removed in a future version. Please migrate to HMAC signing.
+⚠️ **Note:** Query parameter authentication is no longer supported. Use JWT or HMAC.
 
 ## Request Format
 
@@ -63,8 +66,9 @@ The function automatically normalizes the alias field to handle various formats:
 
 ## Security
 
-- Supports HMAC-SHA256 signature verification with timestamp validation (5-minute window)
-- Falls back to query parameter secret for backward compatibility
+- Supports JWT (Authorization header) and HMAC-SHA256 signature verification
+- `verify_jwt = false` in `supabase/config.toml` to allow HMAC; JWT is still verified in code
+- CORS allowlist: chrome-extension origins and durunotes.com domains only
 - Maps alias to user via `inbound_aliases` table
 - Uses service role to insert data (maintains zero-knowledge principle)
 - Returns success even for unknown aliases (prevents alias enumeration)
@@ -75,7 +79,7 @@ The function automatically normalizes the alias field to handle various formats:
 # Deploy the function
 supabase functions deploy inbound-web
 
-# Set the secret (required for both HMAC and query param auth)
+# Set the secret (required for HMAC auth)
 supabase secrets set INBOUND_PARSE_SECRET=<your-secret-value>
 ```
 
@@ -108,13 +112,14 @@ curl -X POST \
   -d "$BODY"
 ```
 
-### With Query Parameter (Deprecated)
+### With JWT (Browser Extension)
 
 ```bash
-# Test with curl
+JWT="<user-jwt>"
 curl -X POST \
-  "https://<project-id>.supabase.co/functions/v1/inbound-web?secret=<your-secret>" \
+  "https://<project-id>.supabase.co/functions/v1/inbound-web" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $JWT" \
   -d '{
     "alias": "note_abc123",
     "title": "Test Web Clip",

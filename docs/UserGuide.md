@@ -223,12 +223,15 @@ Keep important notes at the top:
 
 ### End-to-End Encryption
 
-Your data is encrypted at rest and in transit:
+Your data is encrypted in transit and on the server. On-device, note content is
+field-level encrypted, but the SQLite database file itself is not SQLCipher-
+encrypted, so search indexes and some metadata may be stored in plaintext.
 
 - **Note content** - Encrypted before leaving your device
 - **Attachments** - Secure storage with encryption
 - **Voice recordings** - Protected during upload and storage
 - **Sync** - Encrypted data transfer between devices
+- **Local search index** - Stored on-device for search, not SQLCipher-encrypted
 
 **Master Key:**
 - Set during first launch

@@ -98,7 +98,7 @@ jobs:
 
       - name: Setup production environment
         run: |
-          echo "${{ secrets.ENV_PROD }}" > assets/env/.env.prod
+          echo "${{ secrets.ENV_PROD }}" > assets/env/prod.env
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > android/app/google-services.json
 
       - name: Decode keystore
@@ -162,7 +162,7 @@ jobs:
 
       - name: Setup production environment
         run: |
-          echo "${{ secrets.ENV_PROD }}" > assets/env/.env.prod
+          echo "${{ secrets.ENV_PROD }}" > assets/env/prod.env
           echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" > ios/Runner/GoogleService-Info.plist
 
       - name: Install CocoaPods

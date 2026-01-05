@@ -12,11 +12,10 @@ import 'package:duru_notes/services/security/security_audit_trail.dart';
 /// - Recovery/repair functionality
 /// - Comprehensive error handling and audit logging
 ///
-/// **Architecture Note**: FTS contains decrypted content for search, but the
-/// database stores only encrypted data. This is safe because:
-/// 1. FTS is part of the local encrypted SQLite database
-/// 2. Database encryption (SQLCipher) protects the entire file at rest
-/// 3. FTS never leaves the device
+/// **Architecture Note**: FTS contains decrypted content for search.
+/// The SQLite database file is not SQLCipher-encrypted, so FTS data is stored
+/// in plaintext at rest on device. Rely on OS storage protections and treat
+/// FTS as local-only data; revisit if SQLCipher is enabled later.
 class FtsService {
   FtsService({
     required this.db,

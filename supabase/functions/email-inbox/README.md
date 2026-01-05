@@ -33,8 +33,10 @@ supabase functions logs inbound-email --tail
 Required environment variables (set via Supabase secrets):
 
 - `INBOUND_PARSE_SECRET`: Secret token for webhook authentication
+- `INBOUND_HMAC_SECRET`: HMAC secret for signature verification (preferred)
 - `SUPABASE_URL`: Auto-set by Supabase
 - `SUPABASE_SERVICE_ROLE_KEY`: Auto-set by Supabase
+- `ALLOWED_ORIGIN` (optional): CORS allowlist override for browser clients
 
 ## How It Works
 
@@ -92,7 +94,9 @@ Emails are stored with this JSON structure:
 
 ## Security
 
-- Secret token validation on every request
+- HMAC signature verification when `INBOUND_HMAC_SECRET` is set (`x-signature`)
+- Query secret fallback for legacy SendGrid configurations
+- `verify_jwt = false` in `supabase/config.toml` (webhook endpoint)
 - Service role key for database access
 - RLS policies protect user data
 - Unknown aliases are silently ignored

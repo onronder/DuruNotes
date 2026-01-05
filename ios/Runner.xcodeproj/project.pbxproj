@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -20,6 +20,7 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		ABAB44DB49D14088588F1B62 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 385BD9ED47B9D2B96A2FD55D /* MainInterface.storyboard */; };
 		B328F2B72FB7A5DD0046929F /* ShareExtensionSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B328F2B62FB7A5DD0046929F /* ShareExtensionSharedStore.swift */; };
+		B36F25052F0C057300BC99FA /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B36F25042F0C057300BC99FA /* StoreKit.framework */; };
 		B3B008A52EAFB3F400229396 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3B008A42EAFB3F400229396 /* WidgetKit.framework */; };
 		B3B008A72EAFB3F400229396 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3B008A62EAFB3F400229396 /* SwiftUI.framework */; };
 		B3B008B42EAFB3F600229396 /* QuickCaptureWidgetExtensionExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B3B008A32EAFB3F400229396 /* QuickCaptureWidgetExtensionExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -108,6 +109,7 @@
 		A831B185404C8EB0D5524F34 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		A88721DEBB477C4539073E36 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B328F2B62FB7A5DD0046929F /* ShareExtensionSharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionSharedStore.swift; sourceTree = "<group>"; };
+		B36F25042F0C057300BC99FA /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		B3B008A32EAFB3F400229396 /* QuickCaptureWidgetExtensionExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickCaptureWidgetExtensionExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B3B008A42EAFB3F400229396 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		B3B008A62EAFB3F400229396 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -119,7 +121,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		B3B008B92EAFB3F600229396 /* Exceptions for "QuickCaptureWidgetExtension" folder in "QuickCaptureWidgetExtensionExtension" target */ = {
+		B3B008B92EAFB3F600229396 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -129,18 +131,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		B3B008A82EAFB3F400229396 /* QuickCaptureWidgetExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				B3B008B92EAFB3F600229396 /* Exceptions for "QuickCaptureWidgetExtension" folder in "QuickCaptureWidgetExtensionExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = QuickCaptureWidgetExtension;
-			sourceTree = "<group>";
-		};
+		B3B008A82EAFB3F400229396 /* QuickCaptureWidgetExtension */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (B3B008B92EAFB3F600229396 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = QuickCaptureWidgetExtension; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -156,6 +147,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				90B6526D0B54346792421364 /* Pods_Runner.framework in Frameworks */,
+				B36F25052F0C057300BC99FA /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -203,6 +195,7 @@
 		47588DB746D3929DBE3BFFEA /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				B36F25042F0C057300BC99FA /* StoreKit.framework */,
 				A88721DEBB477C4539073E36 /* Pods_Runner.framework */,
 				8D48032DC64EC3DD12A052F0 /* Pods_RunnerTests.framework */,
 				B3B008A42EAFB3F400229396 /* WidgetKit.framework */,
@@ -457,9 +450,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -490,9 +487,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -764,6 +765,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3CBK9E82BZ;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				GENERATE_APP_INTENTS_METADATA = NO;
@@ -794,6 +796,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3CBK9E82BZ;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				GENERATE_APP_INTENTS_METADATA = NO;
@@ -822,6 +825,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3CBK9E82BZ;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				GENERATE_INFOPLIST_FILE = YES;

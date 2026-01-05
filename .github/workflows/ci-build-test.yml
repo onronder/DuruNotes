@@ -203,13 +203,13 @@ jobs:
 
       - name: Setup environment files
         run: |
-          cat <<'EOF' > assets/env/.env.dev
+          cat <<'EOF' > assets/env/dev.env
           ${{ secrets.ENV_DEV }}
           EOF
-          cat <<'EOF' > assets/env/.env.staging
+          cat <<'EOF' > assets/env/staging.env
           ${{ secrets.ENV_STAGING }}
           EOF
-          cat <<'EOF' > assets/env/.env.prod
+          cat <<'EOF' > assets/env/prod.env
           ${{ secrets.ENV_PROD }}
           EOF
 
@@ -320,7 +320,7 @@ PY
 
       - name: Setup environment files
         run: |
-          cat <<'EOF' > assets/env/.env.prod
+          cat <<'EOF' > assets/env/prod.env
           ${{ secrets.ENV_PROD }}
           EOF
 

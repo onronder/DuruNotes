@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:duru_notes/core/monitoring/app_logger.dart';
 import 'package:duru_notes/core/providers/infrastructure_providers.dart'
     show loggerProvider;
+import 'package:duru_notes/core/providers/security_providers.dart'
+    show accountKeyServiceProvider;
 import 'package:duru_notes/l10n/app_localizations.dart';
 import 'package:duru_notes/services/encryption_sync_service.dart'; // EncryptionException
 import 'package:duru_notes/services/providers/services_providers.dart';
@@ -12,23 +14,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zxcvbn/zxcvbn.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
-/// Dialog for setting up encryption password for cross-device sync
+/// Dialog for setting up an encryption passphrase
 ///
 /// This dialog is shown:
-/// - On first sign-up (optional)
-/// - When user wants to enable cross-device encryption
-/// - When signing in on a new device (to retrieve encryption)
+/// - On first sign-up (setup)
+/// - When signing in on a new device (retrieve)
 class EncryptionSetupDialog extends ConsumerStatefulWidget {
   const EncryptionSetupDialog({
     super.key,
     this.mode = EncryptionSetupMode.setup,
     this.onSuccess,
     this.allowCancel = true,
+    this.backend = EncryptionSetupBackend.crossDevice,
   });
 
   final EncryptionSetupMode mode;
   final VoidCallback? onSuccess;
   final bool allowCancel;
+  final EncryptionSetupBackend backend;
 
   @override
   ConsumerState<EncryptionSetupDialog> createState() =>
@@ -38,6 +41,11 @@ class EncryptionSetupDialog extends ConsumerStatefulWidget {
 enum EncryptionSetupMode {
   setup, // First-time setup (create new encryption)
   retrieve, // Sign in on new device (retrieve existing encryption)
+}
+
+enum EncryptionSetupBackend {
+  crossDevice,
+  device,
 }
 
 class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
@@ -219,13 +227,25 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
     });
 
     try {
-      final encryptionService = ref.read(encryptionSyncServiceProvider);
       final password = _passwordController.text.trim();
 
-      if (widget.mode == EncryptionSetupMode.setup) {
-        await encryptionService.setupEncryption(password);
+      if (widget.backend == EncryptionSetupBackend.device) {
+        final ok = await ref
+            .read(accountKeyServiceProvider)
+            .unlockAmkWithPassphrase(password);
+        if (!ok) {
+          throw EncryptionException(
+            'Invalid passphrase. Please try again.',
+            code: 'INVALID_PASSPHRASE',
+          );
+        }
       } else {
-        await encryptionService.retrieveEncryption(password);
+        final encryptionService = ref.read(encryptionSyncServiceProvider);
+        if (widget.mode == EncryptionSetupMode.setup) {
+          await encryptionService.setupEncryption(password);
+        } else {
+          await encryptionService.retrieveEncryption(password);
+        }
       }
 
       // SECURITY: Clear passwords from memory after successful use
@@ -275,10 +295,23 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
     final l10n = AppLocalizations.of(context);
 
     final isSetup = widget.mode == EncryptionSetupMode.setup;
-    final title = isSetup ? 'Setup Encryption' : 'Enter Encryption Password';
+    final isDeviceBackend = widget.backend == EncryptionSetupBackend.device;
+    final credentialLabel = isDeviceBackend ? 'Passphrase' : 'Password';
+    final credentialLabelLower = credentialLabel.toLowerCase();
+    final title = isSetup
+        ? (isDeviceBackend
+              ? 'Create Encryption Passphrase'
+              : 'Setup Encryption')
+        : (isDeviceBackend
+              ? 'Enter Encryption Passphrase'
+              : 'Enter Encryption Password');
     final description = isSetup
-        ? 'Create a password to encrypt your notes for cross-device sync. This password is used only for encryption and is never sent to our servers.'
-        : 'Enter the password you used when setting up encryption on your first device.';
+        ? (isDeviceBackend
+              ? 'Create a passphrase to encrypt your notes. This passphrase is never sent to our servers.'
+              : 'Create a password to encrypt your notes for cross-device sync. This password is used only for encryption and is never sent to our servers.')
+        : (isDeviceBackend
+              ? 'Enter the passphrase you used to encrypt your notes.'
+              : 'Enter the password you used when setting up encryption on your first device.');
 
     return AlertDialog(
       backgroundColor: colorScheme.surface,
@@ -364,8 +397,12 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
                 focusNode: _passwordFocusNode,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  labelText: 'Encryption Password',
-                  hintText: 'Enter a strong password',
+                  labelText: isDeviceBackend
+                      ? 'Encryption Passphrase'
+                      : 'Encryption Password',
+                  hintText: isDeviceBackend
+                      ? 'Enter a strong passphrase'
+                      : 'Enter a strong password',
                   prefixIcon: const Icon(Icons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -385,12 +422,12 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
                 ),
                 validator: (value) {
                   if (value?.isEmpty ?? true) {
-                    return 'Password is required';
+                    return '$credentialLabel is required';
                   }
 
                   // Production-grade password requirements
                   if (value!.length < 6) {
-                    return 'Password must be at least 6 characters';
+                    return '$credentialLabel must be at least 6 characters';
                   }
 
                   // For setup mode, enforce complexity and strength
@@ -408,7 +445,7 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
 
                     // Enforce minimum strength (score 2 = "Fair" is minimum acceptable)
                     if (_passwordStrength < 2) {
-                      return 'Password is too weak. Please use a stronger password.';
+                      return '$credentialLabel is too weak. Please use a stronger $credentialLabelLower.';
                     }
                   }
 
@@ -438,8 +475,12 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
                   focusNode: _confirmPasswordFocusNode,
                   obscureText: _obscureConfirmPassword,
                   decoration: InputDecoration(
-                    labelText: 'Confirm Password',
-                    hintText: 'Re-enter your password',
+                    labelText: isDeviceBackend
+                        ? 'Confirm Passphrase'
+                        : 'Confirm Password',
+                    hintText: isDeviceBackend
+                        ? 'Re-enter your passphrase'
+                        : 'Re-enter your password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -459,10 +500,12 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
                   ),
                   validator: (value) {
                     if (value?.isEmpty ?? true) {
-                      return 'Please confirm your password';
+                      return 'Please confirm your $credentialLabelLower';
                     }
                     if (value != _passwordController.text) {
-                      return 'Passwords do not match';
+                      return isDeviceBackend
+                          ? 'Passphrases do not match'
+                          : 'Passwords do not match';
                     }
                     return null;
                   },
@@ -492,8 +535,12 @@ class _EncryptionSetupDialogState extends ConsumerState<EncryptionSetupDialog> {
                     Expanded(
                       child: Text(
                         isSetup
-                            ? 'Important: Store this password securely. If you lose it, you will not be able to decrypt your notes on other devices.'
-                            : 'This is the same password you used when you first set up encryption.',
+                            ? (isDeviceBackend
+                                  ? 'Important: Store this passphrase securely. If you lose it, you will not be able to decrypt your notes.'
+                                  : 'Important: Store this password securely. If you lose it, you will not be able to decrypt your notes on other devices.')
+                            : (isDeviceBackend
+                                  ? 'This is the same passphrase you used when you first set up encryption.'
+                                  : 'This is the same password you used when you first set up encryption.'),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -583,6 +630,7 @@ Future<bool?> showEncryptionSetupDialog(
   EncryptionSetupMode mode = EncryptionSetupMode.setup,
   VoidCallback? onSuccess,
   bool allowCancel = true,
+  EncryptionSetupBackend backend = EncryptionSetupBackend.crossDevice,
 }) {
   return showDialog<bool>(
     context: context,
@@ -591,6 +639,7 @@ Future<bool?> showEncryptionSetupDialog(
       mode: mode,
       onSuccess: onSuccess,
       allowCancel: allowCancel,
+      backend: backend,
     ),
   );
 }

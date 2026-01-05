@@ -57,6 +57,17 @@ function getCorsHeaders(origin: string | null): Record<string, string> {
 /**
  * Verify HMAC signature using SHA-256
  */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  const maxLength = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < maxLength; i++) {
+    const aCode = i < a.length ? a.charCodeAt(i) : 0;
+    const bCode = i < b.length ? b.charCodeAt(i) : 0;
+    diff |= aCode ^ bCode;
+  }
+  return diff === 0;
+}
+
 async function verifyHMAC(payload: string, signature: string, secret: string): Promise<boolean> {
   try {
     const encoder = new TextEncoder();
@@ -78,7 +89,7 @@ async function verifyHMAC(payload: string, signature: string, secret: string): P
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    return computedSignature === signature.toLowerCase();
+    return timingSafeEqualHex(computedSignature, signature.toLowerCase());
   } catch (e) {
     console.error("HMAC verification error:", e);
     return false;
@@ -140,7 +151,7 @@ async function checkRateLimit(supabase: any, userId: string): Promise<{ allowed:
   const RATE_LIMIT = 50; // clips per hour
 
   try {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from('clipper_inbox')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
@@ -152,11 +163,11 @@ async function checkRateLimit(supabase: any, userId: string): Promise<{ allowed:
       return { allowed: true, remaining: RATE_LIMIT }; // Fail open
     }
 
-    const count = data || 0;
-    const remaining = Math.max(0, RATE_LIMIT - count);
+    const total = count ?? 0;
+    const remaining = Math.max(0, RATE_LIMIT - total);
 
     return {
-      allowed: count < RATE_LIMIT,
+      allowed: total < RATE_LIMIT,
       remaining
     };
   } catch (e) {

@@ -60,3 +60,11 @@ subject = "You have been invited"
 # Disable JWT verification for webhook endpoints only
 # Function name must match deployed function (with hyphen, not underscore)
 verify_jwt = false
+
+[functions.inbound-web]
+# Supports HMAC and JWT in function code; allow HMAC by disabling platform JWT
+verify_jwt = false
+
+[functions.inbound-web-auth]
+# JWT-only endpoint
+verify_jwt = true

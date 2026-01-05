@@ -19,6 +19,9 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 /// - Automatic key rotation
 /// - Secure key storage
 /// - Data integrity verification
+///
+/// NOTE: This service is used for auth/session metadata and legacy migrations.
+/// For note/task content encryption, use CryptoBox + AccountKeyService (AMK).
 class EncryptionService {
   static final EncryptionService _instance = EncryptionService._internal();
   factory EncryptionService() => _instance;

@@ -488,6 +488,12 @@ class RipplePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (!center.dx.isFinite ||
+        !center.dy.isFinite ||
+        !radius.isFinite ||
+        radius <= 0) {
+      return;
+    }
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;

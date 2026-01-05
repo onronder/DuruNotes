@@ -112,15 +112,21 @@ final bytes = SupabaseNoteApi.asBytes(supabaseValue);
 final decrypted = await cryptoBox.decrypt(bytes);
 ```
 
+## Canonical Encryption Path
+
+- Canonical key source: AccountKeyService (AMK stored in `user_keys` + device secure storage).
+- Canonical content cipher: CryptoBox (XChaCha20-Poly1305 + HKDF).
+- Legacy AES services are migration-only; do not use for note/task content.
+
 ---
 
 ## Encryption Patterns by Entity
 
 ### Pattern A: Local + Remote Encrypted (Notes)
 ```
-User Input → Encrypt → Store Local (TEXT) → Sync → Store Remote (bytea)
+User Input → Encrypt → Store Local (encrypted fields; DB file not SQLCipher) → Sync → Store Remote (bytea)
                 ↓
-         Encrypted at rest locally AND remotely
+         Field-level encrypted locally + encrypted remotely
 ```
 
 **Tables**: `notes`
